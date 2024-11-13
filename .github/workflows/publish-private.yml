@@ -1,0 +1,123 @@
+name: Build and Publish to static private PyPI
+
+on:
+  push:
+    branches:
+      - main-private
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - fastapi-cli-slim
+          - fastapi-cli
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install build dumb-pypi
+
+      - name: Get version info
+        id: version
+        run: |
+          # Get the short commit hash
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          echo "Commit SHA: ${COMMIT_SHA}"
+
+          # Get the current version from __init__.py
+          BASE_VERSION=$(grep -Po '(?<=__version__ = ")[^"]*' src/fastapi_cli/__init__.py)
+          echo "Base version: ${BASE_VERSION}"
+
+          FULL_VERSION="${BASE_VERSION}+${COMMIT_SHA}"
+
+          echo "version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "Full version: ${FULL_VERSION}"
+
+      - name: Update version
+        run: |
+          # Update version in Python files
+          perl -pi -e "s/__version__ = \".*\"/__version__ = \"${{ steps.version.outputs.version }}\"/" src/fastapi_cli/__init__.py
+
+      - name: Update version in pyproject.toml
+        run: |
+          sed -i "s/version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" pyproject.toml
+
+      - name: Build distribution
+        env:
+          TIANGOLO_BUILD_PACKAGE: ${{ matrix.package }}
+        run: python -m build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-files
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-files
+          path: dist/
+
+      - name: Create package list
+        run: |
+          import glob
+          from pathlib import Path
+
+          # Find all .whl and .tar.gz files in current directory
+          package_files = glob.glob("*.whl", recursive=True) + glob.glob("*.tar.gz", recursive=True)
+
+          output = "\n".join(package_files)
+
+          Path("my-packages").write_text(output)
+        shell: python
+        working-directory: dist/
+
+      - name: Generate dumb-pypi index
+        working-directory: dist/
+        run: |
+          pip install dumb-pypi
+          dumb-pypi \
+            --package-list my-packages \
+            --packages-url https://pypi.fastapicloud.com/packages/ \
+            --output-dir my-built-index
+
+      - name: Move packages to /packages
+        run: |
+          mkdir -p dist/my-built-index/packages
+          mv dist/{*.whl,*.tar.gz} dist/my-built-index/packages
+
+      - name: Deploy
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/my-built-index --project-name=fastapi-cli --branch=main
