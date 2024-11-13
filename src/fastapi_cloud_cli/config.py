@@ -1,0 +1,26 @@
+import json
+from pathlib import Path
+
+from pydantic import BaseModel
+
+from .utils.config import get_cli_config_path
+
+
+class Settings(BaseModel):
+    base_api_url: str = "https://api.fastapicloud.club/api/v1"
+    client_id: str = "fastapi-cli"
+    base_frontend_url: str = "https://dashboard.fastapicloud.work"
+
+    @classmethod
+    def from_user_settings(cls, config_path: Path) -> "Settings":
+        try:
+            content = config_path.read_bytes() if config_path.exists() else b"{}"
+
+            user_settings = json.loads(content)
+        except json.JSONDecodeError:
+            user_settings = {}
+
+        return cls(**user_settings)
+
+
+settings = Settings.from_user_settings(get_cli_config_path())
