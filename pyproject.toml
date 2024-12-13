@@ -39,6 +39,7 @@ dependencies = [
     "httpx >= 0.27.0,< 0.28.0",
     "rich-toolkit >= 0.12.0",
     "pydantic >= 1.6.1",
+    "sentry-sdk",
 ]
 
 [project.optional-dependencies]
