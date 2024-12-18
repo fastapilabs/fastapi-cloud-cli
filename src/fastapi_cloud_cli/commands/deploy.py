@@ -100,6 +100,7 @@ class DeploymentStatus(str, Enum):
     deploying = "deploying"
     success = "success"
     failed = "failed"
+    ready_for_build = "ready_for_build"
 
 
 class CreateDeploymentResponse(BaseModel):
