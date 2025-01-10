@@ -96,11 +96,26 @@ def _create_app(team_id: str, app_name: str) -> AppResponse:
 
 class DeploymentStatus(str, Enum):
     waiting_upload = "waiting_upload"
+    ready_for_build = "ready_for_build"
     building = "building"
+    extracting = "extracting"
+    building_image = "building_image"
     deploying = "deploying"
     success = "success"
     failed = "failed"
-    ready_for_build = "ready_for_build"
+
+    @classmethod
+    def to_human_readable(cls, status: "DeploymentStatus") -> str:
+        return {
+            cls.waiting_upload: "Waiting for upload",
+            cls.ready_for_build: "Ready for build",
+            cls.building: "Building",
+            cls.extracting: "Extracting",
+            cls.building_image: "Building image",
+            cls.deploying: "Deploying",
+            cls.success: "Success",
+            cls.failed: "Failed",
+        }[status]
 
 
 class CreateDeploymentResponse(BaseModel):
@@ -322,7 +337,10 @@ def _wait_for_deployment(
 
                 raise typer.Exit(1)
             else:
-                progress.log(next(messages))
+                message = next(messages)
+                progress.log(
+                    f"{message} ({DeploymentStatus.to_human_readable(deployment.status)})"
+                )
 
             time.sleep(4)
             time_elapsed += 4
