@@ -3,6 +3,7 @@ import tarfile
 import tempfile
 import time
 import uuid
+from collections.abc import Generator
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
@@ -212,6 +213,16 @@ def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None
         response.raise_for_status()
 
 
+def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
+    with APIClient() as client:
+        with client.stream(
+            "GET", f"/deployments/{deployment_id}/build-logs", timeout=60
+        ) as response:
+            response.raise_for_status()
+
+            yield from response.iter_lines()
+
+
 WAITING_MESSAGES = [
     "🚀 Preparing for liftoff! Almost there...",
     "👹 Sneaking past the dependency gremlins... Don't wake them up!",
@@ -319,6 +330,18 @@ def _wait_for_deployment(
     toolkit.print_line()
 
     time_elapsed = 0
+
+    with toolkit.progress(
+        "Deploying...", inline_logs=True, lines_to_show=20
+    ) as progress:
+        for line in _stream_build_logs(deployment_id):
+            import json
+
+            data = json.loads(line)
+            if "message" in data:
+                progress.log(data["message"].rstrip())
+
+    toolkit.print_line()
 
     with toolkit.progress("Deploying...") as progress:
         while True:
