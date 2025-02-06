@@ -1,5 +1,6 @@
 import httpx
 
+from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import settings
 
 from .auth import get_auth_token
@@ -10,5 +11,9 @@ class APIClient(httpx.Client):
         token = get_auth_token()
 
         super().__init__(
-            base_url=settings.base_api_url, headers={"Authorization": f"Bearer {token}"}
+            base_url=settings.base_api_url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "User-Agent": f"fastapi-cloud-cli/{__version__}",
+            },
         )
