@@ -13,6 +13,7 @@ import rignore
 import typer
 from httpx import Client
 from pydantic import BaseModel
+from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 from typing_extensions import Annotated
@@ -338,8 +339,9 @@ def _wait_for_deployment(
             import json
 
             data = json.loads(line)
+
             if "message" in data:
-                progress.log(data["message"].rstrip())
+                progress.log(Text.from_ansi(data["message"].rstrip()))
 
     toolkit.print_line()
 
