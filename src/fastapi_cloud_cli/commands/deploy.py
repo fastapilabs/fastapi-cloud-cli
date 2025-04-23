@@ -1,3 +1,4 @@
+import json
 import logging
 import tarfile
 import tempfile
@@ -326,52 +327,34 @@ def _wait_for_deployment(
     toolkit.print_line()
 
     toolkit.print(
-        f"You can also check the status at [link]{check_deployment_url}[/link]",
+        f"You can also check the status at [link={check_deployment_url}]{check_deployment_url}[/link]",
     )
     toolkit.print_line()
 
     time_elapsed = 0
 
+    started_at = time.monotonic()
+
+    last_message_changed_at = time.monotonic()
+
     with toolkit.progress(
-        "Deploying...", inline_logs=True, lines_to_show=20
+        next(messages), inline_logs=True, lines_to_show=20
     ) as progress:
         for line in _stream_build_logs(deployment_id):
-            import json
+            time_elapsed = time.monotonic() - started_at
 
             data = json.loads(line)
 
             if "message" in data:
                 progress.log(Text.from_ansi(data["message"].rstrip()))
 
-    toolkit.print_line()
-
-    with toolkit.progress("Deploying...") as progress:
-        while True:
-            with handle_http_errors(progress):
-                deployment = _get_deployment(app_id, deployment_id)
-
-            if deployment.status == DeploymentStatus.success:
-                progress.log(
-                    f"🐔 Ready the chicken! Your app is ready at {deployment.url}"
-                )
-                break
-            elif deployment.status == DeploymentStatus.failed:
-                progress.set_error(
-                    f"Deployment failed. Please check the logs for more information.\n\n[link={check_deployment_url}]{check_deployment_url}[/link]"
-                )
-
-                raise typer.Exit(1)
-            else:
-                message = next(messages)
-                progress.log(
-                    f"{message} ({DeploymentStatus.to_human_readable(deployment.status)})"
-                )
-
-            time.sleep(4)
-            time_elapsed += 4
-
-            if time_elapsed == len(WAITING_MESSAGES) * 4:
+            if time_elapsed > 10:
                 messages = cycle(LONG_WAIT_MESSAGES)
+
+            if (time.monotonic() - last_message_changed_at) > 2:
+                progress.title = next(messages)
+
+                last_message_changed_at = time.monotonic()
 
 
 def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
@@ -383,7 +366,9 @@ def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
     env_vars = {}
 
     while True:
-        key = toolkit.input("Enter the environment variable name: [ENTER to skip]")
+        key = toolkit.input(
+            "Enter the environment variable name: [ENTER to skip]", required=False
+        )
 
         if key.strip() == "":
             break
@@ -487,5 +472,5 @@ def deploy(
             _wait_for_deployment(toolkit, app.id, deployment.id, check_deployment_url)
         else:
             toolkit.print(
-                f"Check the status of your deployment at [link]{check_deployment_url}[/link]"
+                f"Check the status of your deployment at [link={check_deployment_url}]{check_deployment_url}[/link]"
             )
