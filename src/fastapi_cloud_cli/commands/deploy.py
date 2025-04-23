@@ -1,3 +1,4 @@
+import json
 import logging
 import tarfile
 import tempfile
@@ -6,12 +7,13 @@ import uuid
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import rignore
 import typer
 from httpx import Client
 from pydantic import BaseModel
+from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 from typing_extensions import Annotated
@@ -212,6 +214,16 @@ def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None
         response.raise_for_status()
 
 
+def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
+    with APIClient() as client:
+        with client.stream(
+            "GET", f"/deployments/{deployment_id}/build-logs", timeout=60
+        ) as response:
+            response.raise_for_status()
+
+            yield from response.iter_lines()
+
+
 WAITING_MESSAGES = [
     "🚀 Preparing for liftoff! Almost there...",
     "👹 Sneaking past the dependency gremlins... Don't wake them up!",
@@ -314,39 +326,34 @@ def _wait_for_deployment(
     toolkit.print_line()
 
     toolkit.print(
-        f"You can also check the status at [link]{check_deployment_url}[/link]",
+        f"You can also check the status at [link={check_deployment_url}]{check_deployment_url}[/link]",
     )
     toolkit.print_line()
 
-    time_elapsed = 0
+    time_elapsed = 0.0
 
-    with toolkit.progress("Deploying...") as progress:
-        while True:
-            with handle_http_errors(progress):
-                deployment = _get_deployment(app_id, deployment_id)
+    started_at = time.monotonic()
 
-            if deployment.status == DeploymentStatus.success:
-                progress.log(
-                    f"🐔 Ready the chicken! Your app is ready at {deployment.url}"
-                )
-                break
-            elif deployment.status == DeploymentStatus.failed:
-                progress.set_error(
-                    f"Deployment failed. Please check the logs for more information.\n\n[link={check_deployment_url}]{check_deployment_url}[/link]"
-                )
+    last_message_changed_at = time.monotonic()
 
-                raise typer.Exit(1)
-            else:
-                message = next(messages)
-                progress.log(
-                    f"{message} ({DeploymentStatus.to_human_readable(deployment.status)})"
-                )
+    with toolkit.progress(
+        next(messages), inline_logs=True, lines_to_show=20
+    ) as progress:
+        for line in _stream_build_logs(deployment_id):
+            time_elapsed = time.monotonic() - started_at
 
-            time.sleep(4)
-            time_elapsed += 4
+            data = json.loads(line)
 
-            if time_elapsed == len(WAITING_MESSAGES) * 4:
+            if "message" in data:
+                progress.log(Text.from_ansi(data["message"].rstrip()))
+
+            if time_elapsed > 10:
                 messages = cycle(LONG_WAIT_MESSAGES)
+
+            if (time.monotonic() - last_message_changed_at) > 2:
+                progress.title = next(messages)
+
+                last_message_changed_at = time.monotonic()
 
 
 def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
@@ -358,7 +365,9 @@ def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
     env_vars = {}
 
     while True:
-        key = toolkit.input("Enter the environment variable name: [ENTER to skip]")
+        key = toolkit.input(
+            "Enter the environment variable name: [ENTER to skip]", required=False
+        )
 
         if key.strip() == "":
             break
@@ -462,5 +471,5 @@ def deploy(
             _wait_for_deployment(toolkit, app.id, deployment.id, check_deployment_url)
         else:
             toolkit.print(
-                f"Check the status of your deployment at [link]{check_deployment_url}[/link]"
+                f"Check the status of your deployment at [link={check_deployment_url}]{check_deployment_url}[/link]"
             )

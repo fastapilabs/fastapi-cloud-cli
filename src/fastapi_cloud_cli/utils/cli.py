@@ -1,9 +1,10 @@
 import contextlib
 import logging
-from typing import Generator, Optional
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
+from rich.segment import Segment
 from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
@@ -11,8 +12,41 @@ from rich_toolkit.styles import MinimalStyle, TaggedStyle
 logger = logging.getLogger(__name__)
 
 
+class FastAPIStyle(TaggedStyle):
+    def __init__(self, tag_width: int = 11):
+        super().__init__(tag_width=tag_width)
+
+    def _get_tag_segments(
+        self,
+        metadata: Dict[str, Any],
+        is_animated: bool = False,
+        done: bool = False,
+    ) -> Tuple[List[Segment], int]:
+        if not is_animated:
+            return super()._get_tag_segments(metadata, is_animated, done)
+
+        emojis = [
+            "🥚",
+            "🐣",
+            "🐤",
+            "🐥",
+            "🐓",
+            "🐔",
+        ]
+
+        tag = emojis[self.animation_counter % len(emojis)]
+
+        if done:
+            tag = emojis[-1]
+
+        left_padding = self.tag_width - 1
+        left_padding = max(0, left_padding)
+
+        return [Segment(tag)], left_padding
+
+
 def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
-    style = MinimalStyle() if minimal else TaggedStyle(tag_width=11)
+    style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
 
     theme = RichToolkitTheme(
         style=style,

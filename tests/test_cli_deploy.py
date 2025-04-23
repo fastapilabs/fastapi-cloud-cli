@@ -222,78 +222,6 @@ def test_uses_existing_app(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_creates_and_uploads_deployment_then_fails(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    steps = [
-        Keys.ENTER,
-        Keys.ENTER,
-        Keys.ENTER,
-        *"demo",
-        Keys.ENTER,
-        Keys.RIGHT_ARROW,
-        Keys.ENTER,
-    ]
-
-    team = _get_random_team()
-    app_data = _get_random_app(team_id=team["id"])
-
-    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
-
-    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
-        return_value=Response(201, json=app_data)
-    )
-
-    respx_mock.get(f"/apps/{app_data['id']}").mock(
-        return_value=Response(200, json=app_data)
-    )
-
-    deployment_data = _get_random_deployment(app_id=app_data["id"])
-
-    respx_mock.post(f"/apps/{app_data['id']}/deployments/").mock(
-        return_value=Response(201, json=deployment_data)
-    )
-    respx_mock.post(
-        f"/deployments/{deployment_data['id']}/upload",
-    ).mock(
-        return_value=Response(
-            200,
-            json={
-                "url": "http://test.com",
-                "fields": {"key": "value"},
-            },
-        )
-    )
-
-    respx_mock.post(
-        "http://test.com",
-        data={"key": "value"},
-    ).mock(return_value=Response(200))
-
-    respx_mock.get(
-        f"/apps/{app_data['id']}/deployments/{deployment_data['id']}",
-    ).mock(
-        return_value=Response(
-            200,
-            json=_get_random_deployment(app_id=app_data["id"], status="failed"),
-        )
-    )
-
-    respx_mock.post(
-        f"/deployments/{deployment_data['id']}/upload-complete",
-    ).mock(return_value=Response(200))
-
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
-        mock_getchar.side_effect = steps
-
-        result = runner.invoke(app, ["deploy"])
-
-        assert result.exit_code == 1
-
-        assert "Checking the status of your deployment" in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
 def test_exits_successfully_when_deployment_is_done(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -346,9 +274,12 @@ def test_exits_successfully_when_deployment_is_done(
         data={"key": "value"},
     ).mock(return_value=Response(200))
 
-    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
-            200, json=_get_random_deployment(app_id=app_data["id"], status="success")
+            200,
+            json={
+                "message": "Hello, world!",
+            },
         )
     )
 
@@ -359,7 +290,7 @@ def test_exits_successfully_when_deployment_is_done(
 
         assert result.exit_code == 0
 
-        assert "Ready the chicken! Your app is ready at" in result.output
+        # TODO: show a message when the deployment is done (based on the status)
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -394,9 +325,12 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
         return_value=Response(200)
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
-            200, json=_get_random_deployment(app_id=app_id, status="success")
+            200,
+            json={
+                "message": "Hello, world!",
+            },
         )
     )
 
@@ -409,7 +343,7 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
 
         assert result.exit_code == 0
 
-        assert "Ready the chicken! Your app is ready at" in result.output
+        # TODO: show a message when the deployment is done (based on the status)
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
