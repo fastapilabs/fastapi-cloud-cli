@@ -4,11 +4,10 @@ import tarfile
 import tempfile
 import time
 import uuid
-from collections.abc import Generator
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import rignore
 import typer
@@ -331,7 +330,7 @@ def _wait_for_deployment(
     )
     toolkit.print_line()
 
-    time_elapsed = 0
+    time_elapsed = 0.0
 
     started_at = time.monotonic()
 
