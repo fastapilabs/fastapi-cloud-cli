@@ -126,6 +126,7 @@ class CreateDeploymentResponse(BaseModel):
     slug: str
     status: DeploymentStatus
     dashboard_url: str
+    url: str
 
 
 def _create_deployment(app_id: str) -> CreateDeploymentResponse:
@@ -188,24 +189,6 @@ def _get_apps(team_id: str) -> List[AppResponse]:
         data = response.json()["data"]
 
     return [AppResponse.model_validate(app) for app in data]
-
-
-class DeploymentResponse(BaseModel):
-    id: str
-    app_id: str
-    slug: str
-    status: DeploymentStatus
-    url: str
-
-
-def _get_deployment(app_id: str, deployment_id: str) -> DeploymentResponse:
-    with APIClient() as client:
-        response = client.get(f"/apps/{app_id}/deployments/{deployment_id}")
-        response.raise_for_status()
-
-        data = response.json()
-
-    return DeploymentResponse.model_validate(data)
 
 
 def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None:
@@ -315,7 +298,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
 
 def _wait_for_deployment(
-    toolkit: RichToolkit, app_id: str, deployment_id: str, check_deployment_url: str
+    toolkit: RichToolkit, app_id: str, deployment: CreateDeploymentResponse
 ) -> None:
     messages = cycle(WAITING_MESSAGES)
 
@@ -326,7 +309,7 @@ def _wait_for_deployment(
     toolkit.print_line()
 
     toolkit.print(
-        f"You can also check the status at [link={check_deployment_url}]{check_deployment_url}[/link]",
+        f"You can also check the status at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
     )
     toolkit.print_line()
 
@@ -339,13 +322,20 @@ def _wait_for_deployment(
     with toolkit.progress(
         next(messages), inline_logs=True, lines_to_show=20
     ) as progress:
-        for line in _stream_build_logs(deployment_id):
+        for line in _stream_build_logs(deployment.id):
             time_elapsed = time.monotonic() - started_at
 
             data = json.loads(line)
 
             if "message" in data:
                 progress.log(Text.from_ansi(data["message"].rstrip()))
+
+            if data.get("type") == "complete":
+                progress.log("")
+                progress.log(
+                    f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                )
+                break
 
             if time_elapsed > 10:
                 messages = cycle(LONG_WAIT_MESSAGES)
@@ -465,11 +455,9 @@ def deploy(
 
         toolkit.print_line()
 
-        check_deployment_url = deployment.dashboard_url
-
         if not skip_wait:
-            _wait_for_deployment(toolkit, app.id, deployment.id, check_deployment_url)
+            _wait_for_deployment(toolkit, app.id, deployment=deployment)
         else:
             toolkit.print(
-                f"Check the status of your deployment at [link={check_deployment_url}]{check_deployment_url}[/link]"
+                f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
             )
