@@ -2,8 +2,7 @@ import httpx
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import settings
-
-from .auth import get_auth_token
+from fastapi_cloud_cli.utils.auth import get_auth_token
 
 
 class APIClient(httpx.Client):

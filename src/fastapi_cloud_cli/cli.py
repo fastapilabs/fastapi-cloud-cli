@@ -3,6 +3,7 @@ import typer
 from .commands.deploy import deploy
 from .commands.env import env_app
 from .commands.login import login
+from .commands.logout import logout
 from .commands.whoami import whoami
 
 app = typer.Typer(rich_markup_mode="rich")
@@ -13,6 +14,7 @@ app = typer.Typer(rich_markup_mode="rich")
 # Additional commands
 app.command()(deploy)
 app.command()(login)
+app.command()(logout)
 app.command()(whoami)
 
 app.add_typer(env_app, name="env")
