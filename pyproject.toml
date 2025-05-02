@@ -35,8 +35,8 @@ dependencies = [
     "uvicorn[standard] >= 0.15.0",
     "rignore >= 0.5.1",
     "httpx >= 0.27.0,< 0.28.0",
-    "rich-toolkit >= 0.14.3",
-    "pydantic >= 1.6.1",
+    "rich-toolkit >= 0.14.5",
+    "pydantic[email] >= 1.6.1",
 ]
 
 [project.optional-dependencies]

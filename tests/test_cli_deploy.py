@@ -58,11 +58,94 @@ def _get_random_deployment(
     }
 
 
-def test_shows_error_when_not_logged_in(logged_out_cli: None) -> None:
-    result = runner.invoke(app, ["deploy"])
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_waitlist_form_when_not_logged_in(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [*"some@example.com", Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, Keys.ENTER]
+
+    respx_mock.post(
+        "/users/waiting-list",
+        json={
+            "email": "some@example.com",
+            "location": None,
+            "name": None,
+            "organization": None,
+            "role": None,
+            "secret_code": None,
+            "team_size": None,
+            "use_case": None,
+        },
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.menu.click.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
+    assert "We're currently in private beta" in result.output
+    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_waitlist_form_when_not_logged_in_longer_flow(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        *"some@example.com",
+        Keys.ENTER,
+        Keys.ENTER,
+        # Name
+        *"Patrick",
+        Keys.TAB,
+        # Organization
+        *"FastAPI Cloud",
+        Keys.TAB,
+        # Team
+        *"Team A",
+        Keys.TAB,
+        # Role
+        *"Developer",
+        Keys.TAB,
+        # Location
+        *"London",
+        Keys.TAB,
+        # Use case
+        *"I want to build a web app",
+        Keys.TAB,
+        # Secret code
+        *"PyCon Italia",
+        Keys.ENTER,
+        Keys.ENTER,
+    ]
+
+    respx_mock.post(
+        "/users/waiting-list",
+        json={
+            "email": "some@example.com",
+            "name": "Patrick",
+            "organization": "FastAPI Cloud",
+            "role": "Developer",
+            "team_size": None,
+            "location": "London",
+            "use_case": "I want to build a web app",
+            "secret_code": "PyCon Italia",
+        },
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.menu.click.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "We're currently in private beta" in result.output
+    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
 
 def test_asks_to_setup_the_app(logged_in_cli: None, tmp_path: Path) -> None:
