@@ -3,10 +3,11 @@ from unittest.mock import patch
 
 import pytest
 import respx
-from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import settings
 from httpx import Response
 from typer.testing import CliRunner
+
+from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.config import settings
 
 runner = CliRunner()
 

@@ -15,6 +15,13 @@ def write_auth_config(auth_data: AuthConfig) -> None:
     auth_path.write_text(auth_data.model_dump_json(), encoding="utf-8")
 
 
+def delete_auth_config() -> None:
+    auth_path = get_auth_path()
+
+    if auth_path.exists():
+        auth_path.unlink()
+
+
 def read_auth_config() -> Optional[AuthConfig]:
     auth_path = get_auth_path()
 
