@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 import typer
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from fastapi_cloud_cli.config import settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import AuthConfig, write_auth_config
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
 
@@ -28,25 +28,17 @@ class TokenResponse(BaseModel):
 
 def _start_device_authorization(
     client: httpx.Client,
-) -> Optional[AuthorizationData]:
-    try:
-        response = client.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
-        )
+) -> AuthorizationData:
+    response = client.post(
+        "/login/device/authorization", data={"client_id": settings.client_id}
+    )
 
-        response.raise_for_status()
-
-    except httpx.HTTPError as e:
-        logger.debug("Error: %s", e)
-
-        return None
+    response.raise_for_status()
 
     return AuthorizationData.model_validate(response.json())
 
 
-def _fetch_access_token(
-    client: httpx.Client, device_code: str, interval: int
-) -> Optional[str]:
+def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
     while True:
         response = client.post(
             "/login/device/token",
@@ -58,15 +50,13 @@ def _fetch_access_token(
         )
 
         if response.status_code not in (200, 400):
-            logger.debug("Error: %s", response.json())
-            return None
+            response.raise_for_status()
 
         if response.status_code == 400:
             data = response.json()
 
             if data.get("error") != "authorization_pending":
-                logger.debug("Error: %s", data)
-                return None
+                response.raise_for_status()
 
         if response.status_code == 200:
             break
@@ -88,14 +78,8 @@ def login() -> Any:
         toolkit.print_line()
 
         with toolkit.progress("Starting authorization") as progress:
-            authorization_data = _start_device_authorization(client)
-
-            if authorization_data is None:
-                progress.set_error(
-                    "Something went wrong while contacting the FastAPI Cloud server. Please try again later."
-                )
-
-                raise typer.Exit(1)
+            with handle_http_errors(progress):
+                authorization_data = _start_device_authorization(client)
 
             url = authorization_data.verification_uri_complete
 
@@ -106,16 +90,10 @@ def login() -> Any:
         with toolkit.progress("Waiting for user to authorize...") as progress:
             typer.launch(url)
 
-            access_token = _fetch_access_token(
-                client, authorization_data.device_code, authorization_data.interval
-            )
-
-            if access_token is None:
-                progress.set_error(
-                    "Something went wrong while contacting the FastAPI Cloud server. Please try again later."
+            with handle_http_errors(progress):
+                access_token = _fetch_access_token(
+                    client, authorization_data.device_code, authorization_data.interval
                 )
-
-                raise typer.Exit(1)
 
             write_auth_config(AuthConfig(access_token=access_token))
 
