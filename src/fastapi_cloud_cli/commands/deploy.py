@@ -337,7 +337,7 @@ def _wait_for_deployment(
                 )
                 break
 
-            if time_elapsed > 10:
+            if time_elapsed > 30:
                 messages = cycle(LONG_WAIT_MESSAGES)
 
             if (time.monotonic() - last_message_changed_at) > 2:
