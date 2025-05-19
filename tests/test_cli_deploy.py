@@ -397,7 +397,7 @@ def test_shows_error_when_deployment_build_fails(
 
         assert "Something went wrong" in result.stdout
 
-        assert result.exit_code != 0
+        assert result.exit_code == 1
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
