@@ -347,6 +347,60 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_error_when_deployment_build_fails(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapi" / "cloud.json"
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            json={
+                "type": "failed",
+                "message": "Build failed",
+            },
+        )
+    )
+
+    respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-complete",
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "Something went wrong" in result.stdout
+
+        assert result.exit_code != 0
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
 def test_shows_error_when_app_does_not_exist(
     logged_in_cli: None, configured_app: ConfiguredApp, respx_mock: respx.MockRouter
 ) -> None:
