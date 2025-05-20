@@ -337,6 +337,13 @@ def _wait_for_deployment(
                 )
                 break
 
+            if data.get("type") == "failed":
+                progress.log("")
+                progress.log(
+                    f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                )
+                raise typer.Exit(1)
+
             if time_elapsed > 30:
                 messages = cycle(LONG_WAIT_MESSAGES)
 
