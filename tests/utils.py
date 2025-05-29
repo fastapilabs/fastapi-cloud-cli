@@ -18,3 +18,4 @@ class Keys:
     RIGHT_ARROW = "\x1b[C"
     ENTER = "\r"
     CTRL_C = "\x03"
+    TAB = "\t"
