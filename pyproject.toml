@@ -43,11 +43,11 @@ dependencies = [
 standard = ["uvicorn[standard] >= 0.15.0"]
 
 [project.urls]
-Homepage = "https://github.com/fastapi/fastapi-cloud-cli"
+Homepage = "https://github.com/fastapilabs/fastapi-cloud-cli"
 Documentation = "https://fastapi.tiangolo.com/fastapi-cloud-cli/"
-Repository = "https://github.com/fastapi/fastapi-cloud-cli"
-Issues = "https://github.com/fastapi/fastapi-cloud-cli/issues"
-Changelog = "https://github.com/fastapi/fastapi-cloud-cli/blob/main/release-notes.md"
+Repository = "https://github.com/fastapilabs/fastapi-cloud-cli"
+Issues = "https://github.com/fastapilabs/fastapi-cloud-cli/issues"
+Changelog = "https://github.com/fastapilabs/fastapi-cloud-cli/blob/main/release-notes.md"
 
 [build-system]
 requires = ["pdm-backend"]
