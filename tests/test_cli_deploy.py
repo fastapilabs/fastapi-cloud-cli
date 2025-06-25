@@ -568,21 +568,6 @@ def test_can_skip_waiting(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_creates_config_folder_and_adds_it_to_gitignore(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    git_ignore_path = tmp_path / ".gitignore"
-    git_ignore_path.write_text(".venv\n")
-
-    _deploy_without_waiting(respx_mock, tmp_path)
-
-    assert (tmp_path / ".fastapi" / "cloud.json").exists()
-    assert (tmp_path / ".fastapi" / "README.md").exists()
-
-    assert git_ignore_path.read_text() == ".venv\n.fastapi\n"
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
 def test_creates_config_folder_and_creates_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -590,9 +575,7 @@ def test_creates_config_folder_and_creates_git_ignore(
 
     assert (tmp_path / ".fastapi" / "cloud.json").exists()
     assert (tmp_path / ".fastapi" / "README.md").exists()
-    assert (tmp_path / ".gitignore").exists()
-
-    assert (tmp_path / ".gitignore").read_text() == ".fastapi\n"
+    assert (tmp_path / ".fastapi" / ".gitignore").read_text() == "*"
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)

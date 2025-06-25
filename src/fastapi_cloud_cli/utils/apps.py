@@ -29,13 +29,14 @@ The "cloud.json" file contains:
 
 > Should I commit the ".fastapi" folder?
 No, you should not commit the ".fastapi" folder to your version control system.
-On creation, it will be automatically added to your ".gitignore" file.
+That's why we there's a ".gitignore" file in this folder.
 """
 
 
 def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
     config_path = path_to_deploy / ".fastapi/cloud.json"
     readme_path = path_to_deploy / ".fastapi/README.md"
+    gitignore_path = path_to_deploy / ".fastapi/.gitignore"
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(
@@ -44,14 +45,4 @@ def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
     )
     readme_path.write_text(README, encoding="utf-8")
 
-    git_ignore_path = path_to_deploy / ".gitignore"
-
-    if not git_ignore_path.exists():
-        git_ignore_path.write_text(".fastapi\n", encoding="utf-8")
-    else:
-        git_ignore_content = git_ignore_path.read_text(encoding="utf-8")
-
-        if ".fastapi" not in git_ignore_content:
-            git_ignore_path.write_text(
-                f"{git_ignore_content}.fastapi\n", encoding="utf-8"
-            )
+    gitignore_path.write_text("*")
