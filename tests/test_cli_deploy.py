@@ -386,7 +386,7 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
     team_id = team_data["id"]
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
@@ -439,7 +439,7 @@ def test_shows_error_when_deployment_build_fails(
     team_id = team_data["id"]
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
@@ -573,9 +573,9 @@ def test_creates_config_folder_and_creates_git_ignore(
 ) -> None:
     _deploy_without_waiting(respx_mock, tmp_path)
 
-    assert (tmp_path / ".fastapi" / "cloud.json").exists()
-    assert (tmp_path / ".fastapi" / "README.md").exists()
-    assert (tmp_path / ".fastapi" / ".gitignore").read_text() == "*"
+    assert (tmp_path / ".fastapicloud" / "cloud.json").exists()
+    assert (tmp_path / ".fastapicloud" / "README.md").exists()
+    assert (tmp_path / ".fastapicloud" / ".gitignore").read_text() == "*"
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -583,8 +583,8 @@ def test_does_not_duplicate_entry_in_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     git_ignore_path = tmp_path / ".gitignore"
-    git_ignore_path.write_text(".fastapi\n")
+    git_ignore_path.write_text(".fastapicloud\n")
 
     _deploy_without_waiting(respx_mock, tmp_path)
 
-    assert git_ignore_path.read_text() == ".fastapi\n"
+    assert git_ignore_path.read_text() == ".fastapicloud\n"
