@@ -29,7 +29,7 @@ The "cloud.json" file contains:
 
 > Should I commit the ".fastapi" folder?
 No, you should not commit the ".fastapi" folder to your version control system.
-That's why we there's a ".gitignore" file in this folder.
+That's why there's a ".gitignore" file in this folder.
 """
 
 
