@@ -51,7 +51,7 @@ def configured_app(tmp_path: Path) -> ConfiguredApp:
     app_id = "123"
     team_id = "456"
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
