@@ -35,10 +35,9 @@ def _get_app_name(path: Path) -> str:
 
 
 def _should_exclude_entry(path: Path) -> bool:
-    if ".venv" in path.parts:
-        return True
+    parts_to_exclude = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]
 
-    if "__pycache__" in path.parts:
+    if any(part in path.parts for part in parts_to_exclude):
         return True
 
     if path.suffix == ".pyc":
