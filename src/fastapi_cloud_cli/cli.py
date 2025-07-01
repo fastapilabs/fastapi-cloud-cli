@@ -5,6 +5,9 @@ from .commands.env import env_app
 from .commands.login import login
 from .commands.logout import logout
 from .commands.whoami import whoami
+from .logging import setup_logging
+
+setup_logging()
 
 app = typer.Typer(rich_markup_mode="rich")
 
