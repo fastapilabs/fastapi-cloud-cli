@@ -336,6 +336,13 @@ def _wait_for_deployment(
                 progress.log(
                     f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
                 )
+
+                progress.log("")
+
+                progress.log(
+                    "You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                )
+
                 break
 
             if data.get("type") == "failed":
