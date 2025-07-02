@@ -47,20 +47,26 @@ def _should_exclude_entry(path: Path) -> bool:
 
 
 def archive(path: Path) -> Path:
+    logger.debug("Starting archive creation for path: %s", path)
     files = rignore.walk(path, should_exclude_entry=_should_exclude_entry)
 
     temp_dir = tempfile.mkdtemp()
+    logger.debug("Created temp directory: %s", temp_dir)
 
     name = f"fastapi-cloud-deploy-{uuid.uuid4()}"
     tar_path = Path(temp_dir) / f"{name}.tar"
+    logger.debug("Archive will be created at: %s", tar_path)
 
+    file_count = 0
     with tarfile.open(tar_path, "w") as tar:
         for filename in files:
             if filename.is_dir():
                 continue
 
             tar.add(filename, arcname=filename.relative_to(path))
+            file_count += 1
 
+    logger.debug("Archive created successfully with %s files", file_count)
     return tar_path
 
 
@@ -144,14 +150,27 @@ class RequestUploadResponse(BaseModel):
 
 
 def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
+    logger.debug(
+        "Starting deployment upload for deployment: %s",
+        deployment_id,
+    )
+    logger.debug(
+        "Archive path: %s, size: %s bytes",
+        archive_path,
+        archive_path.stat().st_size,
+    )
+
     with APIClient() as fastapi_client, Client() as client:
         # Get the upload URL
+        logger.debug("Requesting upload URL from API")
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
         response.raise_for_status()
 
         upload_data = RequestUploadResponse.model_validate(response.json())
+        logger.debug("Received upload URL: %s", upload_data.url)
 
         # Upload the archive
+        logger.debug("Starting file upload to S3")
         upload_response = client.post(
             upload_data.url,
             data=upload_data.fields,
@@ -159,13 +178,16 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         )
 
         upload_response.raise_for_status()
+        logger.debug("File upload completed successfully")
 
         # Notify the server that the upload is complete
+        logger.debug("Notifying API that upload is complete")
         notify_response = fastapi_client.post(
             f"/deployments/{deployment_id}/upload-complete"
         )
 
         notify_response.raise_for_status()
+        logger.debug("Upload notification sent successfully")
 
 
 def _get_app(app_slug: str) -> Optional[AppResponse]:
@@ -526,9 +548,12 @@ def deploy(
     """
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
     """
+    logger.debug("Deploy command started")
+    logger.debug("Deploy path: %s, skip_wait: %s", path, skip_wait)
 
     with get_rich_toolkit() as toolkit:
         if not is_logged_in():
+            logger.debug("User not logged in, showing waitlist form")
             _waitlist_form(toolkit)
 
             raise typer.Exit(1)
@@ -537,34 +562,41 @@ def deploy(
         toolkit.print_line()
 
         path_to_deploy = path or Path.cwd()
+        logger.debug("Deploying from path: %s", path_to_deploy)
 
         app_config = get_app_config(path_to_deploy)
 
         if not app_config:
+            logger.debug("No app config found, configuring new app")
             app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
             toolkit.print_line()
 
             _setup_environment_variables(toolkit, app_config.app_id)
             toolkit.print_line()
         else:
+            logger.debug("Existing app config found, proceeding with deployment")
             toolkit.print("Deploying app...")
             toolkit.print_line()
 
         with toolkit.progress("Checking app...", transient=True) as progress:
             with handle_http_errors(progress):
+                logger.debug("Checking app with ID: %s", app_config.app_id)
                 app = _get_app(app_config.app_id)
 
             if not app:
+                logger.debug("App not found in API")
                 progress.set_error(
                     "App not found. Make sure you're logged in the correct account."
                 )
 
                 raise typer.Exit(1)
 
+        logger.debug("Creating archive for deployment")
         archive_path = archive(path or Path.cwd())  # noqa: F841
 
         with toolkit.progress(title="Creating deployment") as progress:
             with handle_http_errors(progress):
+                logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)
 
                 progress.log(
@@ -580,8 +612,10 @@ def deploy(
         toolkit.print_line()
 
         if not skip_wait:
+            logger.debug("Waiting for deployment to complete")
             _wait_for_deployment(toolkit, app.id, deployment=deployment)
         else:
+            logger.debug("Skipping deployment wait as requested")
             toolkit.print(
                 f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
             )

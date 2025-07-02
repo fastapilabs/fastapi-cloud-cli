@@ -1,7 +1,10 @@
+import logging
 from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel
+
+logger = logging.getLogger("fastapi_cli")
 
 
 class AppConfig(BaseModel):
@@ -11,10 +14,13 @@ class AppConfig(BaseModel):
 
 def get_app_config(path_to_deploy: Path) -> Optional[AppConfig]:
     config_path = path_to_deploy / ".fastapicloud/cloud.json"
+    logger.debug("Looking for app config at: %s", config_path)
 
     if not config_path.exists():
+        logger.debug("App config file doesn't exist")
         return None
 
+    logger.debug("App config loaded successfully")
     return AppConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
 
 
@@ -37,6 +43,10 @@ def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
     config_path = path_to_deploy / ".fastapicloud/cloud.json"
     readme_path = path_to_deploy / ".fastapicloud/README.md"
     gitignore_path = path_to_deploy / ".fastapicloud/.gitignore"
+
+    logger.debug("Writing app config to: %s", config_path)
+    logger.debug("App config data: %s", app_config)
+
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(
@@ -44,5 +54,6 @@ def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
         encoding="utf-8",
     )
     readme_path.write_text(README, encoding="utf-8")
-
     gitignore_path.write_text("*")
+
+    logger.debug("App config files written successfully")

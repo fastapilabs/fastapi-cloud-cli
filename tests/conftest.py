@@ -5,8 +5,6 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-
-# from fastapi_cloud_cli.logging import setup_logging
 from typer import rich_utils
 
 
@@ -23,7 +21,6 @@ def reset_syspath() -> Generator[None, None, None]:
 def setup_terminal() -> None:
     rich_utils.MAX_WIDTH = 3000
     rich_utils.FORCE_TERMINAL = False
-    # setup_logging(terminal_width=3000)
     return
 
 
