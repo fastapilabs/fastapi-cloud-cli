@@ -6,6 +6,7 @@ from .commands.login import login
 from .commands.logout import logout
 from .commands.whoami import whoami
 from .logging import setup_logging
+from .utils.sentry import init_sentry
 
 setup_logging()
 
@@ -24,4 +25,5 @@ app.add_typer(env_app, name="env")
 
 
 def main() -> None:
+    init_sentry()
     app()
