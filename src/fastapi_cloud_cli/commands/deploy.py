@@ -340,7 +340,7 @@ def _wait_for_deployment(
                 progress.log("")
 
                 progress.log(
-                    "You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
                 )
 
                 break
