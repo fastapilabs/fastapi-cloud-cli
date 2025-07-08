@@ -17,11 +17,11 @@ def whoami() -> Any:
         return
 
     with APIClient() as client:
-        with Progress(title="⚡Fetching profile", transient=True) as progress:
+        with Progress(title="⚡ Fetching profile", transient=True) as progress:
             with handle_http_errors(progress, message=""):
                 response = client.get("/users/me")
                 response.raise_for_status()
 
         data = response.json()
 
-        print(f"⚡[bold]{data['email']}[/bold]")
+        print(f"⚡ [bold]{data['email']}[/bold]")

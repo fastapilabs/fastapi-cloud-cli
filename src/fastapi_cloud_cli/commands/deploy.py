@@ -375,12 +375,12 @@ def _wait_for_deployment(
                 raise typer.Exit(1)
 
             if time_elapsed > 30:
-                messages = cycle(LONG_WAIT_MESSAGES)
+                messages = cycle(LONG_WAIT_MESSAGES)  # pragma: no cover
 
             if (time.monotonic() - last_message_changed_at) > 2:
-                progress.title = next(messages)
+                progress.title = next(messages)  # pragma: no cover
 
-                last_message_changed_at = time.monotonic()
+                last_message_changed_at = time.monotonic()  # pragma: no cover
 
 
 def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:

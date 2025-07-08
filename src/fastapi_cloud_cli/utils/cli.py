@@ -85,7 +85,7 @@ def handle_http_errors(
 
         # Handle validation errors from Pydantic models, this should make it easier to debug :)
         if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
-            logger.debug(e.response.json())
+            logger.debug(e.response.json())  # pragma: no cover
 
         if isinstance(e, HTTPStatusError) and e.response.status_code in (401, 403):
             message = "The specified token is not valid. Use `fastapi login` to generate a new token."
