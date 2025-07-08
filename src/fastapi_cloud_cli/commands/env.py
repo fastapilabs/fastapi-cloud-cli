@@ -161,11 +161,9 @@ def delete(
                     {"name": env_var.name, "value": env_var.name}
                     for env_var in environment_variables.data
                 ],
-                default=None,
             )
 
-            if not name:
-                return
+            assert name
         else:
             if not validate_environment_variable_name(name):
                 toolkit.print(

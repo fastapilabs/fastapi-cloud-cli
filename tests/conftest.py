@@ -25,15 +25,17 @@ def setup_terminal() -> None:
 
 
 @pytest.fixture
-def logged_in_cli() -> Generator[None, None, None]:
-    with patch("fastapi_cloud_cli.utils.auth.get_auth_token", return_value=True):
-        yield
+def logged_in_cli(temp_auth_config: Path) -> Generator[None, None, None]:
+    temp_auth_config.write_text('{"access_token": "test_token_12345"}')
+
+    yield
 
 
 @pytest.fixture
-def logged_out_cli() -> Generator[None, None, None]:
-    with patch("fastapi_cloud_cli.utils.auth.get_auth_token", return_value=None):
-        yield
+def logged_out_cli(temp_auth_config: Path) -> Generator[None, None, None]:
+    assert not temp_auth_config.exists()
+
+    yield
 
 
 @dataclass
@@ -54,3 +56,13 @@ def configured_app(tmp_path: Path) -> ConfiguredApp:
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
 
     return ConfiguredApp(app_id=app_id, team_id=team_id, path=tmp_path)
+
+
+@pytest.fixture
+def temp_auth_config(tmp_path: Path) -> Generator[Path, None, None]:
+    """Provides a temporary auth config setup for testing file operations."""
+
+    with patch(
+        "fastapi_cloud_cli.utils.config.get_config_folder", return_value=tmp_path
+    ):
+        yield tmp_path / "auth.json"

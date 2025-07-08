@@ -652,3 +652,149 @@ def test_does_not_duplicate_entry_in_git_ignore(
     _deploy_without_waiting(respx_mock, tmp_path)
 
     assert git_ignore_path.read_text() == ".fastapicloud\n"
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_creates_environment_variables_during_app_setup(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.ENTER,  # Create new app
+        *"demo",  # App name
+        Keys.ENTER,
+        Keys.ENTER,  # Setup environment variables (Yes)
+        *"API_KEY",  # Environment variable name
+        Keys.ENTER,
+        *"secret123",  # Environment variable value
+        Keys.ENTER,
+        Keys.ENTER,  # Empty key to finish
+        Keys.CTRL_C,  # Exit before deployment
+    ]
+
+    team = _get_random_team()
+    app_data = _get_random_app(team_id=team["id"])
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
+        return_value=Response(201, json=app_data)
+    )
+
+    env_vars_request = respx_mock.patch(
+        f"/apps/{app_data['id']}/environment-variables/", json={"API_KEY": "secret123"}
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert env_vars_request.called
+        assert "Environment variables set up successfully!" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_rejects_invalid_environment_variable_names(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.ENTER,  # Create new app
+        *"demo",  # App name
+        Keys.ENTER,
+        Keys.ENTER,  # Setup environment variables (Yes)
+        *"123-invalid",  # Invalid environment variable name (starts with digit, contains hyphen)
+        Keys.ENTER,
+        *"VALID_KEY",  # Valid environment variable name
+        Keys.ENTER,
+        *"value123",  # Environment variable value
+        Keys.ENTER,
+        Keys.ENTER,  # Empty key to finish
+        Keys.CTRL_C,  # Exit before deployment
+    ]
+
+    team = _get_random_team()
+    app_data = _get_random_app(team_id=team["id"])
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
+        return_value=Response(201, json=app_data)
+    )
+
+    env_vars_request = respx_mock.patch(
+        f"/apps/{app_data['id']}/environment-variables/", json={"VALID_KEY": "value123"}
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert env_vars_request.called
+        assert "Invalid environment variable name." in result.output
+        assert "Environment variables set up successfully!" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_error_for_invalid_waitlist_form_data(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        *"test@example.com",
+        Keys.ENTER,
+        Keys.ENTER,  # Choose to provide more information
+        Keys.CTRL_C,  # Interrupt to avoid infinite loop
+    ]
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.menu.click.getchar"
+    ) as mock_getchar, patch("rich_toolkit.form.Form.run") as mock_form_run:
+        mock_getchar.side_effect = steps
+        # Simulate form returning data with invalid email field to trigger ValidationError
+        mock_form_run.return_value = {
+            "email": "invalid-email-format",
+            "name": "John Doe",
+        }
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert "Invalid form data. Please try again." in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_no_apps_found_message_when_team_has_no_apps(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    # Mock empty apps list for the team
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": []})
+    )
+
+    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert (
+            "No apps found in this team. You can create a new app instead."
+            in result.output
+        )
