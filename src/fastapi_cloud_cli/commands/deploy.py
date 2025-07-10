@@ -529,10 +529,6 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
                 check=False,
             )
 
-        toolkit.print_line()
-
-        toolkit.print("Thank you for your interest in FastAPI Cloud! 🚀")
-
 
 def deploy(
     path: Annotated[
