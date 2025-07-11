@@ -4,6 +4,7 @@
 
 ### Fixes
 
+* 🐛 Always load settings lazily. PR [#64](https://github.com/fastapilabs/fastapi-cloud-cli/pull/64) by [@patrick91](https://github.com/patrick91).
 * 🐛 Remove redundant thank you message. PR [#63](https://github.com/fastapilabs/fastapi-cloud-cli/pull/63) by [@patrick91](https://github.com/patrick91).
 
 ### Refactors
