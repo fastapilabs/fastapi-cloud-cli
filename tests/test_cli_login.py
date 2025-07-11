@@ -8,9 +8,10 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import settings
+from fastapi_cloud_cli.config import Settings
 
 runner = CliRunner()
+settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
