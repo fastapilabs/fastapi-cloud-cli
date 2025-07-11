@@ -6,7 +6,7 @@ import httpx
 import typer
 from pydantic import BaseModel
 
-from fastapi_cloud_cli.config import settings
+from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import AuthConfig, write_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
@@ -29,6 +29,8 @@ class TokenResponse(BaseModel):
 def _start_device_authorization(
     client: httpx.Client,
 ) -> AuthorizationData:
+    settings = Settings.get()
+
     response = client.post(
         "/login/device/authorization", data={"client_id": settings.client_id}
     )
@@ -39,6 +41,8 @@ def _start_device_authorization(
 
 
 def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
+    settings = Settings.get()
+
     while True:
         response = client.post(
             "/login/device/token",

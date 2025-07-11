@@ -21,5 +21,6 @@ class Settings(BaseModel):
 
         return cls(**user_settings)
 
-
-settings = Settings.from_user_settings(get_cli_config_path())
+    @classmethod
+    def get(cls) -> "Settings":
+        return cls.from_user_settings(get_cli_config_path())
