@@ -345,42 +345,43 @@ def _wait_for_deployment(
     with toolkit.progress(
         next(messages), inline_logs=True, lines_to_show=20
     ) as progress:
-        for line in _stream_build_logs(deployment.id):
-            time_elapsed = time.monotonic() - started_at
+        with handle_http_errors(progress=progress):
+            for line in _stream_build_logs(deployment.id):
+                time_elapsed = time.monotonic() - started_at
 
-            data = json.loads(line)
+                data = json.loads(line)
 
-            if "message" in data:
-                progress.log(Text.from_ansi(data["message"].rstrip()))
+                if "message" in data:
+                    progress.log(Text.from_ansi(data["message"].rstrip()))
 
-            if data.get("type") == "complete":
-                progress.log("")
-                progress.log(
-                    f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
-                )
+                if data.get("type") == "complete":
+                    progress.log("")
+                    progress.log(
+                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                    )
 
-                progress.log("")
+                    progress.log("")
 
-                progress.log(
-                    f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                )
+                    progress.log(
+                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
 
-                break
+                    break
 
-            if data.get("type") == "failed":
-                progress.log("")
-                progress.log(
-                    f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                )
-                raise typer.Exit(1)
+                if data.get("type") == "failed":
+                    progress.log("")
+                    progress.log(
+                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
+                    raise typer.Exit(1)
 
-            if time_elapsed > 30:
-                messages = cycle(LONG_WAIT_MESSAGES)  # pragma: no cover
+                if time_elapsed > 30:
+                    messages = cycle(LONG_WAIT_MESSAGES)  # pragma: no cover
 
-            if (time.monotonic() - last_message_changed_at) > 2:
-                progress.title = next(messages)  # pragma: no cover
+                if (time.monotonic() - last_message_changed_at) > 2:
+                    progress.title = next(messages)  # pragma: no cover
 
-                last_message_changed_at = time.monotonic()  # pragma: no cover
+                    last_message_changed_at = time.monotonic()  # pragma: no cover
 
 
 def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:

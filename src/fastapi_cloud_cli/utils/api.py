@@ -13,6 +13,7 @@ class APIClient(httpx.Client):
 
         super().__init__(
             base_url=settings.base_api_url,
+            timeout=httpx.Timeout(20),
             headers={
                 "Authorization": f"Bearer {token}",
                 "User-Agent": f"fastapi-cloud-cli/{__version__}",
