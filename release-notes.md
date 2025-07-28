@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* 🧑‍💻 Handle HTTP errors when streaming build logs. PR [#65](https://github.com/fastapilabs/fastapi-cloud-cli/pull/65) by [@patrick91](https://github.com/patrick91).
+
 ## 0.1.4
 
 ### Fixes
