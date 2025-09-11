@@ -86,7 +86,7 @@ def test_asks_for_name_and_value(
         return_value=Response(200)
     )
 
-    with changing_dir(configured_app), patch("click.getchar", side_effect=steps):
+    with changing_dir(configured_app), patch("rich_toolkit.container.getchar", side_effect=steps):
         result = runner.invoke(app, ["env", "set"])
 
     assert result.exit_code == 0
