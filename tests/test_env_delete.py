@@ -122,7 +122,9 @@ def test_shows_selector_for_environment_variables(
         return_value=Response(204)
     )
 
-    with changing_dir(configured_app), patch("rich_toolkit.container.getchar", side_effect=steps):
+    with changing_dir(configured_app), patch(
+        "rich_toolkit.container.getchar", side_effect=steps
+    ):
         result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 0
