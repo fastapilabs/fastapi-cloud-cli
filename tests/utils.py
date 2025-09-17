@@ -16,6 +16,7 @@ def changing_dir(directory: Union[str, Path]) -> Generator[None, None, None]:
 
 class Keys:
     RIGHT_ARROW = "\x1b[C"
+    DOWN_ARROW = "\x1b[B"
     ENTER = "\r"
     CTRL_C = "\x03"
     TAB = "\t"

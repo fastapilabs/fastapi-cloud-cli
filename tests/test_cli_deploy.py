@@ -60,10 +60,63 @@ def _get_random_deployment(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_shows_waitlist_form_when_not_logged_in(
+def test_chooses_login_option_when_not_logged_in(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [*"some@example.com", Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, Keys.ENTER]
+    steps = [Keys.ENTER]
+
+    respx_mock.post(
+        "/login/device/authorization", data={"client_id": settings.client_id}
+    ).mock(
+        return_value=Response(
+            200,
+            json={
+                "verification_uri_complete": "http://test.com",
+                "verification_uri": "http://test.com",
+                "user_code": "1234",
+                "device_code": "5678",
+            },
+        )
+    )
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).mock(return_value=Response(200, json={"access_token": "test_token_1234"}))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar, patch(
+        "fastapi_cloud_cli.commands.login.typer.launch"
+    ) as mock_launch:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+    assert "Welcome to FastAPI Cloud!" in result.output
+    assert "What would you like to do?" in result.output
+    assert "Login to my existing account" in result.output
+    assert "Join the waiting list" in result.output
+    assert "Now you are logged in!" in result.output
+    assert mock_launch.called
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_chooses_waitlist_option_when_not_logged_in(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.DOWN_ARROW,
+        Keys.ENTER,
+        *"some@example.com",
+        Keys.ENTER,
+        Keys.RIGHT_ARROW,
+        Keys.ENTER,
+        Keys.ENTER,
+    ]
 
     respx_mock.post(
         "/users/waiting-list",
@@ -87,6 +140,10 @@ def test_shows_waitlist_form_when_not_logged_in(
         result = runner.invoke(app, ["deploy"])
 
     assert result.exit_code == 1
+    assert "Welcome to FastAPI Cloud!" in result.output
+    assert "What would you like to do?" in result.output
+    assert "Login to my existing account" in result.output
+    assert "Join the waiting list" in result.output
     assert "We're currently in private beta" in result.output
     assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
