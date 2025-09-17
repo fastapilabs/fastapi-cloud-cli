@@ -10,9 +10,9 @@ from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 logger = logging.getLogger(__name__)
 
 
-def reset() -> Any:
+def unlink() -> Any:
     """
-    Reset by deleting the `.fastapicloud` directory.
+    Unlink by deleting the `.fastapicloud` directory.
     """
     with get_rich_toolkit(minimal=True) as toolkit:
         config_dir = Path.cwd() / ".fastapicloud"
@@ -25,5 +25,5 @@ def reset() -> Any:
             raise typer.Exit(1)
 
         shutil.rmtree(config_dir)
-        toolkit.print("FastAPI Cloud configuration has been reset successfully! 🚀")
+        toolkit.print("FastAPI Cloud configuration has been unlinked successfully! 🚀")
         logger.debug(f"Deleted configuration directory: {config_dir}")

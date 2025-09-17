@@ -8,7 +8,7 @@ from fastapi_cloud_cli.cli import app
 runner = CliRunner()
 
 
-def test_reset_removes_fastapicloud_dir(tmp_path: Path) -> None:
+def test_unlink_removes_fastapicloud_dir(tmp_path: Path) -> None:
     config_dir = tmp_path / ".fastapicloud"
     config_dir.mkdir(parents=True)
 
@@ -21,12 +21,12 @@ def test_reset_removes_fastapicloud_dir(tmp_path: Path) -> None:
     gitignore_file = config_dir / ".gitignore"
     gitignore_file.write_text("*")
 
-    with patch("fastapi_cloud_cli.commands.reset.Path.cwd", return_value=tmp_path):
-        result = runner.invoke(app, ["reset"])
+    with patch("fastapi_cloud_cli.commands.unlink.Path.cwd", return_value=tmp_path):
+        result = runner.invoke(app, ["unlink"])
 
     assert result.exit_code == 0
     assert (
-        "FastAPI Cloud configuration has been reset successfully! 🚀" in result.output
+        "FastAPI Cloud configuration has been unlinked successfully! 🚀" in result.output
     )
 
     assert not config_dir.exists()
@@ -35,12 +35,12 @@ def test_reset_removes_fastapicloud_dir(tmp_path: Path) -> None:
     assert not gitignore_file.exists()
 
 
-def test_reset_when_no_configuration_exists(tmp_path: Path) -> None:
+def test_unlink_when_no_configuration_exists(tmp_path: Path) -> None:
     config_dir = tmp_path / ".fastapicloud"
     assert not config_dir.exists()
 
-    with patch("fastapi_cloud_cli.commands.reset.Path.cwd", return_value=tmp_path):
-        result = runner.invoke(app, ["reset"])
+    with patch("fastapi_cloud_cli.commands.unlink.Path.cwd", return_value=tmp_path):
+        result = runner.invoke(app, ["unlink"])
 
     assert result.exit_code == 1
     assert (
