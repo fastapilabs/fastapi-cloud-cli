@@ -26,7 +26,8 @@ def test_unlink_removes_fastapicloud_dir(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert (
-        "FastAPI Cloud configuration has been unlinked successfully! 🚀" in result.output
+        "FastAPI Cloud configuration has been unlinked successfully! 🚀"
+        in result.output
     )
 
     assert not config_dir.exists()
