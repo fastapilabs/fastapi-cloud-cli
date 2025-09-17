@@ -18,7 +18,9 @@ def reset() -> Any:
         config_dir = Path.cwd() / ".fastapicloud"
 
         if not config_dir.exists():
-            toolkit.print("No FastAPI Cloud configuration found in the current directory.")
+            toolkit.print(
+                "No FastAPI Cloud configuration found in the current directory."
+            )
             logger.debug(f"Configuration directory not found: {config_dir}")
             raise typer.Exit(1)
 

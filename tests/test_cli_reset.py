@@ -25,7 +25,9 @@ def test_reset_removes_fastapicloud_dir(tmp_path: Path) -> None:
         result = runner.invoke(app, ["reset"])
 
     assert result.exit_code == 0
-    assert "FastAPI Cloud configuration has been reset successfully! 🚀" in result.output
+    assert (
+        "FastAPI Cloud configuration has been reset successfully! 🚀" in result.output
+    )
 
     assert not config_dir.exists()
     assert not cloud_json.exists()
@@ -41,5 +43,7 @@ def test_reset_when_no_configuration_exists(tmp_path: Path) -> None:
         result = runner.invoke(app, ["reset"])
 
     assert result.exit_code == 1
-    assert "No FastAPI Cloud configuration found in the current directory." in result.output
-
+    assert (
+        "No FastAPI Cloud configuration found in the current directory."
+        in result.output
+    )
