@@ -4,6 +4,7 @@ from .commands.deploy import deploy
 from .commands.env import env_app
 from .commands.login import login
 from .commands.logout import logout
+from .commands.reset import reset
 from .commands.whoami import whoami
 from .logging import setup_logging
 from .utils.sentry import init_sentry
@@ -20,6 +21,7 @@ app.command()(deploy)
 app.command()(login)
 app.command()(logout)
 app.command()(whoami)
+app.command()(reset)
 
 app.add_typer(env_app, name="env")
 
