@@ -7,19 +7,9 @@ body:
 
         Please follow these instructions, fill every question, and do every step. 🙏
 
-        I'm asking this because answering questions and solving problems in GitHub is what consumes most of the time.
-
-        I end up not being able to add new features, fix bugs, review pull requests, etc. as fast as I wish because I have to spend too much time handling questions.
-
-        All that, on top of all the incredible help provided by a bunch of community members, that give a lot of their time to come here and help others.
-
-        That's a lot of work, but if more users came to help others like them just a little bit more, it would be much less effort for them (and you and me 😅).
-
         By asking questions in a structured way (following this) it will be much easier to help you.
 
         And there's a high chance that you will find the solution along the way and you won't even have to submit it and wait for an answer. 😎
-
-        As there are too many questions, I'll have to discard and close the incomplete ones. That will allow me (and others) to focus on helping people like you that follow the whole process and help us help you. 🤓
   - type: checkboxes
     id: checks
     attributes:
@@ -35,19 +25,6 @@ body:
         - label: I already searched in Google "How to do X" and didn't find any information.
           required: true
         - label: I already read and followed all the tutorial in the docs/README and didn't find an answer.
-          required: true
-  - type: checkboxes
-    id: help
-    attributes:
-      label: Commit to Help
-      description: |
-        After submitting this, I commit to one of:
-
-          * Read open questions until I find 2 where I can help someone and add a comment to help there.
-          * I already hit the "watch" button in this repository to receive notifications and I commit to help at least 2 people that ask questions in the future.
-
-      options:
-        - label: I commit to help with one of those options 👆
           required: true
   - type: textarea
     id: example
@@ -73,8 +50,8 @@ body:
         Write a short description telling me what you are doing, what you expect to happen, and what is currently happening.
       placeholder: |
         * Create a Django app.
-        * Run `fastapi dev`.
-        * I expected it to run the Django app, but it didn't.
+        * Run `fastapi deploy`.
+        * I expected it to deploy the Django app, but it didn't.
     validations:
       required: true
   - type: dropdown
@@ -108,6 +85,20 @@ body:
 
         ```bash
         python --version
+        ```
+    validations:
+      required: true
+  - type: input
+    id: fastapi-cli-version
+    attributes:
+      label: FastAPI ClI Version
+      description: |
+        What version of FastAPI CLI are you using?
+
+        You can find it with:
+
+        ```bash
+        fastapi --version
         ```
     validations:
       required: true

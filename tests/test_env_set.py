@@ -3,14 +3,15 @@ from unittest.mock import patch
 
 import pytest
 import respx
-from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import settings
 from httpx import Response
 from typer.testing import CliRunner
 
+from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.config import Settings
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
+settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -20,7 +21,7 @@ def configured_app(tmp_path: Path) -> Path:
     app_id = "123"
     team_id = "456"
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
@@ -85,7 +86,9 @@ def test_asks_for_name_and_value(
         return_value=Response(200)
     )
 
-    with changing_dir(configured_app), patch("click.getchar", side_effect=steps):
+    with changing_dir(configured_app), patch(
+        "rich_toolkit.container.getchar", side_effect=steps
+    ):
         result = runner.invoke(app, ["env", "set"])
 
     assert result.exit_code == 0

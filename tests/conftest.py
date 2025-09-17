@@ -5,8 +5,6 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-
-# from fastapi_cloud_cli.logging import setup_logging
 from typer import rich_utils
 
 
@@ -23,20 +21,21 @@ def reset_syspath() -> Generator[None, None, None]:
 def setup_terminal() -> None:
     rich_utils.MAX_WIDTH = 3000
     rich_utils.FORCE_TERMINAL = False
-    # setup_logging(terminal_width=3000)
     return
 
 
 @pytest.fixture
-def logged_in_cli() -> Generator[None, None, None]:
-    with patch("fastapi_cloud_cli.utils.auth.get_auth_token", return_value=True):
-        yield
+def logged_in_cli(temp_auth_config: Path) -> Generator[None, None, None]:
+    temp_auth_config.write_text('{"access_token": "test_token_12345"}')
+
+    yield
 
 
 @pytest.fixture
-def logged_out_cli() -> Generator[None, None, None]:
-    with patch("fastapi_cloud_cli.utils.auth.get_auth_token", return_value=None):
-        yield
+def logged_out_cli(temp_auth_config: Path) -> Generator[None, None, None]:
+    assert not temp_auth_config.exists()
+
+    yield
 
 
 @dataclass
@@ -51,9 +50,19 @@ def configured_app(tmp_path: Path) -> ConfiguredApp:
     app_id = "123"
     team_id = "456"
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
 
     return ConfiguredApp(app_id=app_id, team_id=team_id, path=tmp_path)
+
+
+@pytest.fixture
+def temp_auth_config(tmp_path: Path) -> Generator[Path, None, None]:
+    """Provides a temporary auth config setup for testing file operations."""
+
+    with patch(
+        "fastapi_cloud_cli.utils.config.get_config_folder", return_value=tmp_path
+    ):
+        yield tmp_path / "auth.json"

@@ -2,15 +2,16 @@ from pathlib import Path
 
 import pytest
 import respx
-from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import settings
 from httpx import Response
 from typer.testing import CliRunner
 
+from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.config import Settings
 from tests.conftest import ConfiguredApp
 from tests.utils import changing_dir
 
 runner = CliRunner()
+settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 

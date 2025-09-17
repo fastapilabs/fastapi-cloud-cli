@@ -7,15 +7,16 @@ from unittest.mock import patch
 import pytest
 import respx
 from click.testing import Result
-from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import settings
 from httpx import Response
 from typer.testing import CliRunner
 
+from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.config import Settings
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
+settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -58,18 +59,101 @@ def _get_random_deployment(
     }
 
 
-def test_shows_error_when_not_logged_in(logged_out_cli: None) -> None:
-    result = runner.invoke(app, ["deploy"])
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_waitlist_form_when_not_logged_in(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [*"some@example.com", Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, Keys.ENTER]
+
+    respx_mock.post(
+        "/users/waiting-list",
+        json={
+            "email": "some@example.com",
+            "location": None,
+            "name": None,
+            "organization": None,
+            "role": None,
+            "secret_code": None,
+            "team_size": None,
+            "use_case": None,
+        },
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
+    assert "We're currently in private beta" in result.output
+    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_waitlist_form_when_not_logged_in_longer_flow(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        *"some@example.com",
+        Keys.ENTER,
+        Keys.ENTER,
+        # Name
+        *"Patrick",
+        Keys.TAB,
+        # Organization
+        *"FastAPI Cloud",
+        Keys.TAB,
+        # Team
+        *"Team A",
+        Keys.TAB,
+        # Role
+        *"Developer",
+        Keys.TAB,
+        # Location
+        *"London",
+        Keys.TAB,
+        # Use case
+        *"I want to build a web app",
+        Keys.TAB,
+        # Secret code
+        *"PyCon Italia",
+        Keys.ENTER,
+        Keys.ENTER,
+    ]
+
+    respx_mock.post(
+        "/users/waiting-list",
+        json={
+            "email": "some@example.com",
+            "name": "Patrick",
+            "organization": "FastAPI Cloud",
+            "role": "Developer",
+            "team_size": None,
+            "location": "London",
+            "use_case": "I want to build a web app",
+            "secret_code": "PyCon Italia",
+        },
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "We're currently in private beta" in result.output
+    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
 
 def test_asks_to_setup_the_app(logged_in_cli: None, tmp_path: Path) -> None:
     steps = [Keys.RIGHT_ARROW, Keys.ENTER]
 
     with changing_dir(tmp_path), patch(
-        "rich_toolkit.menu.click.getchar"
+        "rich_toolkit.container.getchar"
     ) as mock_getchar:
         mock_getchar.side_effect = steps
 
@@ -87,7 +171,9 @@ def test_shows_error_when_trying_to_get_teams(
 
     respx_mock.get("/teams/").mock(return_value=Response(500))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -105,7 +191,9 @@ def test_handles_invalid_auth(
 
     respx_mock.get("/teams/").mock(return_value=Response(401))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -131,7 +219,9 @@ def test_shows_teams(
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -155,7 +245,9 @@ def test_asks_for_app_name_after_team(
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -184,7 +276,9 @@ def test_creates_app_on_backend(
         return_value=Response(201, json=_get_random_app(team_id=team["id"]))
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -210,7 +304,9 @@ def test_uses_existing_app(
         return_value=Response(200, json={"data": [app_data]})
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -219,78 +315,6 @@ def test_uses_existing_app(
 
         assert "Select the app you want to deploy to:" in result.output
         assert app_data["slug"] in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_creates_and_uploads_deployment_then_fails(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    steps = [
-        Keys.ENTER,
-        Keys.ENTER,
-        Keys.ENTER,
-        *"demo",
-        Keys.ENTER,
-        Keys.RIGHT_ARROW,
-        Keys.ENTER,
-    ]
-
-    team = _get_random_team()
-    app_data = _get_random_app(team_id=team["id"])
-
-    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
-
-    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
-        return_value=Response(201, json=app_data)
-    )
-
-    respx_mock.get(f"/apps/{app_data['id']}").mock(
-        return_value=Response(200, json=app_data)
-    )
-
-    deployment_data = _get_random_deployment(app_id=app_data["id"])
-
-    respx_mock.post(f"/apps/{app_data['id']}/deployments/").mock(
-        return_value=Response(201, json=deployment_data)
-    )
-    respx_mock.post(
-        f"/deployments/{deployment_data['id']}/upload",
-    ).mock(
-        return_value=Response(
-            200,
-            json={
-                "url": "http://test.com",
-                "fields": {"key": "value"},
-            },
-        )
-    )
-
-    respx_mock.post(
-        "http://test.com",
-        data={"key": "value"},
-    ).mock(return_value=Response(200))
-
-    respx_mock.get(
-        f"/apps/{app_data['id']}/deployments/{deployment_data['id']}",
-    ).mock(
-        return_value=Response(
-            200,
-            json=_get_random_deployment(app_id=app_data["id"], status="failed"),
-        )
-    )
-
-    respx_mock.post(
-        f"/deployments/{deployment_data['id']}/upload-complete",
-    ).mock(return_value=Response(200))
-
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
-        mock_getchar.side_effect = steps
-
-        result = runner.invoke(app, ["deploy"])
-
-        assert result.exit_code == 1
-
-        assert "Checking the status of your deployment" in result.output
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -346,24 +370,29 @@ def test_exits_successfully_when_deployment_is_done(
         data={"key": "value"},
     ).mock(return_value=Response(200))
 
-    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
-            200, json=_get_random_deployment(app_id=app_data["id"], status="success")
+            200,
+            json={
+                "message": "Hello, world!",
+            },
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
 
         assert result.exit_code == 0
 
-        assert "Ready the chicken! Your app is ready at" in result.output
+        # TODO: show a message when the deployment is done (based on the status)
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
+def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     app_data = _get_random_app()
@@ -372,7 +401,7 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
     team_id = team_data["id"]
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    config_path = tmp_path / ".fastapi" / "cloud.json"
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
@@ -394,9 +423,13 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
         return_value=Response(200)
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
-            200, json=_get_random_deployment(app_id=app_id, status="success")
+            200,
+            json={
+                "message": "All good!",
+                "type": "complete",
+            },
         )
     )
 
@@ -409,7 +442,124 @@ def test_exists_successfully_when_deployment_is_done_when_app_is_configured(
 
         assert result.exit_code == 0
 
-        assert "Ready the chicken! Your app is ready at" in result.output
+        # check that logs are shown
+        assert "All good!" in result.output
+
+        # check that the dashboard URL is shown
+        assert "You can also check the app logs at" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+        # check that the app URL is shown
+        assert deployment_data["url"] in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_exits_with_error_when_deployment_fails_to_build(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            json={
+                "message": "Build failed",
+                "type": "failed",
+            },
+        )
+    )
+
+    respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-complete",
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "Oh no! Something went wrong" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_error_when_deployment_build_fails(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            json={
+                "type": "failed",
+                "message": "Build failed",
+            },
+        )
+    )
+
+    respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-complete",
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "Something went wrong" in result.stdout
+
+        assert result.exit_code == 1
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -479,7 +629,9 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         return_value=Response(200)
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         return runner.invoke(app, ["deploy", "--no-wait"])
@@ -497,31 +649,14 @@ def test_can_skip_waiting(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_creates_config_folder_and_adds_it_to_gitignore(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    git_ignore_path = tmp_path / ".gitignore"
-    git_ignore_path.write_text(".venv\n")
-
-    _deploy_without_waiting(respx_mock, tmp_path)
-
-    assert (tmp_path / ".fastapi" / "cloud.json").exists()
-    assert (tmp_path / ".fastapi" / "README.md").exists()
-
-    assert git_ignore_path.read_text() == ".venv\n.fastapi\n"
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
 def test_creates_config_folder_and_creates_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     _deploy_without_waiting(respx_mock, tmp_path)
 
-    assert (tmp_path / ".fastapi" / "cloud.json").exists()
-    assert (tmp_path / ".fastapi" / "README.md").exists()
-    assert (tmp_path / ".gitignore").exists()
-
-    assert (tmp_path / ".gitignore").read_text() == ".fastapi\n"
+    assert (tmp_path / ".fastapicloud" / "cloud.json").exists()
+    assert (tmp_path / ".fastapicloud" / "README.md").exists()
+    assert (tmp_path / ".fastapicloud" / ".gitignore").read_text() == "*"
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -529,8 +664,160 @@ def test_does_not_duplicate_entry_in_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     git_ignore_path = tmp_path / ".gitignore"
-    git_ignore_path.write_text(".fastapi\n")
+    git_ignore_path.write_text(".fastapicloud\n")
 
     _deploy_without_waiting(respx_mock, tmp_path)
 
-    assert git_ignore_path.read_text() == ".fastapi\n"
+    assert git_ignore_path.read_text() == ".fastapicloud\n"
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_creates_environment_variables_during_app_setup(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.ENTER,  # Create new app
+        *"demo",  # App name
+        Keys.ENTER,
+        Keys.ENTER,  # Setup environment variables (Yes)
+        *"API_KEY",  # Environment variable name
+        Keys.ENTER,
+        *"secret123",  # Environment variable value
+        Keys.ENTER,
+        Keys.ENTER,  # Empty key to finish
+        Keys.CTRL_C,  # Exit before deployment
+    ]
+
+    team = _get_random_team()
+    app_data = _get_random_app(team_id=team["id"])
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
+        return_value=Response(201, json=app_data)
+    )
+
+    env_vars_request = respx_mock.patch(
+        f"/apps/{app_data['id']}/environment-variables/", json={"API_KEY": "secret123"}
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert env_vars_request.called
+        assert "Environment variables set up successfully!" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_rejects_invalid_environment_variable_names(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.ENTER,  # Create new app
+        *"demo",  # App name
+        Keys.ENTER,
+        Keys.ENTER,  # Setup environment variables (Yes)
+        *"123-invalid",  # Invalid environment variable name (starts with digit, contains hyphen)
+        Keys.ENTER,
+        *"VALID_KEY",  # Valid environment variable name
+        Keys.ENTER,
+        *"value123",  # Environment variable value
+        Keys.ENTER,
+        Keys.ENTER,  # Empty key to finish
+        Keys.CTRL_C,  # Exit before deployment
+    ]
+
+    team = _get_random_team()
+    app_data = _get_random_app(team_id=team["id"])
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
+        return_value=Response(201, json=app_data)
+    )
+
+    env_vars_request = respx_mock.patch(
+        f"/apps/{app_data['id']}/environment-variables/", json={"VALID_KEY": "value123"}
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert env_vars_request.called
+        assert "Invalid environment variable name." in result.output
+        assert "Environment variables set up successfully!" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_error_for_invalid_waitlist_form_data(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        *"test@example.com",
+        Keys.ENTER,
+        Keys.ENTER,  # Choose to provide more information
+        Keys.CTRL_C,  # Interrupt to avoid infinite loop
+    ]
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar, patch("rich_toolkit.form.Form.run") as mock_form_run:
+        mock_getchar.side_effect = steps
+        # Simulate form returning data with invalid email field to trigger ValidationError
+        mock_form_run.return_value = {
+            "email": "invalid-email-format",
+            "name": "John Doe",
+        }
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert "Invalid form data. Please try again." in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_no_apps_found_message_when_team_has_no_apps(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Setup and deploy
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    # Mock empty apps list for the team
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": []})
+    )
+
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert (
+            "No apps found in this team. You can create a new app instead."
+            in result.output
+        )
