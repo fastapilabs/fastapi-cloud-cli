@@ -80,7 +80,7 @@ def test_shows_waitlist_form_when_not_logged_in(
     ).mock(return_value=Response(200))
 
     with changing_dir(tmp_path), patch(
-        "rich_toolkit.menu.click.getchar"
+        "rich_toolkit.container.getchar"
     ) as mock_getchar:
         mock_getchar.side_effect = steps
 
@@ -138,7 +138,7 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     ).mock(return_value=Response(200))
 
     with changing_dir(tmp_path), patch(
-        "rich_toolkit.menu.click.getchar"
+        "rich_toolkit.container.getchar"
     ) as mock_getchar:
         mock_getchar.side_effect = steps
 
@@ -153,7 +153,7 @@ def test_asks_to_setup_the_app(logged_in_cli: None, tmp_path: Path) -> None:
     steps = [Keys.RIGHT_ARROW, Keys.ENTER]
 
     with changing_dir(tmp_path), patch(
-        "rich_toolkit.menu.click.getchar"
+        "rich_toolkit.container.getchar"
     ) as mock_getchar:
         mock_getchar.side_effect = steps
 
@@ -171,7 +171,9 @@ def test_shows_error_when_trying_to_get_teams(
 
     respx_mock.get("/teams/").mock(return_value=Response(500))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -189,7 +191,9 @@ def test_handles_invalid_auth(
 
     respx_mock.get("/teams/").mock(return_value=Response(401))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -215,7 +219,9 @@ def test_shows_teams(
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -239,7 +245,9 @@ def test_asks_for_app_name_after_team(
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -268,7 +276,9 @@ def test_creates_app_on_backend(
         return_value=Response(201, json=_get_random_app(team_id=team["id"]))
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -294,7 +304,9 @@ def test_uses_existing_app(
         return_value=Response(200, json={"data": [app_data]})
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -367,7 +379,9 @@ def test_exits_successfully_when_deployment_is_done(
         )
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -615,7 +629,9 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         return_value=Response(200)
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         return runner.invoke(app, ["deploy", "--no-wait"])
@@ -687,7 +703,9 @@ def test_creates_environment_variables_during_app_setup(
         f"/apps/{app_data['id']}/environment-variables/", json={"API_KEY": "secret123"}
     ).mock(return_value=Response(200))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -731,7 +749,9 @@ def test_rejects_invalid_environment_variable_names(
         f"/apps/{app_data['id']}/environment-variables/", json={"VALID_KEY": "value123"}
     ).mock(return_value=Response(200))
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -754,7 +774,7 @@ def test_shows_error_for_invalid_waitlist_form_data(
     ]
 
     with changing_dir(tmp_path), patch(
-        "rich_toolkit.menu.click.getchar"
+        "rich_toolkit.container.getchar"
     ) as mock_getchar, patch("rich_toolkit.form.Form.run") as mock_form_run:
         mock_getchar.side_effect = steps
         # Simulate form returning data with invalid email field to trigger ValidationError
@@ -789,7 +809,9 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
         return_value=Response(200, json={"data": []})
     )
 
-    with changing_dir(tmp_path), patch("click.getchar") as mock_getchar:
+    with changing_dir(tmp_path), patch(
+        "rich_toolkit.container.getchar"
+    ) as mock_getchar:
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
