@@ -153,6 +153,8 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     steps = [
+        Keys.DOWN_ARROW,  # Select "Join the waiting list"
+        Keys.ENTER,
         *"some@example.com",
         Keys.ENTER,
         Keys.ENTER,
@@ -824,6 +826,8 @@ def test_shows_error_for_invalid_waitlist_form_data(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     steps = [
+        Keys.DOWN_ARROW,  # Select "Join the waiting list"
+        Keys.ENTER,
         *"test@example.com",
         Keys.ENTER,
         Keys.ENTER,  # Choose to provide more information
