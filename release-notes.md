@@ -2,10 +2,17 @@
 
 ## Latest Changes
 
+## 0.2.0
+
 ### Features
 
 * ✨ Add unlink command to delete local FastAPI Cloud configuration. PR [#80](https://github.com/fastapilabs/fastapi-cloud-cli/pull/80) by [@alejsdev](https://github.com/alejsdev).
 * ✨ Add support for granular failure statuses. PR [#75](https://github.com/fastapilabs/fastapi-cloud-cli/pull/75) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+## 0.1.5
+
+### Features
+
 * 🧑‍💻 Handle HTTP errors when streaming build logs. PR [#65](https://github.com/fastapilabs/fastapi-cloud-cli/pull/65) by [@patrick91](https://github.com/patrick91).
 
 ### Refactors
