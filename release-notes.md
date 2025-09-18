@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add support for granular failure statuses. PR [#75](https://github.com/fastapilabs/fastapi-cloud-cli/pull/75) by [@DoctorJohn](https://github.com/DoctorJohn).
 * 🧑‍💻 Handle HTTP errors when streaming build logs. PR [#65](https://github.com/fastapilabs/fastapi-cloud-cli/pull/65) by [@patrick91](https://github.com/patrick91).
 
 ### Refactors
