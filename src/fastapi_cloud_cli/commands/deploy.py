@@ -20,6 +20,7 @@ from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 from typing_extensions import Annotated
 
+from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
@@ -556,10 +557,33 @@ def deploy(
 
     with get_rich_toolkit() as toolkit:
         if not is_logged_in():
-            logger.debug("User not logged in, showing waitlist form")
-            _waitlist_form(toolkit)
+            logger.debug("User not logged in, prompting for login or waitlist")
 
-            raise typer.Exit(1)
+            toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
+            toolkit.print_line()
+
+            toolkit.print(
+                "You need to be logged in to deploy to FastAPI Cloud.",
+                tag="info",
+            )
+            toolkit.print_line()
+
+            choice = toolkit.ask(
+                "What would you like to do?",
+                tag="auth",
+                options=[
+                    Option({"name": "Login to my existing account", "value": "login"}),
+                    Option({"name": "Join the waiting list", "value": "waitlist"}),
+                ],
+            )
+
+            toolkit.print_line()
+
+            if choice == "login":
+                login()
+            else:
+                _waitlist_form(toolkit)
+                raise typer.Exit(1)
 
         toolkit.print_title("Starting deployment", tag="FastAPI")
         toolkit.print_line()
