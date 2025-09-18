@@ -108,8 +108,11 @@ class DeploymentStatus(str, Enum):
     ready_for_build = "ready_for_build"
     building = "building"
     extracting = "extracting"
+    extracting_failed = "extracting_failed"
     building_image = "building_image"
+    building_image_failed = "building_image_failed"
     deploying = "deploying"
+    deploying_failed = "deploying_failed"
     success = "success"
     failed = "failed"
 
@@ -120,8 +123,11 @@ class DeploymentStatus(str, Enum):
             cls.ready_for_build: "Ready for build",
             cls.building: "Building",
             cls.extracting: "Extracting",
+            cls.extracting_failed: "Extracting failed",
             cls.building_image: "Building image",
+            cls.building_image_failed: "Build failed",
             cls.deploying: "Deploying",
+            cls.deploying_failed: "Deploying failed",
             cls.success: "Success",
             cls.failed: "Failed",
         }[status]
