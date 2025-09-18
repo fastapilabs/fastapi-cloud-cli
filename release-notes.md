@@ -10,6 +10,7 @@
 
 ### Refactors
 
+* ♻️ Prompt user for login or waitlist option when not logged in. PR [#81](https://github.com/fastapilabs/fastapi-cloud-cli/pull/81) by [@alejsdev](https://github.com/alejsdev).
 * ✅ Fix mocks in tests . PR [#78](https://github.com/fastapilabs/fastapi-cloud-cli/pull/78) by [@alejsdev](https://github.com/alejsdev).
 
 ## 0.1.4
