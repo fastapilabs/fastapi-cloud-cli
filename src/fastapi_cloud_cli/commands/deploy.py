@@ -592,7 +592,13 @@ def deploy(
                     "App not found. Make sure you're logged in the correct account."
                 )
 
-                raise typer.Exit(1)
+        if not app:
+            toolkit.print_line()
+            toolkit.print(
+                "If you deleted this app, you can run [bold]fastapi unlink[/] to unlink the local configuration.",
+                tag="tip",
+            )
+            raise typer.Exit(1)
 
         logger.debug("Creating archive for deployment")
         archive_path = archive(path or Path.cwd())  # noqa: F841
