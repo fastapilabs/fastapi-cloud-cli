@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.2.1
+
 ### Features
 
 * ✨ Add support for verification statuses. PR [#82](https://github.com/fastapilabs/fastapi-cloud-cli/pull/82) by [@DoctorJohn](https://github.com/DoctorJohn).
