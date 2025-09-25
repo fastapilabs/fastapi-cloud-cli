@@ -114,6 +114,8 @@ class DeploymentStatus(str, Enum):
     building_image_failed = "building_image_failed"
     deploying = "deploying"
     deploying_failed = "deploying_failed"
+    verifying = "verifying"
+    verifying_failed = "verifying_failed"
     success = "success"
     failed = "failed"
 
@@ -129,6 +131,8 @@ class DeploymentStatus(str, Enum):
             cls.building_image_failed: "Build failed",
             cls.deploying: "Deploying",
             cls.deploying_failed: "Deploying failed",
+            cls.verifying: "Verifying",
+            cls.verifying_failed: "Verifying failed",
             cls.success: "Success",
             cls.failed: "Failed",
         }[status]
