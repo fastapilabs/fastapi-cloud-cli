@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆ Bump pypa/gh-action-pypi-publish from 1.9.0 to 1.13.0. PR [#73](https://github.com/fastapilabs/fastapi-cloud-cli/pull/73) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/labeler from 5 to 6. PR [#72](https://github.com/fastapilabs/fastapi-cloud-cli/pull/72) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/checkout from 4 to 5. PR [#68](https://github.com/fastapilabs/fastapi-cloud-cli/pull/68) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump tiangolo/latest-changes from 0.3.1 to 0.4.0. PR [#70](https://github.com/fastapilabs/fastapi-cloud-cli/pull/70) by [@dependabot[bot]](https://github.com/apps/dependabot).
