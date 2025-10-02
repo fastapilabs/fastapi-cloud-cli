@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆ Update pre-commit requirement from <4.0.0,>=2.17.0 to >=2.17.0,<5.0.0. PR [#28](https://github.com/fastapilabs/fastapi-cloud-cli/pull/28) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump ruff from 0.12.0 to 0.13.0. PR [#77](https://github.com/fastapilabs/fastapi-cloud-cli/pull/77) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump pypa/gh-action-pypi-publish from 1.9.0 to 1.13.0. PR [#73](https://github.com/fastapilabs/fastapi-cloud-cli/pull/73) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/labeler from 5 to 6. PR [#72](https://github.com/fastapilabs/fastapi-cloud-cli/pull/72) by [@dependabot[bot]](https://github.com/apps/dependabot).
