@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* ⬆ Bump tiangolo/latest-changes from 0.3.1 to 0.4.0. PR [#70](https://github.com/fastapilabs/fastapi-cloud-cli/pull/70) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.2.1
 
 ### Features
