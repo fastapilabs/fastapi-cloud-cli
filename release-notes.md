@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.3.0
+
 ### Features
 
 * ✨ Add support for `.fastapicloudignore` file. PR [#83](https://github.com/fastapilabs/fastapi-cloud-cli/pull/83) by [@patrick91](https://github.com/patrick91).
