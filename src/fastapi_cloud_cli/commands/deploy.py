@@ -49,7 +49,11 @@ def _should_exclude_entry(path: Path) -> bool:
 
 def archive(path: Path) -> Path:
     logger.debug("Starting archive creation for path: %s", path)
-    files = rignore.walk(path, should_exclude_entry=_should_exclude_entry)
+    files = rignore.walk(
+        path,
+        should_exclude_entry=_should_exclude_entry,
+        additional_ignore_paths=[".fastapicloudignore"],
+    )
 
     temp_dir = tempfile.mkdtemp()
     logger.debug("Created temp directory: %s", temp_dir)
