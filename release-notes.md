@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add support for `.fastapicloudignore` file. PR [#83](https://github.com/fastapilabs/fastapi-cloud-cli/pull/83) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * ⬆ Bump actions/download-artifact from 4 to 5. PR [#69](https://github.com/fastapilabs/fastapi-cloud-cli/pull/69) by [@dependabot[bot]](https://github.com/apps/dependabot).
