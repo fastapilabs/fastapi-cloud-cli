@@ -235,7 +235,9 @@ def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None
             name: {"value": value, "is_secret": False}
             for name, value in env_vars.items()
         }
-        response = client.post(f"/apps/{app_id}/environment-variables/batch", json=payload)
+        response = client.post(
+            f"/apps/{app_id}/environment-variables/batch", json=payload
+        )
         response.raise_for_status()
 
 
@@ -259,6 +261,7 @@ WAITING_MESSAGES = [
     "💥 Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
     "🧙 Sprinkling magic deployment dust. Abracadabra!",
     "👀 Hoping that @tiangolo doesn't find out about this deployment.",
+    "⚡ Great Scott! This deployment needs more gigawatts!",
     "🍪 Cookie monster detected on server. Deploying anti-cookie shields.",
 ]
 

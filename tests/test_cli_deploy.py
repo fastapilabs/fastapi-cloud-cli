@@ -763,7 +763,11 @@ def test_creates_environment_variables_during_app_setup(
     )
 
     env_vars_request = respx_mock.post(
-        f"/apps/{app_data['id']}/environment-variables/batch", json={"API_KEY": {"value": "fakesecret", "is_secret": False}, "TEST_ENV": {"value": "fakesecret123", "is_secret": False}}
+        f"/apps/{app_data['id']}/environment-variables/batch",
+        json={
+            "API_KEY": {"value": "fakesecret", "is_secret": False},
+            "TEST_ENV": {"value": "fakesecret123", "is_secret": False},
+        },
     ).mock(return_value=Response(200))
 
     with changing_dir(tmp_path), patch(
@@ -809,7 +813,8 @@ def test_rejects_invalid_environment_variable_names(
     )
 
     env_vars_request = respx_mock.post(
-        f"/apps/{app_data['id']}/environment-variables/batch", json={"VALID_KEY": {"value": "value123", "is_secret": False}}
+        f"/apps/{app_data['id']}/environment-variables/batch",
+        json={"VALID_KEY": {"value": "value123", "is_secret": False}},
     ).mock(return_value=Response(200))
 
     with changing_dir(tmp_path), patch(

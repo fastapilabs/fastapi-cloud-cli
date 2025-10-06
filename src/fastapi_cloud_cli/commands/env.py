@@ -44,7 +44,9 @@ def _delete_environment_variable(app_id: str, name: str) -> bool:
     return True
 
 
-def _set_environment_variable(app_id: str, name: str, value: str, is_secret: bool = False) -> None:
+def _set_environment_variable(
+    app_id: str, name: str, value: str, is_secret: bool = False
+) -> None:
     with APIClient() as client:
         response = client.post(
             f"/apps/{app_id}/environment-variables/",
