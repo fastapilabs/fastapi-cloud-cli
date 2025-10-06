@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* 🔥 Remove env vars from deploy workflow. PR [#93](https://github.com/fastapilabs/fastapi-cloud-cli/pull/93) by [@alejsdev](https://github.com/alejsdev).
+
 ## 0.3.0
 
 ### Features
