@@ -743,7 +743,11 @@ def test_creates_environment_variables_during_app_setup(
         Keys.ENTER,  # Setup environment variables (Yes)
         *"API_KEY",  # Environment variable name
         Keys.ENTER,
-        *"secret123",  # Environment variable value
+        *"fakesecret",  # Environment variable value
+        Keys.ENTER,
+        *"TEST_ENV",  # Environment variable name
+        Keys.ENTER,
+        *"fakesecret123",  # Environment variable value
         Keys.ENTER,
         Keys.ENTER,  # Empty key to finish
         Keys.CTRL_C,  # Exit before deployment
