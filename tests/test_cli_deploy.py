@@ -386,8 +386,6 @@ def test_exits_successfully_when_deployment_is_done(
         Keys.ENTER,
         *"demo",
         Keys.ENTER,
-        Keys.RIGHT_ARROW,
-        Keys.ENTER,
     ]
 
     team_data = _get_random_team()
@@ -641,8 +639,6 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
-        Keys.ENTER,
-        Keys.RIGHT_ARROW,
         Keys.ENTER,
     ]
 

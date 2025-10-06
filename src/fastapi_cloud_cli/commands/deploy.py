@@ -393,45 +393,6 @@ def _wait_for_deployment(
                     last_message_changed_at = time.monotonic()  # pragma: no cover
 
 
-def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
-    if not toolkit.confirm("Do you want to setup environment variables?", tag="env"):
-        return
-
-    toolkit.print_line()
-
-    env_vars = {}
-
-    while True:
-        key = toolkit.input(
-            "Enter the environment variable name: [ENTER to skip]", required=False
-        )
-
-        if key.strip() == "":
-            break
-
-        if not validate_environment_variable_name(key):
-            toolkit.print(
-                "[error]Invalid environment variable name.",
-            )
-
-        else:
-            value = toolkit.input(
-                "Enter the environment variable value:", password=True
-            )
-
-            env_vars[key] = value
-
-        toolkit.print_line()
-
-    toolkit.print_line()
-
-    with toolkit.progress("Setting up environment variables...") as progress:
-        with handle_http_errors(progress):
-            _create_environment_variables(app_id, env_vars)
-
-        progress.log("Environment variables set up successfully!")
-
-
 class SignupToWaitingList(BaseModel):
     email: EmailStr
     name: Optional[str] = None
@@ -598,9 +559,6 @@ def deploy(
         if not app_config:
             logger.debug("No app config found, configuring new app")
             app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
-            toolkit.print_line()
-
-            _setup_environment_variables(toolkit, app_config.app_id)
             toolkit.print_line()
         else:
             logger.debug("Existing app config found, proceeding with deployment")
