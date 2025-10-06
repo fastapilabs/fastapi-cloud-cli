@@ -25,7 +25,6 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
-from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
 logger = logging.getLogger(__name__)
 
@@ -229,18 +228,6 @@ def _get_apps(team_id: str) -> List[AppResponse]:
     return [AppResponse.model_validate(app) for app in data]
 
 
-def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None:
-    with APIClient() as client:
-        payload = {
-            name: {"value": value, "is_secret": False}
-            for name, value in env_vars.items()
-        }
-        response = client.post(
-            f"/apps/{app_id}/environment-variables/batch", json=payload
-        )
-        response.raise_for_status()
-
-
 def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
     with APIClient() as client:
         with client.stream(
@@ -403,45 +390,6 @@ def _wait_for_deployment(
                     progress.title = next(messages)  # pragma: no cover
 
                     last_message_changed_at = time.monotonic()  # pragma: no cover
-
-
-def _setup_environment_variables(toolkit: RichToolkit, app_id: str) -> None:
-    if not toolkit.confirm("Do you want to setup environment variables?", tag="env"):
-        return
-
-    toolkit.print_line()
-
-    env_vars = {}
-
-    while True:
-        key = toolkit.input(
-            "Enter the environment variable name: [ENTER to skip]", required=False
-        )
-
-        if key.strip() == "":
-            break
-
-        if not validate_environment_variable_name(key):
-            toolkit.print(
-                "[error]Invalid environment variable name.",
-            )
-
-        else:
-            value = toolkit.input(
-                "Enter the environment variable value:", password=True
-            )
-
-            env_vars[key] = value
-
-        toolkit.print_line()
-
-    toolkit.print_line()
-
-    with toolkit.progress("Setting up environment variables...") as progress:
-        with handle_http_errors(progress):
-            _create_environment_variables(app_id, env_vars)
-
-        progress.log("Environment variables set up successfully!")
 
 
 class SignupToWaitingList(BaseModel):
@@ -610,9 +558,6 @@ def deploy(
         if not app_config:
             logger.debug("No app config found, configuring new app")
             app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
-            toolkit.print_line()
-
-            _setup_environment_variables(toolkit, app_config.app_id)
             toolkit.print_line()
         else:
             logger.debug("Existing app config found, proceeding with deployment")
