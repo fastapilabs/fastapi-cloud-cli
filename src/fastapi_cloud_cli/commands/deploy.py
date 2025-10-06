@@ -229,12 +229,6 @@ def _get_apps(team_id: str) -> List[AppResponse]:
     return [AppResponse.model_validate(app) for app in data]
 
 
-def _create_environment_variables(app_id: str, env_vars: Dict[str, str]) -> None:
-    with APIClient() as client:
-        response = client.patch(f"/apps/{app_id}/environment-variables/", json=env_vars)
-        response.raise_for_status()
-
-
 def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
     with APIClient() as client:
         with client.stream(
