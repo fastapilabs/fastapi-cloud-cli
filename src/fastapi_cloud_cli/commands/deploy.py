@@ -259,7 +259,6 @@ WAITING_MESSAGES = [
     "💥 Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
     "🧙 Sprinkling magic deployment dust. Abracadabra!",
     "👀 Hoping that @tiangolo doesn't find out about this deployment.",
-    "⚡ Great Scott! This deployment needs more gigawatts!",
     "🍪 Cookie monster detected on server. Deploying anti-cookie shields.",
 ]
 
