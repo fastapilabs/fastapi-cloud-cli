@@ -57,7 +57,6 @@ def test_archive_preserves_relative_paths(tmp_path: Path) -> None:
         assert names == ["src/app/main.py"]
 
 
-
 def test_archive_respects_fastapicloudignore(tmp_path: Path) -> None:
     """Should exclude files specified in .fastapicloudignore."""
     # Create test files
@@ -80,6 +79,8 @@ def test_archive_respects_fastapicloudignore(tmp_path: Path) -> None:
             "main.py",
             "config.py",
         }
+
+
 def test_archive_respects_fastapicloudignore_unignore(tmp_path: Path) -> None:
     """Test we can use .fastapicloudignore to unignore files inside .gitignore"""
     # Create test files
@@ -99,7 +100,4 @@ def test_archive_respects_fastapicloudignore_unignore(tmp_path: Path) -> None:
     # Verify ignored files are excluded
     with tarfile.open(tar_path, "r") as tar:
         names = tar.getnames()
-        assert set(names) == {
-            "main.py",
-            "static/build/style.css"
-        }
+        assert set(names) == {"main.py", "static/build/style.css"}
