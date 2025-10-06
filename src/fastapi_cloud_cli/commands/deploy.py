@@ -25,7 +25,6 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
-from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
 logger = logging.getLogger(__name__)
 
