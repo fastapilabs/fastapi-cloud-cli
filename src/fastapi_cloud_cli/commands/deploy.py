@@ -67,6 +67,7 @@ def archive(path: Path) -> Path:
             if filename.is_dir():
                 continue
 
+            logger.debug("Adding %s to archive", filename.relative_to(path))
             tar.add(filename, arcname=filename.relative_to(path))
             file_count += 1
 
