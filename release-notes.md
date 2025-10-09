@@ -11,6 +11,10 @@
 * ♻️ Refactor env vars creation . PR [#92](https://github.com/fastapilabs/fastapi-cloud-cli/pull/92) by [@alejsdev](https://github.com/alejsdev).
 * 🔥 Remove env vars from deploy workflow. PR [#93](https://github.com/fastapilabs/fastapi-cloud-cli/pull/93) by [@alejsdev](https://github.com/alejsdev).
 
+### Internal
+
+* ✅ Add test to make sure .fastapicloudignore can override .gitignore (#90). PR [#95](https://github.com/fastapilabs/fastapi-cloud-cli/pull/95) by [@patrick91](https://github.com/patrick91).
+
 ## 0.3.0
 
 ### Features
