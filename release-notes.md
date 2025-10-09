@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.3.1
+
 ### Fixes
 
 * 🐛 Fix login url not linked correctly. PR [#89](https://github.com/fastapilabs/fastapi-cloud-cli/pull/89) by [@patrick91](https://github.com/patrick91).
