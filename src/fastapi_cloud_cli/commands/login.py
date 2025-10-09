@@ -87,7 +87,7 @@ def login() -> Any:
 
             url = authorization_data.verification_uri_complete
 
-            progress.log(f"Opening {url}")
+            progress.log(f"Opening [link={url}]{url}[/link]")
 
         toolkit.print_line()
 
