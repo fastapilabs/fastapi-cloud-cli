@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Fix login url not linked correctly. PR [#89](https://github.com/fastapilabs/fastapi-cloud-cli/pull/89) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Refactor env vars creation . PR [#92](https://github.com/fastapilabs/fastapi-cloud-cli/pull/92) by [@alejsdev](https://github.com/alejsdev).
