@@ -13,6 +13,7 @@
 
 ### Internal
 
+* ♻️ Log files added to archive in debug mode (#91). PR [#96](https://github.com/fastapilabs/fastapi-cloud-cli/pull/96) by [@patrick91](https://github.com/patrick91).
 * ✅ Add test to make sure .fastapicloudignore can override .gitignore (#90). PR [#95](https://github.com/fastapilabs/fastapi-cloud-cli/pull/95) by [@patrick91](https://github.com/patrick91).
 
 ## 0.3.0
