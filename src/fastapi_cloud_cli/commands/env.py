@@ -44,11 +44,13 @@ def _delete_environment_variable(app_id: str, name: str) -> bool:
     return True
 
 
-def _set_environment_variable(app_id: str, name: str, value: str) -> None:
+def _set_environment_variable(
+    app_id: str, name: str, value: str, is_secret: bool = False
+) -> None:
     with APIClient() as client:
-        response = client.patch(
+        response = client.post(
             f"/apps/{app_id}/environment-variables/",
-            json={name: value},
+            json={"name": name, "value": value, "is_secret": is_secret},
         )
         response.raise_for_status()
 

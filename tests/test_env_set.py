@@ -47,9 +47,7 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    respx_mock.patch("/apps/123/environment-variables/").mock(
-        return_value=Response(500)
-    )
+    respx_mock.post("/apps/123/environment-variables/").mock(return_value=Response(500))
 
     with changing_dir(configured_app):
         result = runner.invoke(app, ["env", "set", "SOME_VAR", "secret"])
@@ -65,9 +63,7 @@ def test_shows_a_message_if_something_is_wrong(
 def test_shows_message_when_it_sets(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    respx_mock.patch("/apps/123/environment-variables/").mock(
-        return_value=Response(200)
-    )
+    respx_mock.post("/apps/123/environment-variables/").mock(return_value=Response(200))
 
     with changing_dir(configured_app):
         result = runner.invoke(app, ["env", "set", "SOME_VAR", "secret"])
@@ -82,9 +78,7 @@ def test_asks_for_name_and_value(
 ) -> None:
     steps = [*"SOME_VAR", Keys.ENTER, *"secret", Keys.ENTER]
 
-    respx_mock.patch("/apps/123/environment-variables/").mock(
-        return_value=Response(200)
-    )
+    respx_mock.post("/apps/123/environment-variables/").mock(return_value=Response(200))
 
     with changing_dir(configured_app), patch(
         "rich_toolkit.container.getchar", side_effect=steps
