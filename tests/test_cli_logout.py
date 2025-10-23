@@ -2,7 +2,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.cli import cloud_app as app
 
 runner = CliRunner()
 

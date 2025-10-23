@@ -5,7 +5,7 @@ import respx
 from httpx import ReadTimeout, Response
 from typer.testing import CliRunner
 
-from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.config import Settings
 
 runner = CliRunner()
