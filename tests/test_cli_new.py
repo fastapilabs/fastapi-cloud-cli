@@ -120,3 +120,4 @@ class TestNewCommand:
         pyproject_content = (project_path / "pyproject.toml").read_text()
         assert 'name = "test-project"' in pyproject_content
         assert 'fastapi[standard]' in pyproject_content
+        
