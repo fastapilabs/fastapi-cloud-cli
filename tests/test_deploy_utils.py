@@ -58,6 +58,7 @@ def test_includes_paths(path: Path) -> None:
         (DeploymentStatus.deploying_failed, "Deploying failed"),
         (DeploymentStatus.verifying, "Verifying"),
         (DeploymentStatus.verifying_failed, "Verifying failed"),
+        (DeploymentStatus.verifying_skipped, "Verification skipped"),
         (DeploymentStatus.success, "Success"),
         (DeploymentStatus.failed, "Failed"),
     ],
