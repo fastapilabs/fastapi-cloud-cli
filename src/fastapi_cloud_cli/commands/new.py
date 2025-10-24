@@ -4,10 +4,11 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Annotated, Optional
 
-from rich_toolkit import RichToolkit
 import typer
+from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+
 
 #TODO: Add ability to fetch different templates in the future via --template option
 TEMPLATE_CONTENT = """from fastapi import FastAPI
@@ -150,17 +151,13 @@ def new(
     ] = None,
 ) -> None:
 
-    # Determine project name and path
     if project_name:
-        # Create project in a new subdirectory
         name = project_name
         path = pathlib.Path.cwd() / project_name
     else:
-        # Initialize in current directory
         name = pathlib.Path.cwd().name
         path = pathlib.Path.cwd()
 
-    # Create project configuration
     config = ProjectConfig(
         name=name,
         path=path,
