@@ -240,5 +240,5 @@ def new(
         toolkit.print_line()
 
         toolkit.print(
-            "[dim]💡 Tip: Use 'uv run' to automatically use the project's virtual environment[/dim]"
+            "[dim]💡 Tip: Use 'uv run' to automatically use the project's environment[/dim]"
         )
