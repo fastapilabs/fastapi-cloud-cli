@@ -2,15 +2,15 @@ import pathlib
 import shutil
 import subprocess
 from dataclasses import dataclass, field
-from typing import Annotated, Optional
+from typing import List, Optional
 
 import typer
 from rich_toolkit import RichToolkit
+from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
-
-#TODO: Add ability to fetch different templates in the future via --template option
+# TODO: Add ability to fetch different templates in the future via --template option
 TEMPLATE_CONTENT = """from fastapi import FastAPI
 app = FastAPI()
 
@@ -19,11 +19,13 @@ def main():
     return {"message": "Hello World"}
 """
 
+
 @dataclass
 class ProjectConfig:
     name: str
     path: pathlib.Path
-    extra_args: list[str] = field(default_factory=list)
+    extra_args: List[str] = field(default_factory=list)
+
 
 def _generate_readme(project_name: str) -> str:
     return f"""# {project_name}
@@ -58,11 +60,13 @@ uv run fastapi deploy
 - [FastAPI Cloud](https://fastapicloud.com)
 """
 
+
 def _exit_with_error(toolkit: RichToolkit, error_msg: str) -> None:
     toolkit.print(f"[bold red]Error:[/bold red] {error_msg}", tag="error")
     raise typer.Exit(code=1)
 
-def _validate_python_version_in_args(extra_args: list[str]) -> Optional[str]:
+
+def _validate_python_version_in_args(extra_args: List[str]) -> Optional[str]:
     """
     Check if --python is specified in extra_args and validate it's >= 3.8.
     Returns error message if < 3.8, None otherwise.
@@ -87,6 +91,7 @@ def _validate_python_version_in_args(extra_args: list[str]) -> Optional[str]:
                 # Malformed version - let uv handle the error
                 return None
     return None
+
 
 def _setup(toolkit: RichToolkit, config: ProjectConfig) -> None:
     error = _validate_python_version_in_args(config.extra_args)
@@ -115,6 +120,7 @@ def _setup(toolkit: RichToolkit, config: ProjectConfig) -> None:
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode() if e.stderr else "No details available"
         _exit_with_error(toolkit, f"Failed to initialize project with uv. {stderr}")
+
 
 def _install_dependencies(toolkit: RichToolkit, config: ProjectConfig) -> None:
     toolkit.print("Installing dependencies...", tag="deps")
@@ -151,7 +157,6 @@ def new(
         ),
     ] = None,
 ) -> None:
-
     if project_name:
         name = project_name
         path = pathlib.Path.cwd() / project_name
@@ -173,7 +178,7 @@ def new(
         if not project_name:
             toolkit.print(
                 f"[yellow]⚠️  No project name provided. Initializing in current directory: {path}[/yellow]",
-                tag="warning"
+                tag="warning",
             )
             toolkit.print_line()
 
@@ -213,7 +218,7 @@ def new(
             toolkit.print("  [dim]$[/dim] uv run fastapi dev")
         else:
             toolkit.print(
-                f"[bold green]✨ Success![/bold green] Initialized FastAPI project in current directory",
+                "[bold green]✨ Success![/bold green] Initialized FastAPI project in current directory",
                 tag="success",
             )
 

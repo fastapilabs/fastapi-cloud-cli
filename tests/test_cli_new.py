@@ -25,7 +25,6 @@ def check_uv_installed() -> None:
 
 
 class TestNewCommand:
-
     def test_creates_project_successfully(self, temp_project_dir: Path) -> None:
         result = runner.invoke(app, ["new", "my_fastapi_project"])
 
@@ -49,7 +48,9 @@ class TestNewCommand:
         assert "3.12" in python_version_file
         assert "Success!" in result.output
 
-    def test_creates_project_with_python_flag_short(self, temp_project_dir: Path) -> None:
+    def test_creates_project_with_python_flag_short(
+        self, temp_project_dir: Path
+    ) -> None:
         result = runner.invoke(app, ["new", "another_project", "-p", "3.9"])
         assert result.exit_code == 0
         project_path = temp_project_dir / "another_project"
@@ -57,9 +58,10 @@ class TestNewCommand:
         python_version_file = (project_path / ".python-version").read_text()
         assert "3.9" in python_version_file
 
-
     def test_creates_project_with_multiple_flags(self, temp_project_dir: Path) -> None:
-        result = runner.invoke(app, ["new", "my_fastapi_project", "--python", "3.12", "--lib"])
+        result = runner.invoke(
+            app, ["new", "my_fastapi_project", "--python", "3.12", "--lib"]
+        )
 
         assert result.exit_code == 0
         project_path = temp_project_dir / "my_fastapi_project"
@@ -83,9 +85,11 @@ class TestNewCommand:
         result = runner.invoke(app, ["new", "existing_project"])
 
         assert result.exit_code == 1
-        assert f"Directory 'existing_project' already exists." in result.output
+        assert "Directory 'existing_project' already exists." in result.output
 
-    def test_initializes_in_current_directory_when_no_name_provided(self, temp_project_dir: Path) -> None:
+    def test_initializes_in_current_directory_when_no_name_provided(
+        self, temp_project_dir: Path
+    ) -> None:
         result = runner.invoke(app, ["new"])
 
         assert result.exit_code == 0
@@ -121,5 +125,4 @@ class TestNewCommand:
 
         pyproject_content = (project_path / "pyproject.toml").read_text()
         assert 'name = "test-project"' in pyproject_content
-        assert 'fastapi[standard]' in pyproject_content
-        
+        assert "fastapi[standard]" in pyproject_content
