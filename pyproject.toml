@@ -43,6 +43,9 @@ dependencies = [
 [project.optional-dependencies]
 standard = ["uvicorn[standard] >= 0.15.0"]
 
+[project.scripts]
+fastapi-cloud = "fastapi_cloud_cli.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/fastapilabs/fastapi-cloud-cli"
 Documentation = "https://fastapi.tiangolo.com/fastapi-cloud-cli/"

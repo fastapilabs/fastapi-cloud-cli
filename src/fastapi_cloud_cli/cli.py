@@ -4,6 +4,7 @@ from .commands.deploy import deploy
 from .commands.env import env_app
 from .commands.login import login
 from .commands.logout import logout
+from .commands.new import new
 from .commands.unlink import unlink
 from .commands.whoami import whoami
 from .logging import setup_logging
@@ -20,6 +21,9 @@ app = typer.Typer(rich_markup_mode="rich")
 app.command()(deploy)
 app.command()(login)
 app.command()(logout)
+app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)(new)
 app.command()(whoami)
 app.command()(unlink)
 
