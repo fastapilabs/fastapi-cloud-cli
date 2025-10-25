@@ -23,7 +23,7 @@ def main():
 class ProjectConfig:
     name: str
     path: pathlib.Path
-    extra_args: list = field(default_factory=list)
+    extra_args: list[str] = field(default_factory=list)
 
 def _generate_readme(project_name: str) -> str:
     return f"""# {project_name}
@@ -62,7 +62,7 @@ def _exit_with_error(toolkit: RichToolkit, error_msg: str) -> None:
     toolkit.print(f"[bold red]Error:[/bold red] {error_msg}", tag="error")
     raise typer.Exit(code=1)
 
-def _validate_python_version_in_args(extra_args: list) -> Optional[str]:
+def _validate_python_version_in_args(extra_args: list[str]) -> Optional[str]:
     """
     Check if --python is specified in extra_args and validate it's >= 3.8.
     Returns error message if < 3.8, None otherwise.
@@ -86,6 +86,7 @@ def _validate_python_version_in_args(extra_args: list) -> Optional[str]:
             except (ValueError, IndexError):
                 # Malformed version - let uv handle the error
                 return None
+    return None
 
 def _setup(toolkit: RichToolkit, config: ProjectConfig) -> None:
     error = _validate_python_version_in_args(config.extra_args)
