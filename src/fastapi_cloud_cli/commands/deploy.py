@@ -120,6 +120,7 @@ class DeploymentStatus(str, Enum):
     deploying_failed = "deploying_failed"
     verifying = "verifying"
     verifying_failed = "verifying_failed"
+    verifying_skipped = "verifying_skipped"
     success = "success"
     failed = "failed"
 
@@ -137,6 +138,7 @@ class DeploymentStatus(str, Enum):
             cls.deploying_failed: "Deploying failed",
             cls.verifying: "Verifying",
             cls.verifying_failed: "Verifying failed",
+            cls.verifying_skipped: "Verification skipped",
             cls.success: "Success",
             cls.failed: "Failed",
         }[status]
