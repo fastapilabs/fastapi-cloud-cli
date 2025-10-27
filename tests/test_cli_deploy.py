@@ -1,19 +1,22 @@
 import random
 import string
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional
 from unittest.mock import patch
 
+import httpx
 import pytest
 import respx
 from click.testing import Result
 from httpx import Response
+from time_machine import TimeMachineFixture
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, build_logs_response, changing_dir
 
 runner = CliRunner()
 settings = Settings.get()
@@ -430,9 +433,10 @@ def test_exits_successfully_when_deployment_is_done(
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
-            json={
-                "message": "Hello, world!",
-            },
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
         )
     )
 
@@ -483,10 +487,11 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
-            json={
-                "message": "All good!",
-                "type": "complete",
-            },
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "message", "message": "All good!", "id": "2"},
+                {"type": "complete"},
+            ),
         )
     )
 
@@ -545,10 +550,7 @@ def test_exits_with_error_when_deployment_fails_to_build(
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
-            json={
-                "message": "Build failed",
-                "type": "failed",
-            },
+            json={"type": "failed"},
         )
     )
 
@@ -600,10 +602,7 @@ def test_shows_error_when_deployment_build_fails(
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
-            json={
-                "type": "failed",
-                "message": "Build failed",
-            },
+            json={"type": "failed"},
         )
     )
 
@@ -787,3 +786,223 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
             "No apps found in this team. You can create a new app instead."
             in result.output
         )
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_handles_build_log_streaming_error(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    """Test that BuildLogError is caught and shows dashboard link (lines 384, 387-392)."""
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(422, text="Error")
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert "Unable to stream build logs" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_shows_error_message_when_build_log_streaming_fails(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(500, text="Internal Server Error")
+    )
+
+    with changing_dir(tmp_path), patch("time.sleep"):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "Unable to stream build logs" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.time_machine(datetime(2025, 11, 1), tick=False)
+@patch("fastapi_cloud_cli.commands.deploy.WAITING_MESSAGES", ["short wait message"])
+def test_short_wait_messages(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    time_machine: TimeMachineFixture,
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    def build_logs_handler(request: httpx.Request, route: respx.Route) -> Response:
+        if route.call_count <= 2:
+            time_machine.shift(timedelta(seconds=3))
+            return Response(
+                200,
+                content=build_logs_response(
+                    {
+                        "type": "message",
+                        "message": f"Step {route.call_count}",
+                        "id": str(route.call_count),
+                    },
+                    {"type": "timeout"},
+                ),
+            )
+        else:
+            return Response(
+                200,
+                content=build_logs_response(
+                    {"type": "complete"},
+                ),
+            )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        side_effect=build_logs_handler
+    )
+
+    with changing_dir(tmp_path), patch("time.sleep"):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "short wait message" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.time_machine(datetime(2025, 11, 1), tick=False)
+@patch("fastapi_cloud_cli.commands.deploy.LONG_WAIT_MESSAGES", ["long wait message"])
+def test_long_wait_messages(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    time_machine: TimeMachineFixture,
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    def build_logs_handler(request: httpx.Request, route: respx.Route) -> Response:
+        if route.call_count <= 2:
+            time_machine.shift(timedelta(seconds=35))
+            return Response(
+                200,
+                content=build_logs_response(
+                    {
+                        "type": "message",
+                        "message": f"Step {route.call_count}",
+                        "id": str(route.call_count),
+                    },
+                    {"type": "timeout"},
+                ),
+            )
+        else:
+            return Response(
+                200,
+                content=build_logs_response(
+                    {"type": "complete"},
+                ),
+            )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        side_effect=build_logs_handler
+    )
+
+    with changing_dir(tmp_path), patch("time.sleep"):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "long wait message" in result.output
