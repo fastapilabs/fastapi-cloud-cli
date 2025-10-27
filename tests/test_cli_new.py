@@ -157,7 +157,7 @@ class TestNewCommandUvFailures:
             # Fail when trying to write main.py (our template file)
             if self.name == "main.py":
                 raise PermissionError("Permission denied")
-            return original_write_text(self, *args, **kwargs)
+            original_write_text(self, *args, **kwargs)
 
         monkeypatch.setattr(Path, "write_text", mock_write_text)
 
