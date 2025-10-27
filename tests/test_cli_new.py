@@ -22,7 +22,7 @@ def temp_project_dir(tmp_path: Path, monkeypatch: Any) -> Path:
 def check_uv_installed() -> None:
     """Skip tests if uv is not installed."""
     if not shutil.which("uv"):
-        pytest.skip("uv is not installed")
+        pytest.skip("uv is not installed")  # pragma: no cover
 
 
 class TestNewCommand:
@@ -118,6 +118,27 @@ class TestNewCommand:
         project_path = temp_project_dir / "test_project"
         self._assert_project_created(project_path)
 
+    def test_passes_malformed_python_version_to_uv(
+        self, temp_project_dir: Path
+    ) -> None:
+        result = runner.invoke(app, ["new", "test_project", "--python", "abc.def"])
+        # uv will reject this, we just verify we don't crash during validation
+        assert result.exit_code == 1
+
+    def test_creates_project_without_python_flag(self, temp_project_dir: Path) -> None:
+        result = runner.invoke(app, ["new", "test_project"])
+        assert result.exit_code == 0
+        project_path = temp_project_dir / "test_project"
+        self._assert_project_created(project_path)
+
+    def test_creates_project_with_other_uv_flags_no_python(
+        self, temp_project_dir: Path
+    ) -> None:
+        result = runner.invoke(app, ["new", "test_project", "--lib"])
+        assert result.exit_code == 0
+        project_path = temp_project_dir / "test_project"
+        self._assert_project_created(project_path)
+
 
 class TestNewCommandUvFailures:
     def test_failed_to_initialize_with_uv(self, monkeypatch: Any) -> None:
@@ -154,8 +175,8 @@ class TestNewCommandUvFailures:
         original_write_text = Path.write_text
 
         def mock_write_text(self: Path, *args: Any, **kwargs: Any) -> None:
-            # Fail when trying to write main.py (our template file)
-            if self.name == "main.py":
+            # Fail when trying to write README.md (let main.py succeed first)
+            if self.name == "README.md":
                 raise PermissionError("Permission denied")
             original_write_text(self, *args, **kwargs)
 
