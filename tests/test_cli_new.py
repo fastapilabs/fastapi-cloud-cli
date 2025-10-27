@@ -120,8 +120,6 @@ class TestNewCommand:
 
 
 class TestNewCommandUvFailures:
-    """Tests for error handling in the new command when uv fails."""
-
     def test_failed_to_initialize_with_uv(self, monkeypatch: Any) -> None:
         def mock_run(*args: Any, **kwargs: Any) -> None:
             # Let the first check for 'uv' succeed, but fail on 'uv init'
@@ -139,8 +137,6 @@ class TestNewCommandUvFailures:
     def test_failed_to_add_dependencies(
         self, temp_project_dir: Path, monkeypatch: Any
     ) -> None:
-        """Test error handling when uv add fails."""
-
         def mock_run(*args: Any, **kwargs: Any) -> None:
             # Let 'uv init' succeed, but fail on 'uv add'
             if args[0][0] == "uv" and args[0][1] == "add":
@@ -155,7 +151,6 @@ class TestNewCommandUvFailures:
         assert "Failed to install dependencies" in result.output
 
     def test_file_write_failure(self, temp_project_dir: Path, monkeypatch: Any) -> None:
-        """Test error handling when template file writing fails."""
         original_write_text = Path.write_text
 
         def mock_write_text(self: Path, *args: Any, **kwargs: Any) -> None:
@@ -171,9 +166,6 @@ class TestNewCommandUvFailures:
         assert "Failed to write template files" in result.output
 
     def test_uv_not_installed(self, temp_project_dir: Path, monkeypatch: Any) -> None:
-        """Test error when uv is not installed."""
-        # The check_uv_installed fixture runs before this, but we want to test
-        # the case where uv disappears after that check
         monkeypatch.setattr(shutil, "which", lambda _: None)
 
         result = runner.invoke(app, ["new", "test_uv_missing_project"])
