@@ -16,6 +16,11 @@ def changing_dir(directory: Union[str, Path]) -> Generator[None, None, None]:
         os.chdir(initial_dir)
 
 
+def build_logs_response(*logs: dict[str, Any]) -> str:
+    """Helper to create NDJSON build logs response."""
+    return "\n".join(json.dumps(log) for log in logs)
+
+
 class Keys:
     RIGHT_ARROW = "\x1b[C"
     DOWN_ARROW = "\x1b[B"
