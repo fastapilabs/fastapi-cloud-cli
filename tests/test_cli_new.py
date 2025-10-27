@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -25,104 +26,157 @@ def check_uv_installed() -> None:
 
 
 class TestNewCommand:
+    def _assert_project_created(
+        self, project_path: Path, check_version_file: bool = False
+    ) -> None:
+        assert (project_path / "main.py").exists()
+        assert (project_path / "README.md").exists()
+        assert (project_path / "pyproject.toml").exists()
+        if check_version_file:
+            assert (project_path / ".python-version").exists()
+
     def test_creates_project_successfully(self, temp_project_dir: Path) -> None:
         result = runner.invoke(app, ["new", "my_fastapi_project"])
 
         assert result.exit_code == 0
         project_path = temp_project_dir / "my_fastapi_project"
-        assert (project_path / "main.py").exists()
-        assert (project_path / "README.md").exists()
-        assert (project_path / "pyproject.toml").exists()
+        self._assert_project_created(project_path)
         assert "Success!" in result.output
         assert "my_fastapi_project" in result.output
 
-    def test_creates_project_with_python_flag(self, temp_project_dir: Path) -> None:
-        result = runner.invoke(app, ["new", "my_fastapi_project", "--python", "3.12"])
-
+    def test_creates_project_with_python_version(self, temp_project_dir: Path) -> None:
+        # Test long form
+        result = runner.invoke(app, ["new", "project_long", "--python", "3.12"])
         assert result.exit_code == 0
-        project_path = temp_project_dir / "my_fastapi_project"
-        assert (project_path / "main.py").exists()
-        assert (project_path / "README.md").exists()
-        assert (project_path / ".python-version").exists()
-        python_version_file = (project_path / ".python-version").read_text()
-        assert "3.12" in python_version_file
-        assert "Success!" in result.output
+        project_path = temp_project_dir / "project_long"
+        self._assert_project_created(project_path, check_version_file=True)
+        assert "3.12" in (project_path / ".python-version").read_text()
 
-    def test_creates_project_with_python_flag_short(
-        self, temp_project_dir: Path
-    ) -> None:
-        result = runner.invoke(app, ["new", "another_project", "-p", "3.9"])
+        # Test short form
+        result = runner.invoke(app, ["new", "project_short", "-p", "3.9"])
         assert result.exit_code == 0
-        project_path = temp_project_dir / "another_project"
-        assert (project_path / ".python-version").exists()
-        python_version_file = (project_path / ".python-version").read_text()
-        assert "3.9" in python_version_file
+        project_path = temp_project_dir / "project_short"
+        assert "3.9" in (project_path / ".python-version").read_text()
 
-    def test_creates_project_with_multiple_flags(self, temp_project_dir: Path) -> None:
+    def test_creates_project_with_extra_uv_flags(self, temp_project_dir: Path) -> None:
+        """Test that extra flags are passed through to uv."""
         result = runner.invoke(
             app, ["new", "my_fastapi_project", "--python", "3.12", "--lib"]
         )
 
         assert result.exit_code == 0
         project_path = temp_project_dir / "my_fastapi_project"
-        # With --lib flag, uv creates a library structure (no main.py by default)
-        assert (project_path / "pyproject.toml").exists()
-        # Our template files should still be created
-        assert (project_path / "main.py").exists()
-        assert (project_path / "README.md").exists()
+        self._assert_project_created(project_path)
 
-    def test_rejects_python_below_3_8(self, temp_project_dir: Path) -> None:
-        result = runner.invoke(app, ["new", "my_fastapi_project", "--python", "3.7"])
-
-        assert result.exit_code == 1
-        assert "Python 3.7 is not supported" in result.output
-        assert "FastAPI requires Python 3.8" in result.output
-
-    def test_rejects_existing_directory(self, temp_project_dir: Path) -> None:
-        existing_dir = temp_project_dir / "existing_project"
-        existing_dir.mkdir()
-
-        result = runner.invoke(app, ["new", "existing_project"])
-
-        assert result.exit_code == 1
-        assert "Directory 'existing_project' already exists." in result.output
-
-    def test_initializes_in_current_directory_when_no_name_provided(
-        self, temp_project_dir: Path
-    ) -> None:
-        result = runner.invoke(app, ["new"])
-
-        assert result.exit_code == 0
-        assert "No project name provided" in result.output
-        assert "Initializing in current directory" in result.output
-
-        assert "Initialized FastAPI project in current directory" in result.output
-
-        # Files should be created in current directory
-        assert (temp_project_dir / "main.py").exists()
-        assert (temp_project_dir / "README.md").exists()
-        assert (temp_project_dir / "pyproject.toml").exists()
-
-    def test_validate_file_contents(self, temp_project_dir: Path) -> None:
+    def test_validates_template_file_contents(self, temp_project_dir: Path) -> None:
         result = runner.invoke(app, ["new", "sample_project"])
-
         assert result.exit_code == 0
+
         project_path = temp_project_dir / "sample_project"
 
         main_py_content = (project_path / "main.py").read_text()
         assert "from fastapi import FastAPI" in main_py_content
         assert "app = FastAPI()" in main_py_content
 
+        # Check README.md
         readme_content = (project_path / "README.md").read_text()
         assert "# sample_project" in readme_content
         assert "A project created with FastAPI Cloud CLI." in readme_content
 
-    def test_validate_pyproject_toml_contents(self, temp_project_dir: Path) -> None:
-        result = runner.invoke(app, ["new", "test_project"])
+        # Check pyproject.toml
+        pyproject_content = (project_path / "pyproject.toml").read_text()
+        assert 'name = "sample-project"' in pyproject_content
+        assert "fastapi[standard]" in pyproject_content
+
+    def test_initializes_in_current_directory(self, temp_project_dir: Path) -> None:
+        result = runner.invoke(app, ["new"])
 
         assert result.exit_code == 0
-        project_path = temp_project_dir / "test_project"
+        assert "No project name provided" in result.output
+        assert "Initializing in current directory" in result.output
+        self._assert_project_created(temp_project_dir)
 
-        pyproject_content = (project_path / "pyproject.toml").read_text()
-        assert 'name = "test-project"' in pyproject_content
-        assert "fastapi[standard]" in pyproject_content
+    def test_rejects_existing_directory(self, temp_project_dir: Path) -> None:
+        existing_dir = temp_project_dir / "existing_project"
+        existing_dir.mkdir()
+
+        result = runner.invoke(app, ["new", "existing_project"])
+        assert result.exit_code == 1
+        assert "Directory 'existing_project' already exists." in result.output
+
+    def test_rejects_python_below_3_8(self, temp_project_dir: Path) -> None:
+        result = runner.invoke(app, ["new", "test_project", "--python", "3.7"])
+        assert result.exit_code == 1
+        assert "Python 3.7 is not supported" in result.output
+        assert "FastAPI requires Python 3.8" in result.output
+
+    def test_passes_single_digit_python_version_to_uv(
+        self, temp_project_dir: Path
+    ) -> None:
+        result = runner.invoke(app, ["new", "test_project", "--python", "3"])
+        assert result.exit_code == 0
+        project_path = temp_project_dir / "test_project"
+        self._assert_project_created(project_path)
+
+
+class TestNewCommandUvFailures:
+    """Tests for error handling in the new command when uv fails."""
+
+    def test_failed_to_initialize_with_uv(self, monkeypatch: Any) -> None:
+        def mock_run(*args: Any, **kwargs: Any) -> None:
+            # Let the first check for 'uv' succeed, but fail on 'uv init'
+            if args[0][0] == "uv" and args[0][1] == "init":
+                raise subprocess.CalledProcessError(
+                    1, args[0], stderr=b"uv init failed for some reason"
+                )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        result = runner.invoke(app, ["new", "failing_project"])
+        assert result.exit_code == 1
+        assert "Failed to initialize project with uv" in result.output
+
+    def test_failed_to_add_dependencies(
+        self, temp_project_dir: Path, monkeypatch: Any
+    ) -> None:
+        """Test error handling when uv add fails."""
+
+        def mock_run(*args: Any, **kwargs: Any) -> None:
+            # Let 'uv init' succeed, but fail on 'uv add'
+            if args[0][0] == "uv" and args[0][1] == "add":
+                raise subprocess.CalledProcessError(
+                    1, args[0], stderr=b"Failed to resolve dependencies"
+                )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        result = runner.invoke(app, ["new", "failing_deps"])
+        assert result.exit_code == 1
+        assert "Failed to install dependencies" in result.output
+
+    def test_file_write_failure(self, temp_project_dir: Path, monkeypatch: Any) -> None:
+        """Test error handling when template file writing fails."""
+        original_write_text = Path.write_text
+
+        def mock_write_text(self: Path, *args: Any, **kwargs: Any) -> None:
+            # Fail when trying to write main.py (our template file)
+            if self.name == "main.py":
+                raise PermissionError("Permission denied")
+            return original_write_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", mock_write_text)
+
+        result = runner.invoke(app, ["new", "test_write_fail"])
+        assert result.exit_code == 1
+        assert "Failed to write template files" in result.output
+
+    def test_uv_not_installed(self, temp_project_dir: Path, monkeypatch: Any) -> None:
+        """Test error when uv is not installed."""
+        # The check_uv_installed fixture runs before this, but we want to test
+        # the case where uv disappears after that check
+        monkeypatch.setattr(shutil, "which", lambda _: None)
+
+        result = runner.invoke(app, ["new", "test_uv_missing_project"])
+        assert result.exit_code == 1
+        assert "uv is required to create new projects" in result.output
+        assert "https://uv.run/docs/installation/" in result.output
