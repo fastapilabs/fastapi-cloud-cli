@@ -162,3 +162,24 @@ def test_fetch_access_token_handles_500_error(respx_mock: respx.MockRouter) -> N
     with APIClient() as client:
         with pytest.raises(httpx.HTTPStatusError):
             _fetch_access_token(client, "test_device_code", 5)
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_notify_already_logged_in_user(
+    respx_mock: respx.MockRouter, logged_in_cli: None
+) -> None:
+    respx_mock.get("/users/me").mock(
+        return_value=Response(200, json={"email": "userme@example.com"})
+    )
+
+    device_auth_mock = respx_mock.post(
+        "/login/device/authorization", data={"client_id": settings.client_id}
+    ).mock(return_value=Response(200, json={}))
+
+    result = runner.invoke(app, ["login"])
+
+    assert result.exit_code == 0
+    assert "Already logged in as userme@example.com" in result.output
+    assert "Run fastapi logout first if you want to switch accounts." in result.output
+
+    assert device_auth_mock.call_count == 0
