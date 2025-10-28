@@ -180,7 +180,9 @@ def test_notify_already_logged_in_user(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_verify_token_returns_false_on_unauthorized(respx_mock: respx.MockRouter) -> None:
+def test_verify_token_returns_false_on_unauthorized(
+    respx_mock: respx.MockRouter,
+) -> None:
     from fastapi_cloud_cli.commands.login import _verify_token
     from fastapi_cloud_cli.utils.api import APIClient
 
