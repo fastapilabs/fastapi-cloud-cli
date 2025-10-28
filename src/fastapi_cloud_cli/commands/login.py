@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any
+from typing import Any, Tuple, Union
 
 import httpx
 import typer
@@ -72,16 +72,14 @@ def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -
     return response_data.access_token
 
 
-def _verify_token(client: httpx.Client) -> tuple[bool, str | None]:
+def _verify_token(client: httpx.Client) -> Tuple[bool, Union[str, None]]:
     try:
         response = client.get("/users/me")
+        if response.status_code in {401, 403}:
+            return False, None
         response.raise_for_status()
         data = response.json()
         return True, data.get("email")
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code in (401, 403):
-            return False, None
-        raise
     except Exception:
         return False, None
 
