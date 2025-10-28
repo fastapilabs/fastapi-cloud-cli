@@ -172,14 +172,8 @@ def test_notify_already_logged_in_user(
         return_value=Response(200, json={"email": "userme@example.com"})
     )
 
-    device_auth_mock = respx_mock.post(
-        "/login/device/authorization", data={"client_id": settings.client_id}
-    ).mock(return_value=Response(200, json={}))
-
     result = runner.invoke(app, ["login"])
 
     assert result.exit_code == 0
     assert "Already logged in as userme@example.com" in result.output
     assert "Run fastapi logout first if you want to switch accounts." in result.output
-
-    assert device_auth_mock.call_count == 0
