@@ -6,6 +6,10 @@
 
 * ✨ Support the verification skipped status. PR [#99](https://github.com/fastapilabs/fastapi-cloud-cli/pull/99) by [@DoctorJohn](https://github.com/DoctorJohn).
 
+### Fixes
+
+* ♻️  Clean up code archives after uploading. PR [#106](https://github.com/fastapilabs/fastapi-cloud-cli/pull/106) by [@DoctorJohn](https://github.com/DoctorJohn).
+
 ## 0.3.1
 
 ### Fixes
