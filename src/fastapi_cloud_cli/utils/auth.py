@@ -1,4 +1,8 @@
+import base64
+import binascii
+import json
 import logging
+import time
 from typing import Optional
 
 from pydantic import BaseModel
@@ -55,7 +59,64 @@ def get_auth_token() -> Optional[str]:
     return auth_data.access_token
 
 
+def is_token_expired(token: str) -> bool:
+    try:
+        parts = token.split(".")
+
+        if len(parts) != 3:
+            logger.debug("Invalid JWT format: expected 3 parts, got %d", len(parts))
+            return True
+
+        payload = parts[1]
+
+        # Add padding if needed (JWT uses base64url encoding without padding)
+        if padding := len(payload) % 4:
+            payload += "=" * (4 - padding)
+
+        payload = payload.replace("-", "+").replace("_", "/")
+        decoded_bytes = base64.b64decode(payload)
+        payload_data = json.loads(decoded_bytes)
+
+        exp = payload_data.get("exp")
+
+        if exp is None:
+            logger.debug("No 'exp' claim found in token")
+
+            return False
+
+        if not isinstance(exp, int):  # pragma: no cover
+            logger.debug("Invalid 'exp' claim: expected int, got %s", type(exp))
+
+            return True
+
+        current_time = time.time()
+
+        is_expired = current_time >= exp
+
+        logger.debug(
+            "Token expiration check: current=%d, exp=%d, expired=%s",
+            current_time,
+            exp,
+            is_expired,
+        )
+
+        return is_expired
+    except (binascii.Error, json.JSONDecodeError) as e:
+        logger.debug("Error parsing JWT token: %s", e)
+
+        return True
+
+
 def is_logged_in() -> bool:
-    result = get_auth_token() is not None
-    logger.debug("Login status: %s", result)
-    return result
+    token = get_auth_token()
+
+    if token is None:
+        logger.debug("Login status: False (no token)")
+        return False
+
+    if is_token_expired(token):
+        logger.debug("Login status: False (token expired)")
+        return False
+
+    logger.debug("Login status: True")
+    return True
