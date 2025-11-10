@@ -1,9 +1,9 @@
 import logging
 import time
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from datetime import timedelta
 from enum import Enum
-from typing import Generator, Optional
+from typing import ContextManager, Generator, Optional
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -31,8 +31,8 @@ class BuildLogType(str, Enum):
 
 class BuildLogLine(BaseModel):
     type: BuildLogType
-    message: str | None = None
-    id: str | None = None
+    message: Optional[str] = None
+    id: Optional[str] = None
 
 
 @contextmanager
@@ -79,7 +79,7 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
 
 def attempts(
     total_attempts: int = 3, timeout: timedelta = timedelta(minutes=5)
-) -> Generator[AbstractContextManager[None], None, None]:
+) -> Generator[ContextManager[None], None, None]:
     start = time.monotonic()
 
     for attempt_number in range(total_attempts):
