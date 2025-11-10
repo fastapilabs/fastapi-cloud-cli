@@ -1,6 +1,6 @@
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Dict, Optional
 from unittest.mock import patch
@@ -875,7 +875,6 @@ def test_shows_error_message_when_build_log_streaming_fails(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-@pytest.mark.time_machine(datetime(2025, 11, 1), tick=False)
 @patch("fastapi_cloud_cli.commands.deploy.WAITING_MESSAGES", ["short wait message"])
 def test_short_wait_messages(
     logged_in_cli: None,
@@ -883,6 +882,7 @@ def test_short_wait_messages(
     respx_mock: respx.MockRouter,
     time_machine: TimeMachineFixture,
 ) -> None:
+    time_machine.move_to("2025-11-01 13:00:00", tick=False)
     app_data = _get_random_app()
     team_data = _get_random_team()
     app_id = app_data["id"]
@@ -942,7 +942,6 @@ def test_short_wait_messages(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-@pytest.mark.time_machine(datetime(2025, 11, 1), tick=False)
 @patch("fastapi_cloud_cli.commands.deploy.LONG_WAIT_MESSAGES", ["long wait message"])
 def test_long_wait_messages(
     logged_in_cli: None,
@@ -950,6 +949,8 @@ def test_long_wait_messages(
     respx_mock: respx.MockRouter,
     time_machine: TimeMachineFixture,
 ) -> None:
+    time_machine.move_to("2025-11-01 13:00:00", tick=False)
+
     app_data = _get_random_app()
     team_data = _get_random_team()
     app_id = app_data["id"]
