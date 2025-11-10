@@ -1,5 +1,4 @@
 import contextlib
-import json
 import logging
 import subprocess
 import tarfile
@@ -8,7 +7,7 @@ import time
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import rignore
 import typer
@@ -20,7 +19,7 @@ from rich_toolkit.menu import Option
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, BuildLogType
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
@@ -225,21 +224,11 @@ def _get_apps(team_id: str) -> List[AppResponse]:
     return [AppResponse.model_validate(app) for app in data]
 
 
-def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
-    with APIClient() as client:
-        with client.stream(
-            "GET", f"/deployments/{deployment_id}/build-logs", timeout=60
-        ) as response:
-            response.raise_for_status()
-
-            yield from response.iter_lines()
-
-
 WAITING_MESSAGES = [
     "🚀 Preparing for liftoff! Almost there...",
     "👹 Sneaking past the dependency gremlins... Don't wake them up!",
     "🤏 Squishing code into a tiny digital sandwich. Nom nom nom.",
-    "📉 Server space running low. Time to delete those cat videos?",
+    "🐱 Removing cat videos from our servers to free up space.",
     "🐢 Uploading at blazing speeds of 1 byte per hour. Patience, young padawan.",
     "🔌 Connecting to server... Please stand by while we argue with the firewall.",
     "💥 Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
@@ -350,43 +339,50 @@ def _wait_for_deployment(
     with toolkit.progress(
         next(messages), inline_logs=True, lines_to_show=20
     ) as progress:
-        with handle_http_errors(progress=progress):
-            for line in _stream_build_logs(deployment.id):
-                time_elapsed = time.monotonic() - started_at
+        with APIClient() as client:
+            try:
+                for log in client.stream_build_logs(deployment.id):
+                    time_elapsed = time.monotonic() - started_at
 
-                data = json.loads(line)
+                    if log.type == BuildLogType.message and log.message:
+                        progress.log(Text.from_ansi(log.message.rstrip()))
 
-                if "message" in data:
-                    progress.log(Text.from_ansi(data["message"].rstrip()))
+                    if log.type == BuildLogType.complete:
+                        progress.log("")
+                        progress.log(
+                            f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                        )
 
-                if data.get("type") == "complete":
-                    progress.log("")
-                    progress.log(
-                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
-                    )
+                        progress.log("")
 
-                    progress.log("")
+                        progress.log(
+                            f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                        )
 
-                    progress.log(
-                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                    )
+                        break
 
-                    break
+                    if log.type == BuildLogType.failed:
+                        progress.log("")
+                        progress.log(
+                            f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                        )
+                        raise typer.Exit(1)
 
-                if data.get("type") == "failed":
-                    progress.log("")
-                    progress.log(
-                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                    )
-                    raise typer.Exit(1)
+                    if time_elapsed > 30:
+                        messages = cycle(LONG_WAIT_MESSAGES)
 
-                if time_elapsed > 30:
-                    messages = cycle(LONG_WAIT_MESSAGES)  # pragma: no cover
+                    if (time.monotonic() - last_message_changed_at) > 2:
+                        progress.title = next(messages)
 
-                if (time.monotonic() - last_message_changed_at) > 2:
-                    progress.title = next(messages)  # pragma: no cover
+                        last_message_changed_at = time.monotonic()
 
-                    last_message_changed_at = time.monotonic()  # pragma: no cover
+            except BuildLogError as e:
+                logger.error("Build log streaming failed: %s", e)
+                toolkit.print_line()
+                toolkit.print(
+                    f"⚠️  Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                )
+                raise typer.Exit(1) from e
 
 
 class SignupToWaitingList(BaseModel):
