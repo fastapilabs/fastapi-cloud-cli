@@ -38,7 +38,7 @@ dependencies = [
     "rich-toolkit >= 0.14.5",
     "pydantic[email] >= 1.6.1",
     "sentry-sdk >= 2.20.0",
-    "fastapi-new >= 0.0.2",
+    "fastapi-new >= 0.0.2 ; python_version >= '3.10'",
 ]
 
 [project.optional-dependencies]
