@@ -5,4 +5,4 @@ coverage[toml] >=6.2,<8.0
 mypy ==1.14.1
 ruff ==0.13.0
 respx ==0.22.0
-time-machine ==2.19.0
+time-machine ==2.15.0

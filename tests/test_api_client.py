@@ -346,13 +346,14 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
 
 
 @api_mock
-@pytest.mark.time_machine("2025-11-01 13:00:00", tick=False)
 def test_stream_build_logs_retry_timeout(
     logs_route: respx.Route,
     client: APIClient,
     time_machine: TimeMachineFixture,
     deployment_id: str,
 ) -> None:
+    time_machine.move_to("2025-11-01 13:00:00", tick=False)
+
     def responses(request: httpx.Request, route: respx.Route) -> Response:
         time_machine.shift(timedelta(hours=1))
 
