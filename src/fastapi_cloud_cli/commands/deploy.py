@@ -575,7 +575,7 @@ def deploy(
         if not app:
             toolkit.print_line()
             toolkit.print(
-                "If you deleted this app, you can run [bold]fastapi unlink[/] to unlink the local configuration.",
+                "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
                 tag="tip",
             )
             raise typer.Exit(1)
