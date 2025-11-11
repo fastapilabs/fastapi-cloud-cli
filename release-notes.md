@@ -4,7 +4,13 @@
 
 ### Features
 
+* ✨ Add fastapi cloud sub-command. PR [#104](https://github.com/fastapilabs/fastapi-cloud-cli/pull/104) by [@buurro](https://github.com/buurro).
+* ✨ Check if token is expired when checking if user is logged in. PR [#105](https://github.com/fastapilabs/fastapi-cloud-cli/pull/105) by [@patrick91](https://github.com/patrick91).
 * ✨ Support the verification skipped status. PR [#99](https://github.com/fastapilabs/fastapi-cloud-cli/pull/99) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+### Fixes
+
+* ♻️  Clean up code archives after uploading. PR [#106](https://github.com/fastapilabs/fastapi-cloud-cli/pull/106) by [@DoctorJohn](https://github.com/DoctorJohn).
 
 ## 0.3.1
 
