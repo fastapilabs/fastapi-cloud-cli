@@ -2,7 +2,6 @@ import contextlib
 import json
 import logging
 import subprocess
-import tarfile
 import tempfile
 import time
 from enum import Enum
@@ -10,6 +9,7 @@ from itertools import cycle
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 
+import fastar
 import rignore
 import typer
 from httpx import Client
@@ -56,13 +56,14 @@ def archive(path: Path, tar_path: Path) -> Path:
     logger.debug("Archive will be created at: %s", tar_path)
 
     file_count = 0
-    with tarfile.open(tar_path, "w") as tar:
+    with fastar.open(tar_path, "w") as tar:
         for filename in files:
             if filename.is_dir():
                 continue
 
-            logger.debug("Adding %s to archive", filename.relative_to(path))
-            tar.add(filename, arcname=filename.relative_to(path))
+            arcname = filename.relative_to(path)
+            logger.debug("Adding %s to archive", arcname)
+            tar.append(filename, arcname=arcname)
             file_count += 1
 
     logger.debug("Archive created successfully with %s files", file_count)
