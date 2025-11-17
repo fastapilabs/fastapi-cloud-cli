@@ -85,7 +85,7 @@ def login() -> Any:
     token = get_auth_token()
     if token is not None and is_token_expired(token):
         with get_rich_toolkit(minimal=True) as toolkit:
-            toolkit.print("Your session has expired.")
+            toolkit.print("Your session has expired. Logging in again...")
             toolkit.print_line()
 
     if is_logged_in():
