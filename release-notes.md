@@ -12,6 +12,10 @@
 
 * ♻️  Clean up code archives after uploading. PR [#106](https://github.com/fastapilabs/fastapi-cloud-cli/pull/106) by [@DoctorJohn](https://github.com/DoctorJohn).
 
+### Refactors
+
+* ⚡️ Speed up archive creation. PR [#111](https://github.com/fastapilabs/fastapi-cloud-cli/pull/111) by [@DoctorJohn](https://github.com/DoctorJohn).
+
 ## 0.3.1
 
 ### Fixes
