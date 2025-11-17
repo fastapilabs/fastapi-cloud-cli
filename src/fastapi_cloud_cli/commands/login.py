@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, Tuple, Union
+from typing import Any
 
 import httpx
 import typer
@@ -8,7 +8,13 @@ from pydantic import BaseModel
 
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import AuthConfig, is_logged_in, write_auth_config
+from fastapi_cloud_cli.utils.auth import (
+    AuthConfig,
+    get_auth_token,
+    is_logged_in,
+    is_token_expired,
+    write_auth_config,
+)
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -72,30 +78,23 @@ def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -
     return response_data.access_token
 
 
-def _verify_token(client: httpx.Client) -> Tuple[bool, Union[str, None]]:
-    response = client.get("/users/me")
-    if response.status_code in {401, 403}:
-        return False, None
-    response.raise_for_status()
-    data = response.json()
-    return True, data.get("email")
-
-
 def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
-    if is_logged_in():
-        with APIClient() as client:
-            is_valid, email = _verify_token(client)
+    token = get_auth_token()
+    if token is not None and is_token_expired(token):
+        with get_rich_toolkit(minimal=True) as toolkit:
+            toolkit.print("Your session has expired.")
+            toolkit.print_line()
 
-            if is_valid:
-                with get_rich_toolkit(minimal=True) as toolkit:
-                    toolkit.print(f"Already logged in as [bold]{email}[/bold]")
-                    toolkit.print(
-                        "Run [bold]fastapi logout[/bold] first if you want to switch accounts."
-                    )
-                return
+    if is_logged_in():
+        with get_rich_toolkit(minimal=True) as toolkit:
+            toolkit.print("You are already logged in.")
+            toolkit.print(
+                "Run [bold]fastapi logout[/bold] first if you want to switch accounts."
+            )
+        return
 
     with get_rich_toolkit() as toolkit, APIClient() as client:
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
