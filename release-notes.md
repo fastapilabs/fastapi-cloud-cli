@@ -14,6 +14,7 @@
 
 ### Refactors
 
+* 🧑‍💻 Handle already logged in state. PR [#103](https://github.com/fastapilabs/fastapi-cloud-cli/pull/103) by [@alejsdev](https://github.com/alejsdev).
 * ⚡️ Speed up archive creation. PR [#111](https://github.com/fastapilabs/fastapi-cloud-cli/pull/111) by [@DoctorJohn](https://github.com/DoctorJohn).
 
 ## 0.3.1
