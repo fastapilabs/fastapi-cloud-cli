@@ -10,6 +10,7 @@
 
 ### Fixes
 
+* 🐛 Include hidden files in app archive. PR [#115](https://github.com/fastapilabs/fastapi-cloud-cli/pull/115) by [@buurro](https://github.com/buurro).
 * ♻️  Clean up code archives after uploading. PR [#106](https://github.com/fastapilabs/fastapi-cloud-cli/pull/106) by [@DoctorJohn](https://github.com/DoctorJohn).
 
 ### Refactors
