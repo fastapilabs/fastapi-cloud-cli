@@ -34,7 +34,14 @@ def _get_app_name(path: Path) -> str:
 
 
 def _should_exclude_entry(path: Path) -> bool:
-    parts_to_exclude = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]
+    parts_to_exclude = [
+        ".venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".gitignore",
+        ".fastapicloudignore",
+    ]
 
     if any(part in path.parts for part in parts_to_exclude):
         return True
@@ -51,6 +58,7 @@ def archive(path: Path, tar_path: Path) -> Path:
         path,
         should_exclude_entry=_should_exclude_entry,
         additional_ignore_paths=[".fastapicloudignore"],
+        ignore_hidden=False,
     )
 
     logger.debug("Archive will be created at: %s", tar_path)
