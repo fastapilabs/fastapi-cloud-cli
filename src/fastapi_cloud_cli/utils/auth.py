@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from fastapi_cloud_cli.utils.pydantic_compat import model_validate_json
+from fastapi_cloud_cli.utils.pydantic_compat import model_dump_json, model_validate_json
 
 from .config import get_auth_path
 
@@ -22,7 +22,7 @@ def write_auth_config(auth_data: AuthConfig) -> None:
     auth_path = get_auth_path()
     logger.debug("Writing auth config to: %s", auth_path)
 
-    auth_path.write_text(auth_data.model_dump_json(), encoding="utf-8")
+    auth_path.write_text(model_dump_json(auth_data), encoding="utf-8")
     logger.debug("Auth config written successfully")
 
 

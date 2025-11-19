@@ -13,7 +13,7 @@ import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
+from pydantic import BaseModel, EmailStr, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
@@ -24,7 +24,11 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
-from fastapi_cloud_cli.utils.pydantic_compat import model_validate
+from fastapi_cloud_cli.utils.pydantic_compat import (
+    TypeAdapter,
+    model_dump,
+    model_validate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -417,9 +421,7 @@ def _send_waitlist_form(
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
             with handle_http_errors(progress):
-                response = client.post(
-                    "/users/waiting-list", json=result.model_dump(mode="json")
-                )
+                response = client.post("/users/waiting-list", json=model_dump(result))
 
                 response.raise_for_status()
 
@@ -444,7 +446,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
     toolkit.print_line()
 
-    result = SignupToWaitingList(email=email)
+    result = model_validate(SignupToWaitingList, {"email": email})
 
     if toolkit.confirm(
         "Do you want to get access faster by giving us more information?",

@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from fastapi_cloud_cli.utils.pydantic_compat import model_validate_json
+from fastapi_cloud_cli.utils.pydantic_compat import model_dump_json, model_validate_json
 
 logger = logging.getLogger("fastapi_cli")
 
@@ -52,7 +52,7 @@ def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(
-        app_config.model_dump_json(),
+        model_dump_json(app_config),
         encoding="utf-8",
     )
     readme_path.write_text(README, encoding="utf-8")
