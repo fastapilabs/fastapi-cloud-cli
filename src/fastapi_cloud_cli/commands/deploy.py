@@ -352,51 +352,50 @@ def _wait_for_deployment(
 
     with toolkit.progress(
         next(messages), inline_logs=True, lines_to_show=20
-    ) as progress:
-        with APIClient() as client:
-            try:
-                for log in client.stream_build_logs(deployment.id):
-                    time_elapsed = time.monotonic() - started_at
+    ) as progress, APIClient() as client:
+        try:
+            for log in client.stream_build_logs(deployment.id):
+                time_elapsed = time.monotonic() - started_at
 
-                    if log.type == BuildLogType.message and log.message:
-                        progress.log(Text.from_ansi(log.message.rstrip()))
+                if log.type == BuildLogType.message and log.message:
+                    progress.log(Text.from_ansi(log.message.rstrip()))
 
-                    if log.type == BuildLogType.complete:
-                        progress.log("")
-                        progress.log(
-                            f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
-                        )
+                if log.type == BuildLogType.complete:
+                    progress.log("")
+                    progress.log(
+                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                    )
 
-                        progress.log("")
+                    progress.log("")
 
-                        progress.log(
-                            f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                        )
+                    progress.log(
+                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
 
-                        break
+                    break
 
-                    if log.type == BuildLogType.failed:
-                        progress.log("")
-                        progress.log(
-                            f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                        )
-                        raise typer.Exit(1)
+                if log.type == BuildLogType.failed:
+                    progress.log("")
+                    progress.log(
+                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
+                    raise typer.Exit(1)
 
-                    if time_elapsed > 30:
-                        messages = cycle(LONG_WAIT_MESSAGES)
+                if time_elapsed > 30:
+                    messages = cycle(LONG_WAIT_MESSAGES)
 
-                    if (time.monotonic() - last_message_changed_at) > 2:
-                        progress.title = next(messages)
+                if (time.monotonic() - last_message_changed_at) > 2:
+                    progress.title = next(messages)
 
-                        last_message_changed_at = time.monotonic()
+                    last_message_changed_at = time.monotonic()
 
-            except BuildLogError as e:
-                logger.error("Build log streaming failed: %s", e)
-                toolkit.print_line()
-                toolkit.print(
-                    f"⚠️  Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                )
-                raise typer.Exit(1) from e
+        except BuildLogError as e:
+            logger.error("Build log streaming failed: %s", e)
+            toolkit.print_line()
+            toolkit.print(
+                f"⚠️  Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+            )
+            raise typer.Exit(1) from e
 
 
 class SignupToWaitingList(BaseModel):
