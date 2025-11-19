@@ -2,11 +2,19 @@ import logging
 import time
 from contextlib import contextmanager
 from datetime import timedelta
-from typing import ContextManager, Generator, Literal, Optional, Union
+from functools import wraps
+from typing import (
+    Callable,
+    Generator,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import httpx
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
-from typing_extensions import Annotated
+from typing_extensions import Annotated, ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
@@ -19,6 +27,10 @@ BUILD_LOG_TIMEOUT = timedelta(minutes=5)
 
 
 class BuildLogError(Exception):
+    pass
+
+
+class TooManyRetriesError(Exception):
     pass
 
 
@@ -81,18 +93,39 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
             ) from error
 
 
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
 def attempts(
     total_attempts: int = 3, timeout: timedelta = timedelta(minutes=5)
-) -> Generator[ContextManager[None], None, None]:
-    start = time.monotonic()
+) -> Callable[
+    [Callable[P, Generator[T, None, None]]], Callable[P, Generator[T, None, None]]
+]:
+    def decorator(
+        func: Callable[P, Generator[T, None, None]],
+    ) -> Callable[P, Generator[T, None, None]]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Generator[T, None, None]:
+            start = time.monotonic()
 
-    for attempt_number in range(total_attempts):
-        if time.monotonic() - start > timeout.total_seconds():
-            raise TimeoutError(
-                "Build log streaming timed out after %ds", timeout.total_seconds()
-            )
+            for attempt_number in range(total_attempts):
+                if time.monotonic() - start > timeout.total_seconds():
+                    raise TimeoutError(
+                        "Build log streaming timed out after %ds",
+                        timeout.total_seconds(),
+                    )
 
-        yield attempt(attempt_number)
+                with attempt(attempt_number):
+                    yield from func(*args, **kwargs)
+                    # If we get here without exception, the generator completed successfully
+                    return
+
+            raise TooManyRetriesError(f"Failed after {total_attempts} attempts")
+
+        return wrapper
+
+    return decorator
 
 
 class APIClient(httpx.Client):
@@ -110,54 +143,47 @@ class APIClient(httpx.Client):
             },
         )
 
+    @attempts(BUILD_LOG_MAX_RETRIES, BUILD_LOG_TIMEOUT)
     def stream_build_logs(
         self, deployment_id: str
     ) -> Generator[BuildLogLine, None, None]:
         last_id = None
 
-        for attempt in attempts(BUILD_LOG_MAX_RETRIES, BUILD_LOG_TIMEOUT):
-            with attempt:
-                while True:
-                    params = {"last_id": last_id} if last_id else None
+        while True:
+            params = {"last_id": last_id} if last_id else None
 
-                    with self.stream(
-                        "GET",
-                        f"/deployments/{deployment_id}/build-logs",
-                        timeout=60,
-                        params=params,
-                    ) as response:
-                        response.raise_for_status()
+            with self.stream(
+                "GET",
+                f"/deployments/{deployment_id}/build-logs",
+                timeout=60,
+                params=params,
+            ) as response:
+                response.raise_for_status()
 
-                        for line in response.iter_lines():
-                            if not line or not line.strip():
-                                continue
+                for line in response.iter_lines():
+                    if not line or not line.strip():
+                        continue
 
-                            if log_line := self._parse_log_line(line):
-                                if log_line.id:
-                                    last_id = log_line.id
+                    if log_line := self._parse_log_line(line):
+                        if log_line.id:
+                            last_id = log_line.id
 
-                                if log_line.type == "message":
-                                    yield log_line
+                        if log_line.type == "message":
+                            yield log_line
 
-                                if log_line.type in ("complete", "failed"):
-                                    yield log_line
+                        if log_line.type in ("complete", "failed"):
+                            yield log_line
+                            return
 
-                                    return
+                        if log_line.type == "timeout":
+                            logger.debug("Received timeout; reconnecting")
+                            break  # Breaks for loop to reconnect
+                else:
+                    logger.debug("Connection closed by server unexpectedly; will retry")
 
-                                if log_line.type == "timeout":
-                                    logger.debug("Received timeout; reconnecting")
-                                    break  # Breaks for loop to reconnect
+                    raise httpx.NetworkError("Connection closed without terminal state")
 
-                        else:  # Only triggered if the for loop is not broken
-                            logger.debug(
-                                "Connection closed by server unexpectedly; attempting to reconnect"
-                            )
-                            break
-
-                    time.sleep(0.5)
-
-        # Exhausted retries without getting any response
-        raise BuildLogError(f"Failed after {BUILD_LOG_MAX_RETRIES} attempts")
+            time.sleep(0.5)
 
     def _parse_log_line(self, line: str) -> Optional[BuildLogLine]:
         try:

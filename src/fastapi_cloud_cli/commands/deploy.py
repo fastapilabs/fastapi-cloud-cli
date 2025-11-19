@@ -19,7 +19,7 @@ from rich_toolkit.menu import Option
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient, BuildLogError
+from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, TooManyRetriesError
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
@@ -389,7 +389,7 @@ def _wait_for_deployment(
 
                     last_message_changed_at = time.monotonic()
 
-        except BuildLogError as e:
+        except (BuildLogError, TooManyRetriesError) as e:
             logger.error("Build log streaming failed: %s", e)
             toolkit.print_line()
             toolkit.print(

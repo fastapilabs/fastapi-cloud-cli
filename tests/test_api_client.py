@@ -13,6 +13,7 @@ from fastapi_cloud_cli.utils.api import (
     APIClient,
     BuildLogError,
     BuildLogLineMessage,
+    TooManyRetriesError,
 )
 from tests.utils import build_logs_response
 
@@ -254,7 +255,7 @@ def test_stream_build_logs_max_retries_exceeded(
 
     with patch("time.sleep"):
         with pytest.raises(
-            BuildLogError, match=f"Failed after {BUILD_LOG_MAX_RETRIES} attempts"
+            TooManyRetriesError, match=f"Failed after {BUILD_LOG_MAX_RETRIES} attempts"
         ):
             list(client.stream_build_logs(deployment_id))
 
@@ -341,7 +342,7 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
 
     logs = client.stream_build_logs(deployment_id)
 
-    with pytest.raises(BuildLogError, match="Failed after"):
+    with patch("time.sleep"), pytest.raises(TooManyRetriesError, match="Failed after"):
         for _ in range(BUILD_LOG_MAX_RETRIES + 1):
             next(logs)
 
@@ -367,5 +368,5 @@ def test_stream_build_logs_retry_timeout(
 
     logs_route.mock(side_effect=responses)
 
-    with pytest.raises(TimeoutError, match="timed out"):
+    with patch("time.sleep"), pytest.raises(TimeoutError, match="timed out"):
         list(client.stream_build_logs(deployment_id))
