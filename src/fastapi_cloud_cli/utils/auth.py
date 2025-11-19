@@ -7,6 +7,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from fastapi_cloud_cli.utils.pydantic_compat import model_validate_json
+
 from .config import get_auth_path
 
 logger = logging.getLogger("fastapi_cli")
@@ -44,7 +46,7 @@ def read_auth_config() -> Optional[AuthConfig]:
         return None
 
     logger.debug("Auth config loaded successfully")
-    return AuthConfig.model_validate_json(auth_path.read_text(encoding="utf-8"))
+    return model_validate_json(AuthConfig, auth_path.read_text(encoding="utf-8"))
 
 
 def get_auth_token() -> Optional[str]:
