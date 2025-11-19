@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 🔧 Add labels to Dependabot updates. PR [#113](https://github.com/fastapilabs/fastapi-cloud-cli/pull/113) by [@alejsdev](https://github.com/alejsdev).
+
 ## 0.4.0
 
 ### Features
