@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.4.0
+
 ### Features
 
 * ✨ Add fastapi cloud sub-command. PR [#104](https://github.com/fastapilabs/fastapi-cloud-cli/pull/104) by [@buurro](https://github.com/buurro).
