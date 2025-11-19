@@ -2,11 +2,11 @@ import logging
 import time
 from contextlib import contextmanager
 from datetime import timedelta
-from enum import Enum
-from typing import ContextManager, Generator, Optional
+from typing import ContextManager, Generator, Literal, Optional, Union
 
 import httpx
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from typing_extensions import Annotated
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
@@ -18,21 +18,25 @@ BUILD_LOG_MAX_RETRIES = 3
 BUILD_LOG_TIMEOUT = timedelta(minutes=5)
 
 
-class BuildLogError(Exception): ...
+class BuildLogError(Exception):
+    pass
 
 
-class BuildLogType(str, Enum):
-    message = "message"
-    complete = "complete"
-    failed = "failed"
-    timeout = "timeout"  # Request closed, reconnect to continue
-    heartbeat = "heartbeat"  # Keepalive signal when no new logs
-
-
-class BuildLogLine(BaseModel):
-    type: BuildLogType
-    message: Optional[str] = None
+class BuildLogLineGeneric(BaseModel):
+    type: Literal["complete", "failed", "timeout", "heartbeat"]
     id: Optional[str] = None
+
+
+class BuildLogLineMessage(BaseModel):
+    type: Literal["message"] = "message"
+    message: str
+    id: Optional[str] = None
+
+
+BuildLogLine = Union[BuildLogLineMessage, BuildLogLineGeneric]
+BuildLogAdapter = TypeAdapter[BuildLogLine](
+    Annotated[BuildLogLine, Field(discriminator="type")]
+)
 
 
 @contextmanager
@@ -132,18 +136,15 @@ class APIClient(httpx.Client):
                                 if log_line.id:
                                     last_id = log_line.id
 
-                                if log_line.type == BuildLogType.message:
+                                if log_line.type == "message":
                                     yield log_line
 
-                                if log_line.type in (
-                                    BuildLogType.complete,
-                                    BuildLogType.failed,
-                                ):
+                                if log_line.type in ("complete", "failed"):
                                     yield log_line
 
                                     return
 
-                                if log_line.type == BuildLogType.timeout:
+                                if log_line.type == "timeout":
                                     logger.debug("Received timeout; reconnecting")
                                     break  # Breaks for loop to reconnect
 
@@ -160,7 +161,7 @@ class APIClient(httpx.Client):
 
     def _parse_log_line(self, line: str) -> Optional[BuildLogLine]:
         try:
-            return BuildLogLine.model_validate_json(line)
+            return BuildLogAdapter.validate_json(line)
         except ValidationError as e:
             logger.debug("Skipping malformed log: %s (error: %s)", line[:100], e)
             return None

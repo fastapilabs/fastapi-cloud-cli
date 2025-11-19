@@ -12,7 +12,7 @@ from fastapi_cloud_cli.utils.api import (
     BUILD_LOG_MAX_RETRIES,
     APIClient,
     BuildLogError,
-    BuildLogType,
+    BuildLogLineMessage,
 )
 from tests.utils import build_logs_response
 
@@ -59,13 +59,13 @@ def test_stream_build_logs_successful(
 
     assert len(logs) == 3
 
-    assert logs[0].type == BuildLogType.message
+    assert logs[0].type == "message"
     assert logs[0].message == "Building..."
 
-    assert logs[1].type == BuildLogType.message
+    assert logs[1].type == "message"
     assert logs[1].message == "Done!"
 
-    assert logs[2].type == BuildLogType.complete
+    assert logs[2].type == "complete"
 
 
 @api_mock
@@ -85,16 +85,16 @@ def test_stream_build_logs_failed(
     logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
-    assert logs[1].type == BuildLogType.failed
+    assert logs[0].type == "message"
+    assert logs[1].type == "failed"
 
 
-@pytest.mark.parametrize("terminal_type", [BuildLogType.complete, BuildLogType.failed])
+@pytest.mark.parametrize("terminal_type", ["complete", "failed"])
 @api_mock
 def test_stream_build_logs_stop_after_terminal_state(
     logs_route: respx.Route,
     client: APIClient,
-    terminal_type: BuildLogType,
+    terminal_type: str,
     deployment_id: str,
 ) -> None:
     logs_route.mock(
@@ -111,7 +111,7 @@ def test_stream_build_logs_stop_after_terminal_state(
     logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
+    assert logs[0].type == "message"
     assert logs[1].type == terminal_type
 
 
@@ -125,7 +125,7 @@ def test_stream_build_logs_internal_messages_are_skipped(
         return_value=Response(
             200,
             content=build_logs_response(
-                {"type": BuildLogType.heartbeat, "id": "1"},
+                {"type": "heartbeat", "id": "1"},
                 {"type": "message", "message": "Continuing...", "id": "2"},
                 {"type": "complete", "id": "3"},
             ),
@@ -135,8 +135,8 @@ def test_stream_build_logs_internal_messages_are_skipped(
     logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
-    assert logs[1].type == BuildLogType.complete
+    assert logs[0].type == "message"
+    assert logs[1].type == "complete"
 
 
 @api_mock
@@ -156,8 +156,8 @@ def test_stream_build_logs_malformed_json_is_skipped(
     logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
-    assert logs[1].type == BuildLogType.complete
+    assert logs[0].type == "message"
+    assert logs[1].type == "complete"
 
 
 @api_mock
@@ -179,8 +179,8 @@ def test_stream_build_logs_unknown_log_type_is_skipped(
 
     # Unknown type should be filtered out
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
-    assert logs[1].type == BuildLogType.complete
+    assert logs[0].type == "message"
+    assert logs[1].type == "complete"
 
 
 @pytest.mark.parametrize(
@@ -211,6 +211,7 @@ def test_stream_build_logs_network_error_retry(
         logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
+    assert logs[0].type == "message"
     assert logs[0].message == "Success after retry"
 
 
@@ -232,7 +233,7 @@ def test_stream_build_logs_server_error_retry(
         logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 1
-    assert logs[0].type == BuildLogType.complete
+    assert logs[0].type == "complete"
 
 
 @api_mock
@@ -277,8 +278,8 @@ def test_stream_build_logs_empty_lines_are_skipped(
     logs = list(client.stream_build_logs(deployment_id))
 
     assert len(logs) == 2
-    assert logs[0].type == BuildLogType.message
-    assert logs[1].type == BuildLogType.complete
+    assert logs[0].type == "message"
+    assert logs[1].type == "complete"
 
 
 @respx.mock(base_url=settings.base_api_url)
@@ -318,11 +319,11 @@ def test_stream_build_logs_continue_after_timeout(
     logs = client.stream_build_logs(deployment_id)
 
     with patch("time.sleep"):
-        assert next(logs).message == "message 1"
-        assert next(logs).message == "message 2"
-        assert next(logs).message == "message 3"
-        assert next(logs).message == "message 4"
-        assert next(logs).type == BuildLogType.complete
+        assert next(logs) == BuildLogLineMessage(message="message 1", id="1")
+        assert next(logs) == BuildLogLineMessage(message="message 2", id="2")
+        assert next(logs) == BuildLogLineMessage(message="message 3", id="3")
+        assert next(logs) == BuildLogLineMessage(message="message 4", id="4")
+        assert next(logs).type == "complete"
 
 
 @api_mock

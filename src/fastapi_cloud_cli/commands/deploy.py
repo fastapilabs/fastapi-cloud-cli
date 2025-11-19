@@ -19,7 +19,7 @@ from rich_toolkit.menu import Option
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, BuildLogType
+from fastapi_cloud_cli.utils.api import APIClient, BuildLogError
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
@@ -357,10 +357,10 @@ def _wait_for_deployment(
             for log in client.stream_build_logs(deployment.id):
                 time_elapsed = time.monotonic() - started_at
 
-                if log.type == BuildLogType.message and log.message:
+                if log.type == "message":
                     progress.log(Text.from_ansi(log.message.rstrip()))
 
-                if log.type == BuildLogType.complete:
+                if log.type == "complete":
                     progress.log("")
                     progress.log(
                         f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
@@ -374,7 +374,7 @@ def _wait_for_deployment(
 
                     break
 
-                if log.type == BuildLogType.failed:
+                if log.type == "failed":
                     progress.log("")
                     progress.log(
                         f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
