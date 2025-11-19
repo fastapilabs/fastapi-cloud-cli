@@ -77,7 +77,7 @@ jobs:
         with:
           limit-access-to-actor: true
       - name: Install Dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+        # if: steps.cache.outputs.cache-hit != 'true'
         run: pip install -r requirements-tests.txt
       - name: Install Pydantic v1
         if: matrix.pydantic-version == 'v1'
