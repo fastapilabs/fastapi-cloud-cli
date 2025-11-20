@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.5.0
+
 ### Features
 
 * ✨ Resume build log stream if interrupted. PR [#109](https://github.com/fastapilabs/fastapi-cloud-cli/pull/109) by [@buurro](https://github.com/buurro).
