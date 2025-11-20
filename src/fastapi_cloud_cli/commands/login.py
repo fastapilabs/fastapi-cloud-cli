@@ -93,7 +93,7 @@ def login() -> Any:
         with get_rich_toolkit(minimal=True) as toolkit:
             toolkit.print("You are already logged in.")
             toolkit.print(
-                "Run [bold]fastapi logout[/bold] first if you want to switch accounts."
+                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
             )
         return
 

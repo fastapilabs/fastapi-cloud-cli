@@ -174,7 +174,10 @@ def test_notify_already_logged_in_user(
 
     assert result.exit_code == 0
     assert "You are already logged in." in result.output
-    assert "Run fastapi logout first if you want to switch accounts." in result.output
+    assert (
+        "Run fastapi cloud logout first if you want to switch accounts."
+        in result.output
+    )
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
