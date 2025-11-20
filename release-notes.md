@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* ✏️ Fix logout suggestion message. PR [#118](https://github.com/fastapilabs/fastapi-cloud-cli/pull/118) by [@buurro](https://github.com/buurro).
+
 ### Refactors
 
 * ♻️ Improve waitlist success command. PR [#117](https://github.com/fastapilabs/fastapi-cloud-cli/pull/117) by [@patrick91](https://github.com/patrick91).
