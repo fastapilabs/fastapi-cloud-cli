@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Resume build log stream if interrupted. PR [#109](https://github.com/fastapilabs/fastapi-cloud-cli/pull/109) by [@buurro](https://github.com/buurro).
+
 ### Internal
 
 * 👷 Add support for Pydantic v1. PR [#116](https://github.com/fastapilabs/fastapi-cloud-cli/pull/116) by [@patrick91](https://github.com/patrick91).
