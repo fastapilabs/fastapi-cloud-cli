@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Improve waitlist success command. PR [#117](https://github.com/fastapilabs/fastapi-cloud-cli/pull/117) by [@patrick91](https://github.com/patrick91).
+
 ## 0.5.0
 
 ### Features
