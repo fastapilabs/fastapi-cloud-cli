@@ -13,7 +13,7 @@ import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
+from pydantic import BaseModel, EmailStr, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
@@ -24,6 +24,11 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.pydantic_compat import (
+    TypeAdapter,
+    model_dump,
+    model_validate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +96,7 @@ def _get_teams() -> List[Team]:
 
         data = response.json()["data"]
 
-    return [Team.model_validate(team) for team in data]
+    return [model_validate(Team, team) for team in data]
 
 
 class AppResponse(BaseModel):
@@ -108,7 +113,7 @@ def _create_app(team_id: str, app_name: str) -> AppResponse:
 
         response.raise_for_status()
 
-        return AppResponse.model_validate(response.json())
+        return model_validate(AppResponse, response.json())
 
 
 class DeploymentStatus(str, Enum):
@@ -161,7 +166,7 @@ def _create_deployment(app_id: str) -> CreateDeploymentResponse:
         response = client.post(f"/apps/{app_id}/deployments/")
         response.raise_for_status()
 
-        return CreateDeploymentResponse.model_validate(response.json())
+        return model_validate(CreateDeploymentResponse, response.json())
 
 
 class RequestUploadResponse(BaseModel):
@@ -186,7 +191,7 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
         response.raise_for_status()
 
-        upload_data = RequestUploadResponse.model_validate(response.json())
+        upload_data = model_validate(RequestUploadResponse, response.json())
         logger.debug("Received upload URL: %s", upload_data.url)
 
         # Upload the archive
@@ -221,7 +226,7 @@ def _get_app(app_slug: str) -> Optional[AppResponse]:
 
         data = response.json()
 
-    return AppResponse.model_validate(data)
+    return model_validate(AppResponse, data)
 
 
 def _get_apps(team_id: str) -> List[AppResponse]:
@@ -231,7 +236,7 @@ def _get_apps(team_id: str) -> List[AppResponse]:
 
         data = response.json()["data"]
 
-    return [AppResponse.model_validate(app) for app in data]
+    return [model_validate(AppResponse, app) for app in data]
 
 
 def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
@@ -416,9 +421,7 @@ def _send_waitlist_form(
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
             with handle_http_errors(progress):
-                response = client.post(
-                    "/users/waiting-list", json=result.model_dump(mode="json")
-                )
+                response = client.post("/users/waiting-list", json=model_dump(result))
 
                 response.raise_for_status()
 
@@ -443,7 +446,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
     toolkit.print_line()
 
-    result = SignupToWaitingList(email=email)
+    result = model_validate(SignupToWaitingList, {"email": email})
 
     if toolkit.confirm(
         "Do you want to get access faster by giving us more information?",
@@ -467,11 +470,12 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
         result = form.run()  # type: ignore
 
         try:
-            result = SignupToWaitingList.model_validate(
+            result = model_validate(
+                SignupToWaitingList,
                 {
                     "email": email,
                     **result,  # type: ignore
-                }
+                },
             )
         except ValidationError:
             toolkit.print(

@@ -16,6 +16,7 @@ from fastapi_cloud_cli.utils.auth import (
     write_auth_config,
 )
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.pydantic_compat import model_validate_json
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def _start_device_authorization(
 
     response.raise_for_status()
 
-    return AuthorizationData.model_validate(response.json())
+    return model_validate_json(AuthorizationData, response.text)
 
 
 def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
@@ -73,7 +74,7 @@ def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -
 
         time.sleep(interval)
 
-    response_data = TokenResponse.model_validate(response.json())
+    response_data = model_validate_json(TokenResponse, response.text)
 
     return response_data.access_token
 
