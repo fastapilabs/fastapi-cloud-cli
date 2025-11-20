@@ -498,7 +498,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
         with contextlib.suppress(Exception):
             subprocess.run(
-                ["open", "raycast://confetti?emojis=🐔⚡"],
+                ["open", "-g", "raycast://confetti?emojis=🐔⚡"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=False,
