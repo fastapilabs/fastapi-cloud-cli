@@ -13,12 +13,13 @@ from typing import (
 )
 
 import httpx
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated, ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.auth import get_auth_token
+from fastapi_cloud_cli.utils.pydantic_compat import TypeAdapter
 
 logger = logging.getLogger(__name__)
 

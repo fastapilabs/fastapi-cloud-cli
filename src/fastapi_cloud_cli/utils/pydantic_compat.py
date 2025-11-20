@@ -61,3 +61,12 @@ class TypeAdapter(Generic[T]):
             from pydantic import parse_obj_as
 
             return parse_obj_as(self.type_, value)  # type: ignore[no-any-return, unused-ignore]
+
+    def validate_json(self, value: str) -> T:
+        """Validate a JSON string against the type."""
+        if PYDANTIC_V2:
+            return self._adapter.validate_json(value)  # type: ignore[no-any-return, union-attr, unused-ignore]
+        else:
+            from pydantic import parse_raw_as
+
+            return parse_raw_as(self.type_, value)  # type: ignore[no-any-return, unused-ignore, operator]
