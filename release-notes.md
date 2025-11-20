@@ -2,6 +2,23 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Improve waitlist success command. PR [#117](https://github.com/fastapilabs/fastapi-cloud-cli/pull/117) by [@patrick91](https://github.com/patrick91).
+
+## 0.5.0
+
+### Features
+
+* ✨ Resume build log stream if interrupted. PR [#109](https://github.com/fastapilabs/fastapi-cloud-cli/pull/109) by [@buurro](https://github.com/buurro).
+
+### Internal
+
+* 👷 Add support for Pydantic v1. PR [#116](https://github.com/fastapilabs/fastapi-cloud-cli/pull/116) by [@patrick91](https://github.com/patrick91).
+* 🔧 Add labels to Dependabot updates. PR [#113](https://github.com/fastapilabs/fastapi-cloud-cli/pull/113) by [@alejsdev](https://github.com/alejsdev).
+
+## 0.4.0
+
 ### Features
 
 * ✨ Add fastapi cloud sub-command. PR [#104](https://github.com/fastapilabs/fastapi-cloud-cli/pull/104) by [@buurro](https://github.com/buurro).
