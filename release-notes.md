@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.5.1
+
 ### Fixes
 
 * ✏️ Fix logout suggestion message. PR [#118](https://github.com/fastapilabs/fastapi-cloud-cli/pull/118) by [@buurro](https://github.com/buurro).
