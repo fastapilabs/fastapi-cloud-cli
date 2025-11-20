@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from contextlib import contextmanager
@@ -189,6 +190,6 @@ class APIClient(httpx.Client):
     def _parse_log_line(self, line: str) -> Optional[BuildLogLine]:
         try:
             return BuildLogAdapter.validate_json(line)
-        except ValidationError as e:
+        except (ValidationError, json.JSONDecodeError) as e:
             logger.debug("Skipping malformed log: %s (error: %s)", line[:100], e)
             return None
