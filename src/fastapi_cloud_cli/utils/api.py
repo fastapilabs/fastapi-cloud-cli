@@ -48,7 +48,7 @@ class BuildLogLineMessage(BaseModel):
 
 BuildLogLine = Union[BuildLogLineMessage, BuildLogLineGeneric]
 BuildLogAdapter = TypeAdapter[BuildLogLine](
-    Annotated[BuildLogLine, Field(discriminator="type")]
+    Annotated[BuildLogLine, Field(discriminator="type")]  # type: ignore
 )
 
 
