@@ -180,7 +180,6 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         upload_data = RequestUploadResponse.model_validate(response.json())
         logger.debug("Received upload URL: %s", upload_data.url)
 
-        # Upload the archive
         logger.debug("Starting file upload to S3")
         with open(archive_path, "rb") as archive_file:
             upload_response = client.post(
