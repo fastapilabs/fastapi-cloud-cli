@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Fix archive file was not closed after upload. PR [#122](https://github.com/fastapilabs/fastapi-cloud-cli/pull/122) by [@DoctorJohn](https://github.com/DoctorJohn).
+
 ## 0.5.1
 
 ### Fixes
