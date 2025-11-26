@@ -260,8 +260,7 @@ LONG_WAIT_MESSAGES = [
 
 
 def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
-    if not toolkit.confirm(f"Setup and deploy [blue]{path_to_deploy}[/]?", tag="dir"):
-        raise typer.Exit(0)
+    toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
 
     toolkit.print_line()
 

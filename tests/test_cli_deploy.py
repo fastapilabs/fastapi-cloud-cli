@@ -211,20 +211,6 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
 
-def test_asks_to_setup_the_app(logged_in_cli: None, tmp_path: Path) -> None:
-    steps = [Keys.RIGHT_ARROW, Keys.ENTER]
-
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
-        mock_getchar.side_effect = steps
-
-        result = runner.invoke(app, ["deploy"])
-
-        assert result.exit_code == 0
-        assert "Setup and deploy" in result.output
-
-
 @pytest.mark.respx(base_url=settings.base_api_url)
 def test_shows_error_when_trying_to_get_teams(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
@@ -323,7 +309,7 @@ def test_asks_for_app_name_after_team(
 def test_creates_app_on_backend(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [Keys.ENTER, Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER]
+    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER]
 
     team = _get_random_team()
 
@@ -354,7 +340,7 @@ def test_creates_app_on_backend(
 def test_uses_existing_app(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [Keys.ENTER, Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, *"demo", Keys.ENTER]
+    steps = [Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, *"demo", Keys.ENTER]
 
     team = _get_random_team()
 
@@ -384,7 +370,6 @@ def test_exits_successfully_when_deployment_is_done(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     steps = [
-        Keys.ENTER,
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
@@ -636,7 +621,6 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
     steps = [
         Keys.ENTER,
         Keys.ENTER,
-        Keys.ENTER,
         *"demo",
         Keys.ENTER,
     ]
@@ -759,7 +743,6 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
     steps = [
-        Keys.ENTER,  # Setup and deploy
         Keys.ENTER,  # Select team
         Keys.RIGHT_ARROW,  # Choose existing app (No)
         Keys.ENTER,
