@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* 🔥 Remove path confirmation on first deployment. PR [#123](https://github.com/fastapilabs/fastapi-cloud-cli/pull/123) by [@buurro](https://github.com/buurro).
+
 ## 0.5.2
 
 ### Fixes
