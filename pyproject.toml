@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-cloud-cli"
-dynamic = ["version"]
+version = "0.5.2"
 description = "Deploy and manage FastAPI Cloud apps from the command line 🚀"
 authors = [{ name = "Patrick Arminio", email = "patrick@fastapilabs.com" }]
 requires-python = ">=3.8"
@@ -56,7 +56,6 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm]
-version = { source = "file", path = "src/fastapi_cloud_cli/__init__.py" }
 distribution = true
 
 [tool.pdm.build]
