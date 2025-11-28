@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ⚡️ Compress code archives to speed up uploads. PR [#125](https://github.com/fastapilabs/fastapi-cloud-cli/pull/125) by [@DoctorJohn](https://github.com/DoctorJohn).
+
 ### Refactors
 
 * 🔥 Remove path confirmation on first deployment. PR [#123](https://github.com/fastapilabs/fastapi-cloud-cli/pull/123) by [@buurro](https://github.com/buurro).
