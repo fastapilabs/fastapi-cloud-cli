@@ -1,6 +1,6 @@
-import tarfile
 from pathlib import Path
 
+import fastar
 import pytest
 
 from fastapi_cloud_cli.commands.deploy import archive
@@ -9,6 +9,13 @@ from fastapi_cloud_cli.commands.deploy import archive
 @pytest.fixture
 def src_path(tmp_path: Path) -> Path:
     path = tmp_path / "source"
+    path.mkdir()
+    return path
+
+
+@pytest.fixture
+def dst_path(tmp_path: Path) -> Path:
+    path = tmp_path / "destination"
     path.mkdir()
     return path
 
@@ -29,7 +36,7 @@ def test_archive_creates_tar_file(src_path: Path, tar_path: Path) -> None:
 
 
 def test_archive_excludes_venv_and_similar_folders(
-    src_path: Path, tar_path: Path
+    src_path: Path, tar_path: Path, dst_path: Path
 ) -> None:
     """Should exclude .venv directory from archive."""
     # the only files we want to include
@@ -53,24 +60,38 @@ def test_archive_excludes_venv_and_similar_folders(
 
     archive(src_path, tar_path)
 
-    with tarfile.open(tar_path, "r") as tar:
-        names = tar.getnames()
-        assert set(names) == {"main.py", "static/index.html"}
+    with fastar.open(tar_path, "r") as tar:
+        tar.unpack(dst_path)
+
+    assert set(dst_path.glob("**/*")) == {
+        dst_path / "main.py",
+        dst_path / "static",
+        dst_path / "static" / "index.html",
+    }
 
 
-def test_archive_preserves_relative_paths(src_path: Path, tar_path: Path) -> None:
+def test_archive_preserves_relative_paths(
+    src_path: Path, tar_path: Path, dst_path: Path
+) -> None:
     (src_path / "src").mkdir()
     (src_path / "src" / "app").mkdir()
     (src_path / "src" / "app" / "main.py").write_text("print('hello')")
 
     archive(src_path, tar_path)
 
-    with tarfile.open(tar_path, "r") as tar:
-        names = tar.getnames()
-        assert names == ["src/app/main.py"]
+    with fastar.open(tar_path, "r") as tar:
+        tar.unpack(dst_path)
+
+    assert set(dst_path.glob("**/*")) == {
+        dst_path / "src",
+        dst_path / "src" / "app",
+        dst_path / "src" / "app" / "main.py",
+    }
 
 
-def test_archive_respects_fastapicloudignore(src_path: Path, tar_path: Path) -> None:
+def test_archive_respects_fastapicloudignore(
+    src_path: Path, tar_path: Path, dst_path: Path
+) -> None:
     """Should exclude files specified in .fastapicloudignore."""
     (src_path / "main.py").write_text("print('hello')")
     (src_path / "config.py").write_text("CONFIG = 'value'")
@@ -82,16 +103,17 @@ def test_archive_respects_fastapicloudignore(src_path: Path, tar_path: Path) -> 
 
     archive(src_path, tar_path)
 
-    with tarfile.open(tar_path, "r") as tar:
-        names = tar.getnames()
-        assert set(names) == {
-            "main.py",
-            "config.py",
-        }
+    with fastar.open(tar_path, "r") as tar:
+        tar.unpack(dst_path)
+
+    assert set(dst_path.glob("**/*")) == {
+        dst_path / "main.py",
+        dst_path / "config.py",
+    }
 
 
 def test_archive_respects_fastapicloudignore_unignore(
-    src_path: Path, tar_path: Path
+    src_path: Path, tar_path: Path, dst_path: Path
 ) -> None:
     """Test we can use .fastapicloudignore to unignore files inside .gitignore"""
     (src_path / "main.py").write_text("print('hello')")
@@ -109,12 +131,20 @@ def test_archive_respects_fastapicloudignore_unignore(
 
     archive(src_path, tar_path)
 
-    with tarfile.open(tar_path, "r") as tar:
-        names = tar.getnames()
-        assert set(names) == {"main.py", "static/build/style.css"}
+    with fastar.open(tar_path, "r") as tar:
+        tar.unpack(dst_path)
+
+    assert set(dst_path.glob("**/*")) == {
+        dst_path / "main.py",
+        dst_path / "static",
+        dst_path / "static" / "build",
+        dst_path / "static" / "build" / "style.css",
+    }
 
 
-def test_archive_includes_hidden_files(src_path: Path, tar_path: Path) -> None:
+def test_archive_includes_hidden_files(
+    src_path: Path, tar_path: Path, dst_path: Path
+) -> None:
     """Should include hidden files in the archive by default."""
     (src_path / "main.py").write_text("print('hello')")
     (src_path / ".env").write_text("SECRET_KEY=xyz")
@@ -123,10 +153,12 @@ def test_archive_includes_hidden_files(src_path: Path, tar_path: Path) -> None:
 
     archive(src_path, tar_path)
 
-    with tarfile.open(tar_path, "r") as tar:
-        names = tar.getnames()
-        assert set(names) == {
-            "main.py",
-            ".env",
-            ".config/settings.json",
-        }
+    with fastar.open(tar_path, "r") as tar:
+        tar.unpack(dst_path)
+
+    assert set(dst_path.glob("**/*")) == {
+        dst_path / "main.py",
+        dst_path / ".env",
+        dst_path / ".config",
+        dst_path / ".config" / "settings.json",
+    }
