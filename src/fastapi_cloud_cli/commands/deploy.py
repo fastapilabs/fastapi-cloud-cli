@@ -68,7 +68,7 @@ def archive(path: Path, tar_path: Path) -> Path:
     logger.debug("Archive will be created at: %s", tar_path)
 
     file_count = 0
-    with fastar.open(tar_path, "w") as tar:
+    with fastar.open(tar_path, "w:zst") as tar:
         for filename in files:
             if filename.is_dir():
                 continue
