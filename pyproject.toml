@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-cloud-cli"
-dynamic = ["version"]
+version = "0.5.2"
 description = "Deploy and manage FastAPI Cloud apps from the command line 🚀"
 authors = [{ name = "Patrick Arminio", email = "patrick@fastapilabs.com" }]
 requires-python = ">=3.8"
@@ -28,7 +28,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
     "typer >= 0.12.3",
@@ -44,6 +43,17 @@ dependencies = [
 [project.optional-dependencies]
 standard = ["uvicorn[standard] >= 0.15.0"]
 
+[dependency-groups]
+dev = [
+    "pre-commit>=2.17.0,<5.0.0",
+    "pytest>=4.4.0,<9.0.0",
+    "coverage[toml]>=6.2,<8.0",
+    "mypy==1.14.1",
+    "ruff==0.13.0",
+    "respx==0.22.0",
+    "time-machine==2.15.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/fastapilabs/fastapi-cloud-cli"
 Documentation = "https://fastapi.tiangolo.com/fastapi-cloud-cli/"
@@ -52,15 +62,11 @@ Issues = "https://github.com/fastapilabs/fastapi-cloud-cli/issues"
 Changelog = "https://github.com/fastapilabs/fastapi-cloud-cli/blob/main/release-notes.md"
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"
 
-[tool.pdm]
-version = { source = "file", path = "src/fastapi_cloud_cli/__init__.py" }
-distribution = true
-
-[tool.pdm.build]
-source-includes = ["tests/", "requirements*.txt", "scripts/"]
+[tool.uv.build-backend]
+source-include = ["tests/**", "scripts/**"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers"]
@@ -108,10 +114,6 @@ ignore = [
     "C901", # too complex
     "W191", # indentation contains tabs
 ]
-
-# [tool.ruff.lint.per-file-ignores]
-# "__init__.py" = ["F401"]
-
 
 [tool.ruff.lint.isort]
 known-third-party = ["typer", "fastapi"]
