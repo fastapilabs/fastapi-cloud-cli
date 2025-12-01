@@ -3,6 +3,6 @@
 pytest >=4.4.0,<9.0.0
 coverage[toml] >=6.2,<8.0
 mypy ==1.14.1
-ruff ==0.13.0
+ruff ==0.14.7
 respx ==0.22.0
 time-machine ==2.15.0
