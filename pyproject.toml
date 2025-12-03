@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-cloud-cli"
-version = "0.5.2"
+dynamic = ["version"]
 description = "Deploy and manage FastAPI Cloud apps from the command line 🚀"
 authors = [{ name = "Patrick Arminio", email = "patrick@fastapilabs.com" }]
 requires-python = ">=3.8"
@@ -62,11 +62,15 @@ Issues = "https://github.com/fastapilabs/fastapi-cloud-cli/issues"
 Changelog = "https://github.com/fastapilabs/fastapi-cloud-cli/blob/main/release-notes.md"
 
 [build-system]
-requires = ["uv_build>=0.9.13,<0.10.0"]
-build-backend = "uv_build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.uv.build-backend]
-source-include = ["tests/**", "scripts/**"]
+[tool.pdm]
+version = { source = "file", path = "src/fastapi_cloud_cli/__init__.py" }
+distribution = true
+
+[tool.pdm.build]
+source-includes = ["tests/", "scripts/"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers"]

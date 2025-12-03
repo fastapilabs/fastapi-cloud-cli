@@ -1,3 +1,1 @@
-from importlib import metadata
-
-__version__ = metadata.version("fastapi-cloud-cli")
+__version__ = "0.5.2"

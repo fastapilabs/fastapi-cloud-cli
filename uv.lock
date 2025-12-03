@@ -524,7 +524,6 @@ wheels = [
 
 [[package]]
 name = "fastapi-cloud-cli"
-version = "0.5.2"
 source = { editable = "." }
 dependencies = [
     { name = "fastar" },
