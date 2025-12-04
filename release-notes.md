@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.6.0
+
 ### Features
 
 * ⚡️ Compress code archives to speed up uploads. PR [#125](https://github.com/fastapilabs/fastapi-cloud-cli/pull/125) by [@DoctorJohn](https://github.com/DoctorJohn).
