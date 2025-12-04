@@ -8,6 +8,7 @@
 
 ### Refactors
 
+* ⬆️ Migrate to uv. PR [#127](https://github.com/fastapilabs/fastapi-cloud-cli/pull/127) by [@DoctorJohn](https://github.com/DoctorJohn).
 * 🔥 Remove path confirmation on first deployment. PR [#123](https://github.com/fastapilabs/fastapi-cloud-cli/pull/123) by [@buurro](https://github.com/buurro).
 
 ## 0.5.2
