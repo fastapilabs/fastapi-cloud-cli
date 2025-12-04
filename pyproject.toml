@@ -28,7 +28,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
     "typer >= 0.12.3",
@@ -43,6 +42,17 @@ dependencies = [
 
 [project.optional-dependencies]
 standard = ["uvicorn[standard] >= 0.15.0"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=2.17.0,<5.0.0",
+    "pytest>=4.4.0,<9.0.0",
+    "coverage[toml]>=6.2,<8.0",
+    "mypy==1.14.1",
+    "ruff==0.13.0",
+    "respx==0.22.0",
+    "time-machine==2.15.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/fastapilabs/fastapi-cloud-cli"
@@ -60,7 +70,7 @@ version = { source = "file", path = "src/fastapi_cloud_cli/__init__.py" }
 distribution = true
 
 [tool.pdm.build]
-source-includes = ["tests/", "requirements*.txt", "scripts/"]
+source-includes = ["tests/", "scripts/"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers"]
@@ -108,10 +118,6 @@ ignore = [
     "C901", # too complex
     "W191", # indentation contains tabs
 ]
-
-# [tool.ruff.lint.per-file-ignores]
-# "__init__.py" = ["F401"]
-
 
 [tool.ruff.lint.isort]
 known-third-party = ["typer", "fastapi"]
