@@ -19,7 +19,9 @@ assets_path = Path(__file__).parent / "assets"
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_shows_a_message_if_something_is_wrong(respx_mock: respx.MockRouter) -> None:
+def test_shows_a_message_if_something_is_wrong(
+    logged_out_cli: None, respx_mock: respx.MockRouter
+) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
             "/login/device/authorization", data={"client_id": settings.client_id}
