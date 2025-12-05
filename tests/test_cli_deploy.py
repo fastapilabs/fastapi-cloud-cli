@@ -990,3 +990,68 @@ def test_long_wait_messages(
         result = runner.invoke(app, ["deploy"])
 
         assert "long wait message" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_calls_upload_cancelled_when_user_interrupts(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    upload_cancelled_route = respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-cancelled"
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path), patch(
+        "fastapi_cloud_cli.commands.deploy._upload_deployment",
+        side_effect=KeyboardInterrupt(),
+    ):
+        runner.invoke(app, ["deploy"])
+
+        assert upload_cancelled_route.called
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_cancel_upload_swallows_exceptions(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    upload_cancelled_route = respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-cancelled"
+    ).mock(return_value=Response(500))
+
+    with changing_dir(tmp_path), patch(
+        "fastapi_cloud_cli.commands.deploy._upload_deployment",
+        side_effect=KeyboardInterrupt(),
+    ):
+        result = runner.invoke(app, ["deploy"])
+
+        assert upload_cancelled_route.called
+        assert "HTTPStatusError" not in result.output
