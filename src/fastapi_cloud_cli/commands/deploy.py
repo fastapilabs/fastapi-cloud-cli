@@ -32,6 +32,19 @@ from fastapi_cloud_cli.utils.pydantic_compat import (
 logger = logging.getLogger(__name__)
 
 
+def _cancel_upload(deployment_id: str) -> None:
+    logger.debug("Cancelling upload for deployment: %s", deployment_id)
+
+    try:
+        with APIClient() as client:
+            response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
+            response.raise_for_status()
+
+            logger.debug("Upload cancellation notification sent successfully")
+    except Exception as e:
+        logger.debug("Failed to notify server about upload cancellation: %s", e)
+
+
 def _get_app_name(path: Path) -> str:
     # TODO: use pyproject.toml to get the app name
     return path.name
@@ -598,15 +611,19 @@ def deploy(
                 logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)
 
-                progress.log(
-                    f"Deployment created successfully! Deployment slug: {deployment.slug}"
-                )
+                try:
+                    progress.log(
+                        f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                    )
 
-                progress.log("Uploading deployment...")
+                    progress.log("Uploading deployment...")
 
-                _upload_deployment(deployment.id, archive_path)
+                    _upload_deployment(deployment.id, archive_path)
 
-                progress.log("Deployment uploaded successfully!")
+                    progress.log("Deployment uploaded successfully!")
+                except KeyboardInterrupt:
+                    _cancel_upload(deployment.id)
+                    raise
 
         toolkit.print_line()
 
