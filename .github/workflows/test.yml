@@ -104,7 +104,7 @@ jobs:
           pattern: coverage-*
           path: coverage
           merge-multiple: true
-      - run: uv sync
+      - run: uv sync --locked --all-extras --dev
       - run: ls -la coverage
       - run: uv run coverage combine coverage
       - run: uv run coverage report
