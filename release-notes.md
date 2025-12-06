@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* ✅ Fix test coverage. PR [#130](https://github.com/fastapilabs/fastapi-cloud-cli/pull/130) by [@patrick91](https://github.com/patrick91).
+
 ## 0.6.0
 
 ### Features
