@@ -114,8 +114,7 @@ def attempts(
             for attempt_number in range(total_attempts):
                 if time.monotonic() - start > timeout.total_seconds():
                     raise TimeoutError(
-                        "Build log streaming timed out after %ds",
-                        timeout.total_seconds(),
+                        f"Build log streaming timed out after {timeout.total_seconds():.0f}s"
                     )
 
                 with attempt(attempt_number):

@@ -6,6 +6,7 @@ import time
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
+from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
 
 import fastar
@@ -401,12 +402,15 @@ def _wait_for_deployment(
 
                     last_message_changed_at = time.monotonic()
 
-        except (BuildLogError, TooManyRetriesError) as e:
-            logger.error("Build log streaming failed: %s", e)
-            toolkit.print_line()
-            toolkit.print(
-                f"⚠️  Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+        except (BuildLogError, TooManyRetriesError, TimeoutError) as e:
+            progress.set_error(
+                dedent(f"""
+                [error]Build log streaming failed: {e}[/]
+
+                Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
+                """).strip()
             )
+
             raise typer.Exit(1) from e
 
 
