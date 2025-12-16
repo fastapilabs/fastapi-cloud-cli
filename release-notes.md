@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.7.0
+
 ### Features
 
 * ✨ Add upload cancellation notification on keyboard interrupt. PR [#129](https://github.com/fastapilabs/fastapi-cloud-cli/pull/129) by [@patrick91](https://github.com/patrick91).
