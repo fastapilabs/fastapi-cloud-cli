@@ -22,7 +22,7 @@ from typing_extensions import Annotated
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import is_logged_in, notify_user_not_logged_in
+from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -516,10 +516,16 @@ def deploy(
 
     with get_rich_toolkit() as toolkit:
         if not is_logged_in():
-            notify_user_not_logged_in(
+            logger.debug("User not logged in, prompting for login or waitlist")
+
+            toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
+            toolkit.print_line()
+
+            toolkit.print(
                 "You need to be logged in to deploy to FastAPI Cloud.",
-                toolkit,
+                tag="info",
             )
+            toolkit.print_line()
 
             choice = toolkit.ask(
                 "What would you like to do?",

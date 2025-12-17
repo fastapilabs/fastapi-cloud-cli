@@ -2,11 +2,11 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Generator, Union
+from typing import Generator
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.api import APIClient
@@ -61,10 +61,7 @@ LOG_LEVEL_COLORS = {
 
 
 def _format_log_line(log: LogEntry) -> str:
-    """Format a log entry for display with a colored indicator matching the UI.
-
-    Uses a colored dot/bar indicator like the UI, which doesn't affect copy/paste.
-    """
+    """Format a log entry for display with a colored indicator matching the UI."""
     timestamp_str = log.timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     color = LOG_LEVEL_COLORS.get(log.level.lower())
     if color:
@@ -74,7 +71,7 @@ def _format_log_line(log: LogEntry) -> str:
 
 def logs(
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="Path to the folder containing the app (defaults to current directory)"
         ),
@@ -99,7 +96,7 @@ def logs(
         "-f",
         help="Stream logs in real-time (use --no-follow to fetch and exit).",
     ),
-) -> Any:
+) -> None:
     """Stream or fetch logs from your deployed app."""
     with get_rich_toolkit(minimal=True) as toolkit:
         if not is_logged_in():
@@ -134,7 +131,7 @@ def logs(
                 since=since,
                 follow=follow,
             ):
-                if not line:
+                if not line:  # pragma: no cover
                     continue
 
                 try:
@@ -144,7 +141,7 @@ def logs(
                     continue
 
                 # Skip heartbeat messages
-                if data.get("type") == "heartbeat":
+                if data.get("type") == "heartbeat":  # pragma: no cover
                     continue
 
                 # Handle error messages from the server
@@ -159,14 +156,14 @@ def logs(
                     log_entry = LogEntry.model_validate(data)
                     toolkit.print(_format_log_line(log_entry))
                     log_count += 1
-                except Exception as e:
+                except ValidationError as e:  # pragma: no cover
                     logger.debug("Failed to parse log entry: %s - %s", data, e)
                     continue
 
             if not follow and log_count == 0:
                 toolkit.print("No logs found for the specified time range.")
 
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # pragma: no cover
             toolkit.print_line()
             toolkit.print("Stopped.", tag="logs")
         except ReadTimeout:

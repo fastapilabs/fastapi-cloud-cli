@@ -5,8 +5,6 @@ import logging
 import time
 from typing import Optional
 
-import rich_toolkit
-import typer
 from pydantic import BaseModel
 
 from .config import get_auth_path
@@ -122,17 +120,3 @@ def is_logged_in() -> bool:
 
     logger.debug("Login status: True")
     return True
-
-
-def notify_user_not_logged_in(message: str, toolkit: rich_toolkit) -> None:
-    logger.info("User is not logged in. Please log in to continue.")
-
-    toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
-    toolkit.print_line()
-
-    toolkit.print(
-        message,
-        tag="info",
-    )
-    toolkit.print_line()
-    raise typer.Exit(1)
