@@ -5,13 +5,14 @@ from pathlib import Path
 from typing import Any, Generator, Union
 
 import typer
+from httpx import HTTPError, HTTPStatusError, ReadTimeout
 from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,17 @@ def _stream_logs(
     app_id: str,
     tail: int,
     since: str,
-    no_follow: bool,
+    follow: bool,
 ) -> Generator[str, None, None]:
     """Stream logs from the API."""
     params = {
         "tail": tail,
         "since": since,
-        "no_follow": no_follow,
+        "follow": follow,
     }
 
     with APIClient() as client:
-        timeout = 30 if no_follow else 120
+        timeout = 120 if follow else 30
         with client.stream(
             "GET",
             f"/apps/{app_id}/logs/stream",
@@ -47,11 +48,28 @@ def _stream_logs(
             yield from response.iter_lines()
 
 
+# Colors matching the UI log level indicators
+LOG_LEVEL_COLORS = {
+    "debug": "blue",
+    "info": "cyan",
+    "warning": "yellow",
+    "warn": "yellow",
+    "error": "red",
+    "critical": "magenta",
+    "fatal": "magenta",
+}
+
+
 def _format_log_line(log: LogEntry) -> str:
-    """Format a log entry for display."""
+    """Format a log entry for display with a colored indicator matching the UI.
+
+    Uses a colored dot/bar indicator like the UI, which doesn't affect copy/paste.
+    """
     timestamp_str = log.timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    level_upper = log.level.upper()
-    return f"{timestamp_str} [{level_upper}] {log.message}"
+    color = LOG_LEVEL_COLORS.get(log.level.lower())
+    if color:
+        return f"[{color}]┃[/{color}] [dim]{timestamp_str}[/dim] {log.message}"
+    return f"[dim]┃[/dim] [dim]{timestamp_str}[/dim] {log.message}"
 
 
 def logs(
@@ -75,11 +93,11 @@ def logs(
         help="Show logs since a specific time (e.g., '5m', '1h', '2d').",
         show_default=True,
     ),
-    no_follow: bool = typer.Option(
-        False,
-        "--no-follow",
-        "-n",
-        help="Fetch recent logs and exit (don't stream).",
+    follow: bool = typer.Option(
+        True,
+        "--follow/--no-follow",
+        "-f",
+        help="Stream logs in real-time (use --no-follow to fetch and exit).",
     ),
 ) -> Any:
     """Stream or fetch logs from your deployed app."""
@@ -102,56 +120,72 @@ def logs(
 
         logger.debug(f"Fetching logs for app ID: {app_config.app_id}")
 
-        if no_follow:
-            toolkit.print("Fetching logs...", tag="logs")
-        else:
+        if follow:
             toolkit.print("Streaming logs (Ctrl+C to exit)...", tag="logs")
+        else:
+            toolkit.print("Fetching logs...", tag="logs")
         toolkit.print_line()
 
         try:
             log_count = 0
-            with handle_http_errors(
-                progress=None,
-                message="Failed to fetch logs. Please try again later.",
+            for line in _stream_logs(
+                app_id=app_config.app_id,
+                tail=tail,
+                since=since,
+                follow=follow,
             ):
-                for line in _stream_logs(
-                    app_id=app_config.app_id,
-                    tail=tail,
-                    since=since,
-                    no_follow=no_follow,
-                ):
-                    if not line:
-                        continue
+                if not line:
+                    continue
 
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        logger.debug("Failed to parse log line: %s", line)
-                        continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.debug("Failed to parse log line: %s", line)
+                    continue
 
-                    # Skip heartbeat messages
-                    if data.get("type") == "heartbeat":
-                        continue
+                # Skip heartbeat messages
+                if data.get("type") == "heartbeat":
+                    continue
 
-                    # Handle error messages from the server
-                    if data.get("type") == "error":
-                        toolkit.print(
-                            f"Error: {data.get('message', 'Unknown error')}",
-                        )
-                        raise typer.Exit(1)
+                # Handle error messages from the server
+                if data.get("type") == "error":
+                    toolkit.print(
+                        f"Error: {data.get('message', 'Unknown error')}",
+                    )
+                    raise typer.Exit(1)
 
-                    # Parse and display log entry
-                    try:
-                        log_entry = LogEntry.model_validate(data)
-                        toolkit.print(_format_log_line(log_entry))
-                        log_count += 1
-                    except Exception as e:
-                        logger.debug("Failed to parse log entry: %s - %s", data, e)
-                        continue
+                # Parse and display log entry
+                try:
+                    log_entry = LogEntry.model_validate(data)
+                    toolkit.print(_format_log_line(log_entry))
+                    log_count += 1
+                except Exception as e:
+                    logger.debug("Failed to parse log entry: %s - %s", data, e)
+                    continue
 
-            if no_follow and log_count == 0:
+            if not follow and log_count == 0:
                 toolkit.print("No logs found for the specified time range.")
 
         except KeyboardInterrupt:
             toolkit.print_line()
             toolkit.print("Stopped.", tag="logs")
+        except ReadTimeout:
+            toolkit.print(
+                "The request timed out. Please try again later.",
+            )
+            raise typer.Exit(1) from None
+        except HTTPStatusError as e:
+            if e.response.status_code in (401, 403):
+                toolkit.print(
+                    "The specified token is not valid. Use [blue]`fastapi login`[/] to generate a new token.",
+                )
+            else:
+                toolkit.print(
+                    "Failed to fetch logs. Please try again later.",
+                )
+            raise typer.Exit(1) from None
+        except HTTPError:
+            toolkit.print(
+                "Failed to fetch logs. Please try again later.",
+            )
+            raise typer.Exit(1) from None
