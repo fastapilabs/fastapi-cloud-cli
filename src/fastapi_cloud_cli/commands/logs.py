@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Generator
+from typing import Dict, Generator, Optional, Union
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
@@ -30,7 +30,7 @@ def _stream_logs(
     follow: bool,
 ) -> Generator[str, None, None]:
     """Stream logs from the API."""
-    params = {
+    params: Dict[str, Union[str, int, bool]] = {
         "tail": tail,
         "since": since,
         "follow": follow,
@@ -71,7 +71,7 @@ def _format_log_line(log: LogEntry) -> str:
 
 def logs(
     path: Annotated[
-        Path | None,
+        Optional[Path],
         typer.Argument(
             help="Path to the folder containing the app (defaults to current directory)"
         ),
