@@ -59,6 +59,7 @@ def test_displays_logs(
 
     assert result.exit_code == 0
     assert "Fetching logs" in result.output
+    assert configured_app.app_id in result.output
     assert "Application startup complete" in result.output
     assert "GET /health 200" in result.output
 
@@ -80,6 +81,7 @@ def test_passes_default_params(
     assert "tail=100" in url
     assert "since=5m" in url
     assert "Streaming logs" in result.output
+    assert configured_app.app_id in result.output
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)

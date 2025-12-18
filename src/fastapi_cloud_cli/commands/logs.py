@@ -118,9 +118,15 @@ def logs(
         logger.debug(f"Fetching logs for app ID: {app_config.app_id}")
 
         if follow:
-            toolkit.print("Streaming logs (Ctrl+C to exit)...", tag="logs")
+            toolkit.print(
+                f"Streaming logs for [bold]{app_config.app_id}[/bold] (Ctrl+C to exit)...",
+                tag="logs",
+            )
         else:
-            toolkit.print("Fetching logs...", tag="logs")
+            toolkit.print(
+                f"Fetching logs for [bold]{app_config.app_id}[/bold]...",
+                tag="logs",
+            )
         toolkit.print_line()
 
         try:
@@ -165,7 +171,6 @@ def logs(
 
         except KeyboardInterrupt:  # pragma: no cover
             toolkit.print_line()
-            toolkit.print("Stopped.", tag="logs")
         except ReadTimeout:
             toolkit.print(
                 "The request timed out. Please try again later.",
