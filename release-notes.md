@@ -2,6 +2,60 @@
 
 ## Latest Changes
 
+## 0.7.0
+
+### Features
+
+* ✨ Add upload cancellation notification on keyboard interrupt. PR [#129](https://github.com/fastapilabs/fastapi-cloud-cli/pull/129) by [@patrick91](https://github.com/patrick91).
+
+### Fixes
+
+* 🐛 Handle TimeoutError when waiting for deployment. PR [#131](https://github.com/fastapilabs/fastapi-cloud-cli/pull/131) by [@buurro](https://github.com/buurro).
+
+### Internal
+
+* ✅ Fix test coverage. PR [#130](https://github.com/fastapilabs/fastapi-cloud-cli/pull/130) by [@patrick91](https://github.com/patrick91).
+
+## 0.6.0
+
+### Features
+
+* ⚡️ Compress code archives to speed up uploads. PR [#125](https://github.com/fastapilabs/fastapi-cloud-cli/pull/125) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+### Refactors
+
+* ⬆️ Migrate to uv. PR [#127](https://github.com/fastapilabs/fastapi-cloud-cli/pull/127) by [@DoctorJohn](https://github.com/DoctorJohn).
+* 🔥 Remove path confirmation on first deployment. PR [#123](https://github.com/fastapilabs/fastapi-cloud-cli/pull/123) by [@buurro](https://github.com/buurro).
+
+## 0.5.2
+
+### Fixes
+
+* 🐛 Fix archive file was not closed after upload. PR [#122](https://github.com/fastapilabs/fastapi-cloud-cli/pull/122) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+## 0.5.1
+
+### Fixes
+
+* ✏️ Fix logout suggestion message. PR [#118](https://github.com/fastapilabs/fastapi-cloud-cli/pull/118) by [@buurro](https://github.com/buurro).
+
+### Refactors
+
+* ♻️ Improve waitlist success command. PR [#117](https://github.com/fastapilabs/fastapi-cloud-cli/pull/117) by [@patrick91](https://github.com/patrick91).
+
+## 0.5.0
+
+### Features
+
+* ✨ Resume build log stream if interrupted. PR [#109](https://github.com/fastapilabs/fastapi-cloud-cli/pull/109) by [@buurro](https://github.com/buurro).
+
+### Internal
+
+* 👷 Add support for Pydantic v1. PR [#116](https://github.com/fastapilabs/fastapi-cloud-cli/pull/116) by [@patrick91](https://github.com/patrick91).
+* 🔧 Add labels to Dependabot updates. PR [#113](https://github.com/fastapilabs/fastapi-cloud-cli/pull/113) by [@alejsdev](https://github.com/alejsdev).
+
+## 0.4.0
+
 ### Features
 
 * ✨ Add fastapi cloud sub-command. PR [#104](https://github.com/fastapilabs/fastapi-cloud-cli/pull/104) by [@buurro](https://github.com/buurro).
@@ -10,7 +64,13 @@
 
 ### Fixes
 
+* 🐛 Include hidden files in app archive. PR [#115](https://github.com/fastapilabs/fastapi-cloud-cli/pull/115) by [@buurro](https://github.com/buurro).
 * ♻️  Clean up code archives after uploading. PR [#106](https://github.com/fastapilabs/fastapi-cloud-cli/pull/106) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+### Refactors
+
+* 🧑‍💻 Handle already logged in state. PR [#103](https://github.com/fastapilabs/fastapi-cloud-cli/pull/103) by [@alejsdev](https://github.com/alejsdev).
+* ⚡️ Speed up archive creation. PR [#111](https://github.com/fastapilabs/fastapi-cloud-cli/pull/111) by [@DoctorJohn](https://github.com/DoctorJohn).
 
 ## 0.3.1
 

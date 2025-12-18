@@ -1,31 +1,49 @@
 import contextlib
-import json
 import logging
 import subprocess
-import tarfile
 import tempfile
 import time
 from enum import Enum
 from itertools import cycle
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from textwrap import dedent
+from typing import Any, Dict, List, Optional, Union
 
+import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
+from pydantic import BaseModel, EmailStr, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, TooManyRetriesError
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.pydantic_compat import (
+    TypeAdapter,
+    model_dump,
+    model_validate,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _cancel_upload(deployment_id: str) -> None:
+    logger.debug("Cancelling upload for deployment: %s", deployment_id)
+
+    try:
+        with APIClient() as client:
+            response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
+            response.raise_for_status()
+
+            logger.debug("Upload cancellation notification sent successfully")
+    except Exception as e:
+        logger.debug("Failed to notify server about upload cancellation: %s", e)
 
 
 def _get_app_name(path: Path) -> str:
@@ -34,7 +52,14 @@ def _get_app_name(path: Path) -> str:
 
 
 def _should_exclude_entry(path: Path) -> bool:
-    parts_to_exclude = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]
+    parts_to_exclude = [
+        ".venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".gitignore",
+        ".fastapicloudignore",
+    ]
 
     if any(part in path.parts for part in parts_to_exclude):
         return True
@@ -51,18 +76,20 @@ def archive(path: Path, tar_path: Path) -> Path:
         path,
         should_exclude_entry=_should_exclude_entry,
         additional_ignore_paths=[".fastapicloudignore"],
+        ignore_hidden=False,
     )
 
     logger.debug("Archive will be created at: %s", tar_path)
 
     file_count = 0
-    with tarfile.open(tar_path, "w") as tar:
+    with fastar.open(tar_path, "w:zst") as tar:
         for filename in files:
             if filename.is_dir():
                 continue
 
-            logger.debug("Adding %s to archive", filename.relative_to(path))
-            tar.add(filename, arcname=filename.relative_to(path))
+            arcname = filename.relative_to(path)
+            logger.debug("Adding %s to archive", arcname)
+            tar.append(filename, arcname=arcname)
             file_count += 1
 
     logger.debug("Archive created successfully with %s files", file_count)
@@ -82,7 +109,7 @@ def _get_teams() -> List[Team]:
 
         data = response.json()["data"]
 
-    return [Team.model_validate(team) for team in data]
+    return [model_validate(Team, team) for team in data]
 
 
 class AppResponse(BaseModel):
@@ -99,7 +126,7 @@ def _create_app(team_id: str, app_name: str) -> AppResponse:
 
         response.raise_for_status()
 
-        return AppResponse.model_validate(response.json())
+        return model_validate(AppResponse, response.json())
 
 
 class DeploymentStatus(str, Enum):
@@ -152,7 +179,7 @@ def _create_deployment(app_id: str) -> CreateDeploymentResponse:
         response = client.post(f"/apps/{app_id}/deployments/")
         response.raise_for_status()
 
-        return CreateDeploymentResponse.model_validate(response.json())
+        return model_validate(CreateDeploymentResponse, response.json())
 
 
 class RequestUploadResponse(BaseModel):
@@ -177,16 +204,16 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
         response.raise_for_status()
 
-        upload_data = RequestUploadResponse.model_validate(response.json())
+        upload_data = model_validate(RequestUploadResponse, response.json())
         logger.debug("Received upload URL: %s", upload_data.url)
 
-        # Upload the archive
         logger.debug("Starting file upload to S3")
-        upload_response = client.post(
-            upload_data.url,
-            data=upload_data.fields,
-            files={"file": archive_path.open("rb")},
-        )
+        with open(archive_path, "rb") as archive_file:
+            upload_response = client.post(
+                upload_data.url,
+                data=upload_data.fields,
+                files={"file": archive_file},
+            )
 
         upload_response.raise_for_status()
         logger.debug("File upload completed successfully")
@@ -212,7 +239,7 @@ def _get_app(app_slug: str) -> Optional[AppResponse]:
 
         data = response.json()
 
-    return AppResponse.model_validate(data)
+    return model_validate(AppResponse, data)
 
 
 def _get_apps(team_id: str) -> List[AppResponse]:
@@ -222,24 +249,14 @@ def _get_apps(team_id: str) -> List[AppResponse]:
 
         data = response.json()["data"]
 
-    return [AppResponse.model_validate(app) for app in data]
-
-
-def _stream_build_logs(deployment_id: str) -> Generator[str, None, None]:
-    with APIClient() as client:
-        with client.stream(
-            "GET", f"/deployments/{deployment_id}/build-logs", timeout=60
-        ) as response:
-            response.raise_for_status()
-
-            yield from response.iter_lines()
+    return [model_validate(AppResponse, app) for app in data]
 
 
 WAITING_MESSAGES = [
     "🚀 Preparing for liftoff! Almost there...",
     "👹 Sneaking past the dependency gremlins... Don't wake them up!",
     "🤏 Squishing code into a tiny digital sandwich. Nom nom nom.",
-    "📉 Server space running low. Time to delete those cat videos?",
+    "🐱 Removing cat videos from our servers to free up space.",
     "🐢 Uploading at blazing speeds of 1 byte per hour. Patience, young padawan.",
     "🔌 Connecting to server... Please stand by while we argue with the firewall.",
     "💥 Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
@@ -257,8 +274,7 @@ LONG_WAIT_MESSAGES = [
 
 
 def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
-    if not toolkit.confirm(f"Setup and deploy [blue]{path_to_deploy}[/]?", tag="dir"):
-        raise typer.Exit(0)
+    toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
 
     toolkit.print_line()
 
@@ -349,17 +365,15 @@ def _wait_for_deployment(
 
     with toolkit.progress(
         next(messages), inline_logs=True, lines_to_show=20
-    ) as progress:
-        with handle_http_errors(progress=progress):
-            for line in _stream_build_logs(deployment.id):
+    ) as progress, APIClient() as client:
+        try:
+            for log in client.stream_build_logs(deployment.id):
                 time_elapsed = time.monotonic() - started_at
 
-                data = json.loads(line)
+                if log.type == "message":
+                    progress.log(Text.from_ansi(log.message.rstrip()))
 
-                if "message" in data:
-                    progress.log(Text.from_ansi(data["message"].rstrip()))
-
-                if data.get("type") == "complete":
+                if log.type == "complete":
                     progress.log("")
                     progress.log(
                         f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
@@ -373,7 +387,7 @@ def _wait_for_deployment(
 
                     break
 
-                if data.get("type") == "failed":
+                if log.type == "failed":
                     progress.log("")
                     progress.log(
                         f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
@@ -381,12 +395,23 @@ def _wait_for_deployment(
                     raise typer.Exit(1)
 
                 if time_elapsed > 30:
-                    messages = cycle(LONG_WAIT_MESSAGES)  # pragma: no cover
+                    messages = cycle(LONG_WAIT_MESSAGES)
 
                 if (time.monotonic() - last_message_changed_at) > 2:
-                    progress.title = next(messages)  # pragma: no cover
+                    progress.title = next(messages)
 
-                    last_message_changed_at = time.monotonic()  # pragma: no cover
+                    last_message_changed_at = time.monotonic()
+
+        except (BuildLogError, TooManyRetriesError, TimeoutError) as e:
+            progress.set_error(
+                dedent(f"""
+                [error]Build log streaming failed: {e}[/]
+
+                Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
+                """).strip()
+            )
+
+            raise typer.Exit(1) from e
 
 
 class SignupToWaitingList(BaseModel):
@@ -407,9 +432,7 @@ def _send_waitlist_form(
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
             with handle_http_errors(progress):
-                response = client.post(
-                    "/users/waiting-list", json=result.model_dump(mode="json")
-                )
+                response = client.post("/users/waiting-list", json=model_dump(result))
 
                 response.raise_for_status()
 
@@ -434,7 +457,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
     toolkit.print_line()
 
-    result = SignupToWaitingList(email=email)
+    result = model_validate(SignupToWaitingList, {"email": email})
 
     if toolkit.confirm(
         "Do you want to get access faster by giving us more information?",
@@ -458,11 +481,12 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
         result = form.run()  # type: ignore
 
         try:
-            result = SignupToWaitingList.model_validate(
+            result = model_validate(
+                SignupToWaitingList,
                 {
                     "email": email,
                     **result,  # type: ignore
-                }
+                },
             )
         except ValidationError:
             toolkit.print(
@@ -490,7 +514,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
         with contextlib.suppress(Exception):
             subprocess.run(
-                ["open", "raycast://confetti?emojis=🐔⚡"],
+                ["open", "-g", "raycast://confetti?emojis=🐔⚡"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=False,
@@ -591,15 +615,19 @@ def deploy(
                 logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)
 
-                progress.log(
-                    f"Deployment created successfully! Deployment slug: {deployment.slug}"
-                )
+                try:
+                    progress.log(
+                        f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                    )
 
-                progress.log("Uploading deployment...")
+                    progress.log("Uploading deployment...")
 
-                _upload_deployment(deployment.id, archive_path)
+                    _upload_deployment(deployment.id, archive_path)
 
-                progress.log("Deployment uploaded successfully!")
+                    progress.log("Deployment uploaded successfully!")
+                except KeyboardInterrupt:
+                    _cancel_upload(deployment.id)
+                    raise
 
         toolkit.print_line()
 
