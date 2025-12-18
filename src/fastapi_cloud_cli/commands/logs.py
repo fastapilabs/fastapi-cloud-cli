@@ -115,7 +115,7 @@ def logs(
             )
             raise typer.Exit(1)
 
-        logger.debug(f"Fetching logs for app ID: {app_config.app_id}")
+        logger.debug("Fetching logs for app ID: %s", app_config.app_id)
 
         if follow:
             toolkit.print(
