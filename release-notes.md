@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Run Smokeshow always, even on test failures. PR [#133](https://github.com/fastapilabs/fastapi-cloud-cli/pull/133) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.7.0
 
 ### Features
