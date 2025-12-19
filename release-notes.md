@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Configure coverage, error on main tests, don't wait for Smokeshow. PR [#134](https://github.com/fastapilabs/fastapi-cloud-cli/pull/134) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 👷 Run Smokeshow always, even on test failures. PR [#133](https://github.com/fastapilabs/fastapi-cloud-cli/pull/133) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.7.0
