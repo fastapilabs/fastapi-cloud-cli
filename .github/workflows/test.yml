@@ -40,6 +40,8 @@ jobs:
             pydantic-version: "v1"
       fail-fast: false
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - name: Dump GitHub context
         env:
@@ -107,7 +109,6 @@ jobs:
       - run: uv sync --locked --all-extras --dev
       - run: ls -la coverage
       - run: uv run coverage combine coverage
-      - run: uv run coverage report
       - run: uv run coverage html --title "Coverage for ${{ github.sha }}"
       - name: Store coverage HTML
         uses: actions/upload-artifact@v4
@@ -115,6 +116,7 @@ jobs:
           name: coverage-html
           path: htmlcov
           include-hidden-files: true
+      - run: uv run coverage report --fail-under=100
 
   # https://github.com/marketplace/actions/alls-green#why
   check:  # This job does nothing and is only used for the branch protection

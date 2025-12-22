@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   smokeshow:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +19,7 @@ jobs:
         run: echo "$GITHUB_CONTEXT"
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.13'
 
       - run: pip install smokeshow
 

@@ -376,13 +376,13 @@ def _wait_for_deployment(
                 if log.type == "complete":
                     progress.log("")
                     progress.log(
-                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
                     )
 
                     progress.log("")
 
                     progress.log(
-                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
                     )
 
                     break

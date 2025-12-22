@@ -2,6 +2,19 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Fix CI ran all tests on oldest supported Python. PR [#136](https://github.com/fastapilabs/fastapi-cloud-cli/pull/136) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+### Refactors
+
+* ♻️ Reorder log messages for deployment readiness. PR [#137](https://github.com/fastapilabs/fastapi-cloud-cli/pull/137) by [@alejsdev](https://github.com/alejsdev).
+
+### Internal
+
+* 👷 Configure coverage, error on main tests, don't wait for Smokeshow. PR [#134](https://github.com/fastapilabs/fastapi-cloud-cli/pull/134) by [@YuriiMotov](https://github.com/YuriiMotov).
+* 👷 Run Smokeshow always, even on test failures. PR [#133](https://github.com/fastapilabs/fastapi-cloud-cli/pull/133) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.7.0
 
 ### Features
