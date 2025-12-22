@@ -40,6 +40,8 @@ jobs:
             pydantic-version: "v1"
       fail-fast: false
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - name: Dump GitHub context
         env:
