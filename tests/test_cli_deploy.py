@@ -2,7 +2,7 @@ import random
 import string
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 from unittest.mock import patch
 
 import httpx
@@ -25,7 +25,7 @@ settings = Settings.get()
 assets_path = Path(__file__).parent / "assets"
 
 
-def _get_random_team() -> Dict[str, str]:
+def _get_random_team() -> dict[str, str]:
     name = "".join(random.choices(string.ascii_lowercase, k=10))
     slug = "".join(random.choices(string.ascii_lowercase, k=10))
     id = "".join(random.choices(string.digits, k=10))
@@ -35,7 +35,7 @@ def _get_random_team() -> Dict[str, str]:
 
 def _get_random_app(
     *, slug: Optional[str] = None, team_id: Optional[str] = None
-) -> Dict[str, str]:
+) -> dict[str, str]:
     name = "".join(random.choices(string.ascii_lowercase, k=10))
     slug = slug or "".join(random.choices(string.ascii_lowercase, k=10))
     id = "".join(random.choices(string.digits, k=10))
@@ -48,7 +48,7 @@ def _get_random_deployment(
     *,
     app_id: Optional[str] = None,
     status: str = "waiting_upload",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     id = "".join(random.choices(string.digits, k=10))
     slug = "".join(random.choices(string.ascii_lowercase, k=10))
     app_id = app_id or "".join(random.choices(string.digits, k=10))
@@ -91,11 +91,11 @@ def test_chooses_login_option_when_not_logged_in(
         },
     ).mock(return_value=Response(200, json={"access_token": "test_token_1234"}))
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar, patch(
-        "fastapi_cloud_cli.commands.login.typer.launch"
-    ) as mock_launch:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+        patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_launch,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -136,9 +136,10 @@ def test_chooses_waitlist_option_when_not_logged_in(
         },
     ).mock(return_value=Response(200))
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -200,9 +201,10 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
         },
     ).mock(return_value=Response(200))
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -220,9 +222,10 @@ def test_shows_error_when_trying_to_get_teams(
 
     respx_mock.get("/teams/").mock(return_value=Response(500))
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -240,9 +243,10 @@ def test_handles_invalid_auth(
 
     respx_mock.get("/teams/").mock(return_value=Response(401))
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -268,9 +272,10 @@ def test_shows_teams(
         )
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -294,9 +299,10 @@ def test_asks_for_app_name_after_team(
         )
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -325,9 +331,10 @@ def test_creates_app_on_backend(
         return_value=Response(201, json=_get_random_app(team_id=team["id"]))
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -353,9 +360,10 @@ def test_uses_existing_app(
         return_value=Response(200, json={"data": [app_data]})
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -426,9 +434,10 @@ def test_exits_successfully_when_deployment_is_done(
         )
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -668,9 +677,10 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         return_value=Response(200)
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         return runner.invoke(app, ["deploy", "--no-wait"])
@@ -723,9 +733,11 @@ def test_shows_error_for_invalid_waitlist_form_data(
         Keys.CTRL_C,  # Interrupt to avoid infinite loop
     ]
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar, patch("rich_toolkit.form.Form.run") as mock_form_run:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+        patch("rich_toolkit.form.Form.run") as mock_form_run,
+    ):
         mock_getchar.side_effect = steps
         # Simulate form returning data with invalid email field to trigger ValidationError
         mock_form_run.return_value = {
@@ -758,9 +770,10 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
         return_value=Response(200, json={"data": []})
     )
 
-    with changing_dir(tmp_path), patch(
-        "rich_toolkit.container.getchar"
-    ) as mock_getchar:
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
         mock_getchar.side_effect = steps
 
         result = runner.invoke(app, ["deploy"])
@@ -806,9 +819,12 @@ def test_shows_error_message_on_build_exception(
         return_value=Response(200)
     )
 
-    with changing_dir(tmp_path), patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
-        side_effect=error,
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+            side_effect=error,
+        ),
     ):
         result = runner.invoke(app, ["deploy"])
 
@@ -1017,9 +1033,12 @@ def test_calls_upload_cancelled_when_user_interrupts(
         f"/deployments/{deployment_data['id']}/upload-cancelled"
     ).mock(return_value=Response(200))
 
-    with changing_dir(tmp_path), patch(
-        "fastapi_cloud_cli.commands.deploy._upload_deployment",
-        side_effect=KeyboardInterrupt(),
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            side_effect=KeyboardInterrupt(),
+        ),
     ):
         runner.invoke(app, ["deploy"])
 
@@ -1049,9 +1068,12 @@ def test_cancel_upload_swallows_exceptions(
         f"/deployments/{deployment_data['id']}/upload-cancelled"
     ).mock(return_value=Response(500))
 
-    with changing_dir(tmp_path), patch(
-        "fastapi_cloud_cli.commands.deploy._upload_deployment",
-        side_effect=KeyboardInterrupt(),
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            side_effect=KeyboardInterrupt(),
+        ),
     ):
         result = runner.invoke(app, ["deploy"])
 

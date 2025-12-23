@@ -7,7 +7,7 @@ from enum import Enum
 from itertools import cycle
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 import fastar
 import rignore
@@ -17,7 +17,6 @@ from pydantic import BaseModel, EmailStr, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
-from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, TooManyRetriesError
@@ -102,7 +101,7 @@ class Team(BaseModel):
     name: str
 
 
-def _get_teams() -> List[Team]:
+def _get_teams() -> list[Team]:
     with APIClient() as client:
         response = client.get("/teams/")
         response.raise_for_status()
@@ -184,7 +183,7 @@ def _create_deployment(app_id: str) -> CreateDeploymentResponse:
 
 class RequestUploadResponse(BaseModel):
     url: str
-    fields: Dict[str, str]
+    fields: dict[str, str]
 
 
 def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
@@ -242,7 +241,7 @@ def _get_app(app_slug: str) -> Optional[AppResponse]:
     return model_validate(AppResponse, data)
 
 
-def _get_apps(team_id: str) -> List[AppResponse]:
+def _get_apps(team_id: str) -> list[AppResponse]:
     with APIClient() as client:
         response = client.get("/apps/", params={"team_id": team_id})
         response.raise_for_status()
@@ -363,9 +362,12 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with toolkit.progress(
-        next(messages), inline_logs=True, lines_to_show=20
-    ) as progress, APIClient() as client:
+    with (
+        toolkit.progress(
+            next(messages), inline_logs=True, lines_to_show=20
+        ) as progress,
+        APIClient() as client,
+    ):
         try:
             for log in client.stream_build_logs(deployment.id):
                 time_elapsed = time.monotonic() - started_at
@@ -609,9 +611,10 @@ def deploy(
             archive_path = Path(temp_dir) / "archive.tar"
             archive(path or Path.cwd(), archive_path)
 
-            with toolkit.progress(
-                title="Creating deployment"
-            ) as progress, handle_http_errors(progress):
+            with (
+                toolkit.progress(title="Creating deployment") as progress,
+                handle_http_errors(progress),
+            ):
                 logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)
 

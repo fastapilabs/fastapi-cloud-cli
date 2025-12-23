@@ -1,10 +1,9 @@
 import logging
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Annotated, Any, Union
 
 import typer
 from pydantic import BaseModel
-from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
@@ -22,7 +21,7 @@ class EnvironmentVariable(BaseModel):
 
 
 class EnvironmentVariableResponse(BaseModel):
-    data: List[EnvironmentVariable]
+    data: list[EnvironmentVariable]
 
 
 def _get_environment_variables(app_id: str) -> EnvironmentVariableResponse:

@@ -1,6 +1,7 @@
 import contextlib
 import logging
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from collections.abc import Generator
+from typing import Any, Optional
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
@@ -18,10 +19,10 @@ class FastAPIStyle(TaggedStyle):
 
     def _get_tag_segments(
         self,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         is_animated: bool = False,
         done: bool = False,
-    ) -> Tuple[List[Segment], int]:
+    ) -> tuple[list[Segment], int]:
         if not is_animated:
             return super()._get_tag_segments(metadata, is_animated, done)
 

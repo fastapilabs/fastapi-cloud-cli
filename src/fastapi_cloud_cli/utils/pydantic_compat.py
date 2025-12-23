@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from pydantic.version import VERSION as PYDANTIC_VERSION
@@ -11,21 +11,21 @@ T = TypeVar("T")
 Model = TypeVar("Model", bound=BaseModel)
 
 
-def model_validate(model_class: Type[Model], data: Dict[Any, Any]) -> Model:
+def model_validate(model_class: type[Model], data: dict[Any, Any]) -> Model:
     if PYDANTIC_V2:
         return model_class.model_validate(data)  # type: ignore[no-any-return, unused-ignore, attr-defined]
     else:
         return model_class.parse_obj(data)  # type: ignore[no-any-return, unused-ignore, attr-defined]
 
 
-def model_validate_json(model_class: Type[Model], data: str) -> Model:
+def model_validate_json(model_class: type[Model], data: str) -> Model:
     if PYDANTIC_V2:
         return model_class.model_validate_json(data)  # type: ignore[no-any-return, unused-ignore, attr-defined]
     else:
         return model_class.parse_raw(data)  # type: ignore[no-any-return, unused-ignore, attr-defined]
 
 
-def model_dump(obj: BaseModel, **kwargs: Any) -> Dict[Any, Any]:
+def model_dump(obj: BaseModel, **kwargs: Any) -> dict[Any, Any]:
     if PYDANTIC_V2:
         return obj.model_dump(**kwargs)  # type: ignore[no-any-return, unused-ignore, attr-defined]
     else:
@@ -41,7 +41,7 @@ def model_dump_json(obj: BaseModel) -> str:
 
 
 class TypeAdapter(Generic[T]):
-    def __init__(self, type_: Type[T]) -> None:
+    def __init__(self, type_: type[T]) -> None:
         self.type_ = type_
 
         if PYDANTIC_V2:
