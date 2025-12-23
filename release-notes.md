@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.8.0
+
 ### Fixes
 
 * 🐛 Fix CI ran all tests on oldest supported Python. PR [#136](https://github.com/fastapilabs/fastapi-cloud-cli/pull/136) by [@DoctorJohn](https://github.com/DoctorJohn).
