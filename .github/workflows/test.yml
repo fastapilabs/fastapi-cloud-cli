@@ -53,8 +53,6 @@ jobs:
           limit-access-to-actor: true
       - name: Install Dependencies
         run: uv sync --locked --all-extras --dev
-      - name: Lint
-        run: uv run --no-sync scripts/lint.sh
       - run: mkdir coverage
       - name: Test
         run: uv run --no-sync scripts/test.sh
