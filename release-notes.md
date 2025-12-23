@@ -12,6 +12,7 @@
 
 ### Upgrades
 
+* ➖ Drop support for Pydantic v1. PR [#139](https://github.com/fastapilabs/fastapi-cloud-cli/pull/139) by [@patrick91](https://github.com/patrick91).
 * 🔧 Drop support for Python 3.8. PR [#138](https://github.com/fastapilabs/fastapi-cloud-cli/pull/138) by [@patrick91](https://github.com/patrick91).
 
 ### Internal
