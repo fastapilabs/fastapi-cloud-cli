@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.8.0
+
 ### Fixes
 
 * 🐛 Fix CI ran all tests on oldest supported Python. PR [#136](https://github.com/fastapilabs/fastapi-cloud-cli/pull/136) by [@DoctorJohn](https://github.com/DoctorJohn).
@@ -9,6 +11,11 @@
 ### Refactors
 
 * ♻️ Reorder log messages for deployment readiness. PR [#137](https://github.com/fastapilabs/fastapi-cloud-cli/pull/137) by [@alejsdev](https://github.com/alejsdev).
+
+### Upgrades
+
+* ➖ Drop support for Pydantic v1. PR [#139](https://github.com/fastapilabs/fastapi-cloud-cli/pull/139) by [@patrick91](https://github.com/patrick91).
+* 🔧 Drop support for Python 3.8. PR [#138](https://github.com/fastapilabs/fastapi-cloud-cli/pull/138) by [@patrick91](https://github.com/patrick91).
 
 ### Internal
 

@@ -80,8 +80,9 @@ def test_asks_for_name_and_value(
 
     respx_mock.post("/apps/123/environment-variables/").mock(return_value=Response(200))
 
-    with changing_dir(configured_app), patch(
-        "rich_toolkit.container.getchar", side_effect=steps
+    with (
+        changing_dir(configured_app),
+        patch("rich_toolkit.container.getchar", side_effect=steps),
     ):
         result = runner.invoke(app, ["env", "set"])
 
