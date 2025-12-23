@@ -34,7 +34,7 @@ dependencies = [
     "rignore >= 0.5.1",
     "httpx >= 0.27.0",
     "rich-toolkit >= 0.14.5",
-    "pydantic[email] >= 1.6.1",
+    "pydantic[email] >= 2.0",
     "sentry-sdk >= 2.20.0",
     "fastar >= 0.8.0",
 ]

@@ -423,7 +423,7 @@ dev = [
 requires-dist = [
     { name = "fastar", specifier = ">=0.8.0" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "pydantic", extras = ["email"], specifier = ">=1.6.1" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
     { name = "rich-toolkit", specifier = ">=0.14.5" },
     { name = "rignore", specifier = ">=0.5.1" },
     { name = "sentry-sdk", specifier = ">=2.20.0" },

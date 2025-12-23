@@ -13,7 +13,7 @@ import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, ValidationError
+from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
@@ -23,11 +23,6 @@ from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, TooManyRetries
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
-from fastapi_cloud_cli.utils.pydantic_compat import (
-    TypeAdapter,
-    model_dump,
-    model_validate,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +103,7 @@ def _get_teams() -> list[Team]:
 
         data = response.json()["data"]
 
-    return [model_validate(Team, team) for team in data]
+    return [Team.model_validate(team) for team in data]
 
 
 class AppResponse(BaseModel):
@@ -125,7 +120,7 @@ def _create_app(team_id: str, app_name: str) -> AppResponse:
 
         response.raise_for_status()
 
-        return model_validate(AppResponse, response.json())
+        return AppResponse.model_validate(response.json())
 
 
 class DeploymentStatus(str, Enum):
@@ -178,7 +173,7 @@ def _create_deployment(app_id: str) -> CreateDeploymentResponse:
         response = client.post(f"/apps/{app_id}/deployments/")
         response.raise_for_status()
 
-        return model_validate(CreateDeploymentResponse, response.json())
+        return CreateDeploymentResponse.model_validate(response.json())
 
 
 class RequestUploadResponse(BaseModel):
@@ -203,7 +198,7 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
         response.raise_for_status()
 
-        upload_data = model_validate(RequestUploadResponse, response.json())
+        upload_data = RequestUploadResponse.model_validate(response.json())
         logger.debug("Received upload URL: %s", upload_data.url)
 
         logger.debug("Starting file upload to S3")
@@ -238,7 +233,7 @@ def _get_app(app_slug: str) -> Optional[AppResponse]:
 
         data = response.json()
 
-    return model_validate(AppResponse, data)
+    return AppResponse.model_validate(data)
 
 
 def _get_apps(team_id: str) -> list[AppResponse]:
@@ -248,7 +243,7 @@ def _get_apps(team_id: str) -> list[AppResponse]:
 
         data = response.json()["data"]
 
-    return [model_validate(AppResponse, app) for app in data]
+    return [AppResponse.model_validate(app) for app in data]
 
 
 WAITING_MESSAGES = [
@@ -434,7 +429,7 @@ def _send_waitlist_form(
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
             with handle_http_errors(progress):
-                response = client.post("/users/waiting-list", json=model_dump(result))
+                response = client.post("/users/waiting-list", json=result.model_dump())
 
                 response.raise_for_status()
 
@@ -459,7 +454,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
     toolkit.print_line()
 
-    result = model_validate(SignupToWaitingList, {"email": email})
+    result = SignupToWaitingList.model_validate({"email": email})
 
     if toolkit.confirm(
         "Do you want to get access faster by giving us more information?",
@@ -483,8 +478,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
         result = form.run()  # type: ignore
 
         try:
-            result = model_validate(
-                SignupToWaitingList,
+            result = SignupToWaitingList.model_validate(
                 {
                     "email": email,
                     **result,  # type: ignore
