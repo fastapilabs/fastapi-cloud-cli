@@ -10,6 +10,10 @@
 
 * ♻️ Reorder log messages for deployment readiness. PR [#137](https://github.com/fastapilabs/fastapi-cloud-cli/pull/137) by [@alejsdev](https://github.com/alejsdev).
 
+### Upgrades
+
+* 🔧 Drop support for Python 3.8. PR [#138](https://github.com/fastapilabs/fastapi-cloud-cli/pull/138) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * 👷 Configure coverage, error on main tests, don't wait for Smokeshow. PR [#134](https://github.com/fastapilabs/fastapi-cloud-cli/pull/134) by [@YuriiMotov](https://github.com/YuriiMotov).
