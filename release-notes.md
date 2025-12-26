@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Add pre-commit workflow. PR [#135](https://github.com/fastapilabs/fastapi-cloud-cli/pull/135) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.8.0
 
 ### Fixes
