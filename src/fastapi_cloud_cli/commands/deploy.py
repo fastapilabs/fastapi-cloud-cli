@@ -294,6 +294,8 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
+    selected_app: AppResponse | None = None
+
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
@@ -310,37 +312,40 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
             raise typer.Exit(1)
 
-        app = toolkit.ask(
+        selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
             options=[Option({"name": app.slug, "value": app}) for app in apps],
         )
+
+    app_name = selected_app.slug if selected_app else toolkit.input(
+        title="What's your app name?",
+        default=_get_app_name(path_to_deploy),
+    )
+
+    toolkit.print_line()
+
+    toolkit.print("Deployment Configuration", tag="summary")
+    toolkit.print(f"  Team: [bold]{team.name}[/bold]")
+    toolkit.print(f"  App: [bold]{app_name}[/bold]")
+    toolkit.print_line()
+
+    choice = toolkit.ask(
+        "Does everything look right?",
+        tag="confirm",
+        options=[
+            Option({"name": "Yes, start the deployment!", "value": "deploy"}),
+            Option({"name": "No, let me start over", "value": "cancel"}),
+        ],
+    )
+    toolkit.print_line()
+
+    if choice == "cancel":
+        toolkit.print("Deployment cancelled.")
+        raise typer.Exit(0)
+
+    if selected_app:
+        app = selected_app
     else:
-        app_name = toolkit.input(
-            title="What's your app name?",
-            default=_get_app_name(path_to_deploy),
-        )
-
-        toolkit.print_line()
-
-        toolkit.print("Deployment Configuration", tag="summary")
-        toolkit.print(f"  Team: [bold]{team.name}[/bold]")
-        toolkit.print(f"  App: [bold]{app_name}[/bold]")
-        toolkit.print_line()
-
-        choice = toolkit.ask(
-            "Does everything look right?",
-            tag="confirm",
-            options=[
-                Option({"name": "Yes, start the deployment!", "value": "deploy"}),
-                Option({"name": "No, let me start over", "value": "cancel"}),
-            ],
-        )
-        toolkit.print_line()
-
-        if choice == "cancel":
-            toolkit.print("Deployment cancelled.")
-            raise typer.Exit(0)
-
         with toolkit.progress(title="Creating app...") as progress:
             with handle_http_errors(progress):
                 app = _create_app(team.id, app_name)
