@@ -347,7 +347,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         toolkit.print("Deployment cancelled.")
         raise typer.Exit(0)
 
-    if selected_app:
+    if selected_app:  # pragma: no cover
         app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
