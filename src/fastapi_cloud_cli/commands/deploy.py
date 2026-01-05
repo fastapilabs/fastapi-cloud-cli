@@ -317,9 +317,13 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
             options=[Option({"name": app.slug, "value": app}) for app in apps],
         )
 
-    app_name = selected_app.slug if selected_app else toolkit.input(
-        title="What's your app name?",
-        default=_get_app_name(path_to_deploy),
+    app_name = (
+        selected_app.slug
+        if selected_app
+        else toolkit.input(
+            title="What's your app name?",
+            default=_get_app_name(path_to_deploy),
+        )
     )
 
     toolkit.print_line()
