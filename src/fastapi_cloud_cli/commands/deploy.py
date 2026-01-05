@@ -322,6 +322,25 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
         toolkit.print_line()
 
+        toolkit.print("Deployment Configuration", tag="summary")
+        toolkit.print(f"  Team: [bold]{team.name}[/bold]")
+        toolkit.print(f"  App: [bold]{app_name}[/bold]")
+        toolkit.print_line()
+
+        choice = toolkit.ask(
+            "Does everything look right?",
+            tag="confirm",
+            options=[
+                Option({"name": "Yes, start the deployment!", "value": "deploy"}),
+                Option({"name": "No, let me start over", "value": "cancel"}),
+            ],
+        )
+        toolkit.print_line()
+
+        if choice == "cancel":
+            toolkit.print("Deployment cancelled.")
+            raise typer.Exit(0)
+
         with toolkit.progress(title="Creating app...") as progress:
             with handle_http_errors(progress):
                 app = _create_app(team.id, app_name)
