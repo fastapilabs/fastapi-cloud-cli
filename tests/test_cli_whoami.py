@@ -70,3 +70,10 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
 
     assert result.exit_code == 0
     assert "No credentials found. Use `fastapi login` to login." in result.output
+
+
+def test_shows_logged_in_via_token(logged_out_cli: None) -> None:
+    result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
+
+    assert result.exit_code == 0
+    assert "Using API token from environment variable" in result.output

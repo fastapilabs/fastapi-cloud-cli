@@ -10,6 +10,8 @@ from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
 
+from .auth import Identity
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,7 +91,14 @@ def handle_http_errors(
             logger.debug(e.response.json())  # pragma: no cover
 
         if isinstance(e, HTTPStatusError) and e.response.status_code in (401, 403):
-            message = "The specified token is not valid. Use `fastapi login` to generate a new token."
+            message = "The specified token is not valid. "
+
+            identity = Identity()
+
+            if identity.auth_mode == "user":
+                message += "Use `fastapi login` to generate a new token."
+            else:
+                message += "Make sure to use a valid token."
 
         else:
             message = (

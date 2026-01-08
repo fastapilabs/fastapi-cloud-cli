@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 def whoami() -> Any:
     identity = Identity()
 
+    if identity.auth_mode == "token":
+        print("⚡ [bold]Using API token from environment variable[/bold]")
+        return
+
     if not identity.is_logged_in():
         print("No credentials found. Use [blue]`fastapi login`[/] to login.")
         return
