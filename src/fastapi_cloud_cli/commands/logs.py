@@ -1,13 +1,13 @@
 import json
 import logging
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Generator, Optional, Union
+from typing import Annotated, Optional
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
 from pydantic import BaseModel, ValidationError
-from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
@@ -30,7 +30,7 @@ def _stream_logs(
     follow: bool,
 ) -> Generator[str, None, None]:
     """Stream logs from the API."""
-    params: Dict[str, Union[str, int, bool]] = {
+    params: dict[str, str | int | bool] = {
         "tail": tail,
         "since": since,
         "follow": follow,
