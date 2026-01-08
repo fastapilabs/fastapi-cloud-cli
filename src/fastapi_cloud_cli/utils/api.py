@@ -20,7 +20,8 @@ from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.auth import get_auth_token
+
+from .auth import Identity
 
 logger = logging.getLogger(__name__)
 
@@ -132,14 +133,13 @@ def attempts(
 class APIClient(httpx.Client):
     def __init__(self) -> None:
         settings = Settings.get()
-
-        token = get_auth_token()
+        identity = Identity()
 
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {identity.token}",
                 "User-Agent": f"fastapi-cloud-cli/{__version__}",
             },
         )

@@ -47,7 +47,7 @@ def read_auth_config() -> Optional[AuthConfig]:
     return AuthConfig.model_validate_json(auth_path.read_text(encoding="utf-8"))
 
 
-def get_auth_token() -> Optional[str]:
+def _get_auth_token() -> Optional[str]:
     logger.debug("Getting auth token")
     auth_data = read_auth_config()
 
@@ -59,7 +59,7 @@ def get_auth_token() -> Optional[str]:
     return auth_data.access_token
 
 
-def is_token_expired(token: str) -> bool:
+def _is_token_expired(token: str) -> bool:
     try:
         parts = token.split(".")
 
@@ -107,16 +107,24 @@ def is_token_expired(token: str) -> bool:
         return True
 
 
-def is_logged_in() -> bool:
-    token = get_auth_token()
+class Identity:
+    def __init__(self) -> None:
+        self.token = _get_auth_token()
 
-    if token is None:
-        logger.debug("Login status: False (no token)")
-        return False
+    def is_expired(self) -> bool:
+        if not self.token:
+            return True
 
-    if is_token_expired(token):
-        logger.debug("Login status: False (token expired)")
-        return False
+        return _is_token_expired(self.token)
 
-    logger.debug("Login status: True")
-    return True
+    def is_logged_in(self) -> bool:
+        if self.token is None:
+            logger.debug("Login status: False (no token)")
+            return False
+
+        if self.is_expired():
+            logger.debug("Login status: False (token expired)")
+            return False
+
+        logger.debug("Login status: True")
+        return True
