@@ -1,17 +1,15 @@
 import logging
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Annotated, Any, Union
 
 import typer
 from pydantic import BaseModel
-from typing_extensions import Annotated
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
-from fastapi_cloud_cli.utils.pydantic_compat import model_validate
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +20,7 @@ class EnvironmentVariable(BaseModel):
 
 
 class EnvironmentVariableResponse(BaseModel):
-    data: List[EnvironmentVariable]
+    data: list[EnvironmentVariable]
 
 
 def _get_environment_variables(app_id: str) -> EnvironmentVariableResponse:
@@ -30,7 +28,7 @@ def _get_environment_variables(app_id: str) -> EnvironmentVariableResponse:
         response = client.get(f"/apps/{app_id}/environment-variables/")
         response.raise_for_status()
 
-        return model_validate(EnvironmentVariableResponse, response.json())
+        return EnvironmentVariableResponse.model_validate(response.json())
 
 
 def _delete_environment_variable(app_id: str, name: str) -> bool:

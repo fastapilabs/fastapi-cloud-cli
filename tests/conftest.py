@@ -1,7 +1,7 @@
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
 from unittest.mock import patch
 
 import pytest

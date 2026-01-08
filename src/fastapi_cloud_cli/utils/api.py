@@ -1,12 +1,13 @@
 import json
 import logging
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
 from typing import (
+    Annotated,
     Callable,
-    Generator,
     Literal,
     Optional,
     TypeVar,
@@ -14,13 +15,12 @@ from typing import (
 )
 
 import httpx
-from pydantic import BaseModel, Field, ValidationError
-from typing_extensions import Annotated, ParamSpec
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.auth import get_auth_token
-from fastapi_cloud_cli.utils.pydantic_compat import TypeAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,8 @@ class BuildLogLineMessage(BaseModel):
 
 
 BuildLogLine = Union[BuildLogLineMessage, BuildLogLineGeneric]
-BuildLogAdapter = TypeAdapter[BuildLogLine](
-    Annotated[BuildLogLine, Field(discriminator="type")]  # type: ignore
+BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
+    Annotated[BuildLogLine, Field(discriminator="type")]
 )
 
 

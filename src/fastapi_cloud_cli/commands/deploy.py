@@ -7,28 +7,22 @@ from enum import Enum
 from itertools import cycle
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
 import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, ValidationError
+from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
-from typing_extensions import Annotated
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient, BuildLogError, TooManyRetriesError
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import is_logged_in
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
-from fastapi_cloud_cli.utils.pydantic_compat import (
-    TypeAdapter,
-    model_dump,
-    model_validate,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -102,14 +96,14 @@ class Team(BaseModel):
     name: str
 
 
-def _get_teams() -> List[Team]:
+def _get_teams() -> list[Team]:
     with APIClient() as client:
         response = client.get("/teams/")
         response.raise_for_status()
 
         data = response.json()["data"]
 
-    return [model_validate(Team, team) for team in data]
+    return [Team.model_validate(team) for team in data]
 
 
 class AppResponse(BaseModel):
@@ -126,7 +120,7 @@ def _create_app(team_id: str, app_name: str) -> AppResponse:
 
         response.raise_for_status()
 
-        return model_validate(AppResponse, response.json())
+        return AppResponse.model_validate(response.json())
 
 
 class DeploymentStatus(str, Enum):
@@ -179,12 +173,12 @@ def _create_deployment(app_id: str) -> CreateDeploymentResponse:
         response = client.post(f"/apps/{app_id}/deployments/")
         response.raise_for_status()
 
-        return model_validate(CreateDeploymentResponse, response.json())
+        return CreateDeploymentResponse.model_validate(response.json())
 
 
 class RequestUploadResponse(BaseModel):
     url: str
-    fields: Dict[str, str]
+    fields: dict[str, str]
 
 
 def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
@@ -204,7 +198,7 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
         response.raise_for_status()
 
-        upload_data = model_validate(RequestUploadResponse, response.json())
+        upload_data = RequestUploadResponse.model_validate(response.json())
         logger.debug("Received upload URL: %s", upload_data.url)
 
         logger.debug("Starting file upload to S3")
@@ -239,17 +233,17 @@ def _get_app(app_slug: str) -> Optional[AppResponse]:
 
         data = response.json()
 
-    return model_validate(AppResponse, data)
+    return AppResponse.model_validate(data)
 
 
-def _get_apps(team_id: str) -> List[AppResponse]:
+def _get_apps(team_id: str) -> list[AppResponse]:
     with APIClient() as client:
         response = client.get("/apps/", params={"team_id": team_id})
         response.raise_for_status()
 
         data = response.json()["data"]
 
-    return [model_validate(AppResponse, app) for app in data]
+    return [AppResponse.model_validate(app) for app in data]
 
 
 WAITING_MESSAGES = [
@@ -363,9 +357,12 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with toolkit.progress(
-        next(messages), inline_logs=True, lines_to_show=20
-    ) as progress, APIClient() as client:
+    with (
+        toolkit.progress(
+            next(messages), inline_logs=True, lines_to_show=20
+        ) as progress,
+        APIClient() as client,
+    ):
         try:
             for log in client.stream_build_logs(deployment.id):
                 time_elapsed = time.monotonic() - started_at
@@ -376,13 +373,13 @@ def _wait_for_deployment(
                 if log.type == "complete":
                     progress.log("")
                     progress.log(
-                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
                     )
 
                     progress.log("")
 
                     progress.log(
-                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
                     )
 
                     break
@@ -432,7 +429,7 @@ def _send_waitlist_form(
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
             with handle_http_errors(progress):
-                response = client.post("/users/waiting-list", json=model_dump(result))
+                response = client.post("/users/waiting-list", json=result.model_dump())
 
                 response.raise_for_status()
 
@@ -457,7 +454,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
     toolkit.print_line()
 
-    result = model_validate(SignupToWaitingList, {"email": email})
+    result = SignupToWaitingList.model_validate({"email": email})
 
     if toolkit.confirm(
         "Do you want to get access faster by giving us more information?",
@@ -481,8 +478,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
         result = form.run()  # type: ignore
 
         try:
-            result = model_validate(
-                SignupToWaitingList,
+            result = SignupToWaitingList.model_validate(
                 {
                     "email": email,
                     **result,  # type: ignore
@@ -609,9 +605,10 @@ def deploy(
             archive_path = Path(temp_dir) / "archive.tar"
             archive(path or Path.cwd(), archive_path)
 
-            with toolkit.progress(
-                title="Creating deployment"
-            ) as progress, handle_http_errors(progress):
+            with (
+                toolkit.progress(title="Creating deployment") as progress,
+                handle_http_errors(progress),
+            ):
                 logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)
 
