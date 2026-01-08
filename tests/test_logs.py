@@ -300,3 +300,19 @@ def test_skips_invalid_json_lines(
 
     assert result.exit_code == 0
     assert "Valid log message" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_gives_up_after_max_reconnect_attempts(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    """Test that follow mode gives up after max reconnection attempts."""
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        side_effect=httpx.ConnectError("Connection failed")
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs"])  # follow=True by default
+
+    assert result.exit_code == 1
+    assert "Lost connection" in result.output
