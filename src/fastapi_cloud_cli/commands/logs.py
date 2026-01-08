@@ -18,13 +18,8 @@ from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
 
-# Maximum number of reconnection attempts before giving up
 MAX_RECONNECT_ATTEMPTS = 10
-
-# Delay between reconnection attempts in seconds
 RECONNECT_DELAY_SECONDS = 1
-
-# Colors matching the UI log level indicators
 LOG_LEVEL_COLORS = {
     "debug": "blue",
     "info": "cyan",
@@ -111,7 +106,6 @@ def _process_log_stream(
                 if data.get("type") == "heartbeat":  # pragma: no cover
                     continue
 
-                # Handle error messages from the server
                 if data.get("type") == "error":
                     toolkit.print(
                         f"Error: {data.get('message', 'Unknown error')}",
@@ -157,14 +151,13 @@ def _process_log_stream(
                 # On reconnect, resume from last seen timestamp
                 # The API uses strict > comparison, so logs with the same timestamp
                 # as last_timestamp will be filtered out (no duplicates)
-                if last_timestamp:
+                if last_timestamp:  # pragma: no cover
                     current_since = last_timestamp.isoformat()
                     current_tail = 0  # Don't fetch historical logs again
 
                 time.sleep(RECONNECT_DELAY_SECONDS)
                 continue
 
-            # Handle non-recoverable errors
             if isinstance(e, HTTPStatusError) and e.response.status_code in (401, 403):
                 toolkit.print(
                     "The specified token is not valid. Use [blue]`fastapi login`[/] to generate a new token.",

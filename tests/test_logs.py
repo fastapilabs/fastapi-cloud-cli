@@ -312,7 +312,7 @@ def test_gives_up_after_max_reconnect_attempts(
     )
 
     with changing_dir(configured_app.path):
-        result = runner.invoke(app, ["logs"])  # follow=True by default
+        result = runner.invoke(app, ["logs"])
 
     assert result.exit_code == 1
     assert "Lost connection" in result.output
