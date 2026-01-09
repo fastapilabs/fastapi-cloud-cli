@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add support for app ID in `fastapi deploy`. PR [#144](https://github.com/fastapilabs/fastapi-cloud-cli/pull/144) by [@buurro](https://github.com/buurro).
 * ✨ Add support for FASTAPI_CLOUD_TOKEN environment variable auth. PR [#142](https://github.com/fastapilabs/fastapi-cloud-cli/pull/142) by [@patrick91](https://github.com/patrick91).
 * ✨ Add a confirmation step to the first CLI deployment . PR [#140](https://github.com/fastapilabs/fastapi-cloud-cli/pull/140) by [@alejsdev](https://github.com/alejsdev).
 
