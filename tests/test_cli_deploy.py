@@ -316,7 +316,7 @@ def test_asks_for_app_name_after_team(
 def test_creates_app_on_backend(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER]
+    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER, Keys.ENTER]
 
     team = _get_random_team()
 
@@ -342,6 +342,40 @@ def test_creates_app_on_backend(
         assert result.exit_code == 1
 
         assert "App created successfully" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_cancels_deployment_when_user_selects_no(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,
+        Keys.ENTER,
+        *"demo",
+        Keys.ENTER,
+        Keys.DOWN_ARROW,
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team]},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert "Deployment cancelled." in result.output
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -382,6 +416,7 @@ def test_exits_successfully_when_deployment_is_done(
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
     ]
 
@@ -632,6 +667,7 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
     ]
 
