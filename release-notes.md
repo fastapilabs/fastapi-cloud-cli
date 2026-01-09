@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.9.0
+
 ### Features
 
 * ✨ Add support for app ID in `fastapi deploy`. PR [#144](https://github.com/fastapilabs/fastapi-cloud-cli/pull/144) by [@buurro](https://github.com/buurro).
