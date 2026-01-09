@@ -295,7 +295,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
-    selected_app: AppResponse | None = None
+    selected_app: Optional[AppResponse] = None
 
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
