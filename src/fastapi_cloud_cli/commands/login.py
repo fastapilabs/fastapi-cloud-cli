@@ -8,13 +8,7 @@ from pydantic import BaseModel
 
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import (
-    AuthConfig,
-    get_auth_token,
-    is_logged_in,
-    is_token_expired,
-    write_auth_config,
-)
+from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -82,13 +76,14 @@ def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
-    token = get_auth_token()
-    if token is not None and is_token_expired(token):
+    identity = Identity()
+
+    if identity.is_expired():
         with get_rich_toolkit(minimal=True) as toolkit:
             toolkit.print("Your session has expired. Logging in again...")
             toolkit.print_line()
 
-    if is_logged_in():
+    if identity.is_logged_in():
         with get_rich_toolkit(minimal=True) as toolkit:
             toolkit.print("You are already logged in.")
             toolkit.print(

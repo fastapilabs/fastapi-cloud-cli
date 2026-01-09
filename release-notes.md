@@ -2,8 +2,25 @@
 
 ## Latest Changes
 
+## 0.9.0
+
+### Features
+
+* ✨ Add support for app ID in `fastapi deploy`. PR [#144](https://github.com/fastapilabs/fastapi-cloud-cli/pull/144) by [@buurro](https://github.com/buurro).
+* ✨ Add support for FASTAPI_CLOUD_TOKEN environment variable auth. PR [#142](https://github.com/fastapilabs/fastapi-cloud-cli/pull/142) by [@patrick91](https://github.com/patrick91).
+* ✨ Add a confirmation step to the first CLI deployment . PR [#140](https://github.com/fastapilabs/fastapi-cloud-cli/pull/140) by [@alejsdev](https://github.com/alejsdev).
+
+### Fixes
+
+* 🐛 Avoid archiving `.git` by default. PR [#143](https://github.com/fastapilabs/fastapi-cloud-cli/pull/143) by [@buurro](https://github.com/buurro).
+
+### Refactors
+
+* ♻️ Refactor authentication. PR [#141](https://github.com/fastapilabs/fastapi-cloud-cli/pull/141) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
+* 🔧 Add GitHub Actions workflow for linting. PR [#145](https://github.com/fastapilabs/fastapi-cloud-cli/pull/145) by [@patrick91](https://github.com/patrick91).
 * 👷 Add pre-commit workflow. PR [#135](https://github.com/fastapilabs/fastapi-cloud-cli/pull/135) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.8.0

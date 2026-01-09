@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
-from fastapi_cloud_cli.utils.auth import is_logged_in
+from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
@@ -70,8 +70,10 @@ def list(
     List the environment variables for the app.
     """
 
+    identity = Identity()
+
     with get_rich_toolkit(minimal=True) as toolkit:
-        if not is_logged_in():
+        if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
                 tag="auth",
@@ -123,9 +125,10 @@ def delete(
     Delete an environment variable from the app.
     """
 
+    identity = Identity()
+
     with get_rich_toolkit(minimal=True) as toolkit:
-        # TODO: maybe this logic can be extracted to a function
-        if not is_logged_in():
+        if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
                 tag="auth",
@@ -208,8 +211,10 @@ def set(
     Set an environment variable for the app.
     """
 
+    identity = Identity()
+
     with get_rich_toolkit(minimal=True) as toolkit:
-        if not is_logged_in():
+        if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
                 tag="auth",

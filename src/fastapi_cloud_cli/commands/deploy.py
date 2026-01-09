@@ -21,7 +21,7 @@ from rich_toolkit.menu import Option
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient, StreamLogError, TooManyRetriesError
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import is_logged_in
+from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,7 @@ def _should_exclude_entry(path: Path) -> bool:
         "__pycache__",
         ".mypy_cache",
         ".pytest_cache",
+        ".git",
         ".gitignore",
         ".fastapicloudignore",
     ]
@@ -294,6 +295,8 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
+    selected_app: Optional[AppResponse] = None
+
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
@@ -310,18 +313,45 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
             raise typer.Exit(1)
 
-        app = toolkit.ask(
+        selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
             options=[Option({"name": app.slug, "value": app}) for app in apps],
         )
-    else:
-        app_name = toolkit.input(
+
+    app_name = (
+        selected_app.slug
+        if selected_app
+        else toolkit.input(
             title="What's your app name?",
             default=_get_app_name(path_to_deploy),
         )
+    )
 
-        toolkit.print_line()
+    toolkit.print_line()
 
+    toolkit.print("Deployment configuration:", tag="summary")
+    toolkit.print_line()
+    toolkit.print(f"Team: [bold]{team.name}[/bold]")
+    toolkit.print(f"App name: [bold]{app_name}[/bold]")
+    toolkit.print_line()
+
+    choice = toolkit.ask(
+        "Does everything look right?",
+        tag="confirm",
+        options=[
+            Option({"name": "Yes, start the deployment!", "value": "deploy"}),
+            Option({"name": "No, let me start over", "value": "cancel"}),
+        ],
+    )
+    toolkit.print_line()
+
+    if choice == "cancel":
+        toolkit.print("Deployment cancelled.")
+        raise typer.Exit(0)
+
+    if selected_app:  # pragma: no cover
+        app = selected_app
+    else:
         with toolkit.progress(title="Creating app...") as progress:
             with handle_http_errors(progress):
                 app = _create_app(team.id, app_name)
@@ -527,15 +557,27 @@ def deploy(
     skip_wait: Annotated[
         bool, typer.Option("--no-wait", help="Skip waiting for deployment status")
     ] = False,
+    provided_app_id: Annotated[
+        Union[str, None],
+        typer.Option(
+            "--app-id",
+            help="Application ID to deploy to",
+            envvar="FASTAPI_CLOUD_APP_ID",
+        ),
+    ] = None,
 ) -> Any:
     """
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
     """
     logger.debug("Deploy command started")
-    logger.debug("Deploy path: %s, skip_wait: %s", path, skip_wait)
+    logger.debug(
+        "Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, provided_app_id
+    )
+
+    identity = Identity()
 
     with get_rich_toolkit() as toolkit:
-        if not is_logged_in():
+        if not identity.is_logged_in():
             logger.debug("User not logged in, prompting for login or waitlist")
 
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
@@ -572,19 +614,43 @@ def deploy(
 
         app_config = get_app_config(path_to_deploy)
 
-        if not app_config:
+        if app_config and provided_app_id and app_config.app_id != provided_app_id:
+            toolkit.print(
+                f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
+                f"config ({app_config.app_id}).[/]"
+            )
+            toolkit.print_line()
+            toolkit.print(
+                "Run [bold]fastapi cloud unlink[/] to remove the local config, "
+                "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
+                tag="tip",
+            )
+
+            raise typer.Exit(1) from None
+
+        if provided_app_id:
+            target_app_id = provided_app_id
+        elif app_config:
+            target_app_id = app_config.app_id
+        else:
             logger.debug("No app config found, configuring new app")
+
             app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
             toolkit.print_line()
+
+            target_app_id = app_config.app_id
+
+        if provided_app_id:
+            toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
         else:
-            logger.debug("Existing app config found, proceeding with deployment")
             toolkit.print("Deploying app...")
-            toolkit.print_line()
+
+        toolkit.print_line()
 
         with toolkit.progress("Checking app...", transient=True) as progress:
             with handle_http_errors(progress):
-                logger.debug("Checking app with ID: %s", app_config.app_id)
-                app = _get_app(app_config.app_id)
+                logger.debug("Checking app with ID: %s", target_app_id)
+                app = _get_app(target_app_id)
 
             if not app:
                 logger.debug("App not found in API")
@@ -594,10 +660,12 @@ def deploy(
 
         if not app:
             toolkit.print_line()
-            toolkit.print(
-                "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
-                tag="tip",
-            )
+
+            if not provided_app_id:
+                toolkit.print(
+                    "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+                    tag="tip",
+                )
             raise typer.Exit(1)
 
         with tempfile.TemporaryDirectory() as temp_dir:

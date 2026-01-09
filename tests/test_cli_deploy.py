@@ -316,7 +316,7 @@ def test_asks_for_app_name_after_team(
 def test_creates_app_on_backend(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER]
+    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER, Keys.ENTER]
 
     team = _get_random_team()
 
@@ -342,6 +342,40 @@ def test_creates_app_on_backend(
         assert result.exit_code == 1
 
         assert "App created successfully" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_cancels_deployment_when_user_selects_no(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,
+        Keys.ENTER,
+        *"demo",
+        Keys.ENTER,
+        Keys.DOWN_ARROW,
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team]},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert "Deployment cancelled." in result.output
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
@@ -382,6 +416,7 @@ def test_exits_successfully_when_deployment_is_done(
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
     ]
 
@@ -632,6 +667,7 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
     ]
 
@@ -1079,3 +1115,289 @@ def test_cancel_upload_swallows_exceptions(
 
         assert upload_cancelled_route.called
         assert "HTTPStatusError" not in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_successfully_with_token(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}", headers={"Authorization": "Bearer hello"}).mock(
+        return_value=Response(200, json=app_data)
+    )
+
+    respx_mock.post(
+        f"/apps/{app_id}/deployments/", headers={"Authorization": "Bearer hello"}
+    ).mock(return_value=Response(201, json=deployment_data))
+
+    respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload",
+        headers={"Authorization": "Bearer hello"},
+    ).mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(
+        f"/deployments/{deployment_data['id']}/build-logs",
+        headers={"Authorization": "Bearer hello"},
+    ).mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "message", "message": "All good!", "id": "2"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-complete",
+        headers={"Authorization": "Bearer hello"},
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"FASTAPI_CLOUD_TOKEN": "hello"})
+
+        assert result.exit_code == 0
+
+        # check that logs are shown
+        assert "All good!" in result.output
+
+        # check that the dashboard URL is shown
+        assert "You can also check the app logs at" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+        # check that the app URL is shown
+        assert deployment_data["url"] in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_token_fails(
+    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}", headers={"Authorization": "Bearer hello"}).mock(
+        return_value=Response(401, json=app_data)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"FASTAPI_CLOUD_TOKEN": "hello"})
+
+        assert result.exit_code == 1
+
+        assert (
+            "The specified token is not valid. Make sure to use a valid token."
+            in result.output
+        )
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_app_id_arg(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", app_id])
+
+        assert result.exit_code == 0
+        assert f"Deploying to app {app_id}" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_app_id_from_env_var(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"FASTAPI_CLOUD_APP_ID": app_id})
+
+        assert result.exit_code == 0
+        assert f"Deploying to app {app_id}" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_app_id_matching_local_config(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", app_id])
+
+        assert result.exit_code == 0
+        # Should NOT show mismatch warning
+        assert "does not match" not in result.output
+        assert f"Deploying to app {app_id}" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_app_id_mismatch_fails(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    local_app_data = _get_random_app()
+    local_app_id = local_app_data["id"]
+    team_id = "some-team-id"
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{local_app_id}", "team_id": "{team_id}"}}')
+
+    cli_app_id = "different-app-id"
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", cli_app_id])
+
+        assert result.exit_code == 1
+        assert "does not match" in result.output
+        assert "fastapi cloud unlink" in result.output
+        assert "FASTAPI_CLOUD_APP_ID" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_deploy_with_app_id_arg_app_not_found(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "nonexistent-app-id"
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(404))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", app_id])
+
+        assert result.exit_code == 1
+        assert "App not found" in result.output
+        # Should NOT show unlink tip when using --app-id
+        assert "unlink" not in result.output
