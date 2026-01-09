@@ -328,9 +328,10 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
-    toolkit.print("Deployment Configuration", tag="summary")
-    toolkit.print(f"  Team: [bold]{team.name}[/bold]")
-    toolkit.print(f"  App: [bold]{app_name}[/bold]")
+    toolkit.print("Deployment configuration:", tag="summary")
+    toolkit.print_line()
+    toolkit.print(f"Team: [bold]{team.name}[/bold]")
+    toolkit.print(f"App name: [bold]{app_name}[/bold]")
     toolkit.print_line()
 
     choice = toolkit.ask(
