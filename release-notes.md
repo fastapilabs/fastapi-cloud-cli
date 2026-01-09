@@ -10,6 +10,10 @@
 
 * 🐛 Avoid archiving `.git` by default. PR [#143](https://github.com/fastapilabs/fastapi-cloud-cli/pull/143) by [@buurro](https://github.com/buurro).
 
+### Refactors
+
+* ♻️ Refactor authentication. PR [#141](https://github.com/fastapilabs/fastapi-cloud-cli/pull/141) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * 👷 Add pre-commit workflow. PR [#135](https://github.com/fastapilabs/fastapi-cloud-cli/pull/135) by [@YuriiMotov](https://github.com/YuriiMotov).
