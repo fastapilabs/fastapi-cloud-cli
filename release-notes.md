@@ -17,6 +17,7 @@
 
 ### Internal
 
+* 🔧 Add GitHub Actions workflow for linting. PR [#145](https://github.com/fastapilabs/fastapi-cloud-cli/pull/145) by [@patrick91](https://github.com/patrick91).
 * 👷 Add pre-commit workflow. PR [#135](https://github.com/fastapilabs/fastapi-cloud-cli/pull/135) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.8.0
