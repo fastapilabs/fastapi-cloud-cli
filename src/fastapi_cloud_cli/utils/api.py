@@ -24,16 +24,24 @@ from fastapi_cloud_cli.utils.auth import get_auth_token
 
 logger = logging.getLogger(__name__)
 
-BUILD_LOG_MAX_RETRIES = 3
-BUILD_LOG_TIMEOUT = timedelta(minutes=5)
+STREAM_LOGS_MAX_RETRIES = 3
+STREAM_LOGS_TIMEOUT = timedelta(minutes=5)
 
 
-class BuildLogError(Exception):
+class StreamLogError(Exception):
+    """Raised when there's an error streaming logs (build or app logs)."""
+
     pass
 
 
 class TooManyRetriesError(Exception):
     pass
+
+
+class AppLogEntry(BaseModel):
+    timestamp: str
+    message: str
+    level: str
 
 
 class BuildLogLineGeneric(BaseModel):
@@ -90,7 +98,7 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
                 error_detail = error.response.text
             except Exception:
                 error_detail = "(response body unavailable)"
-            raise BuildLogError(
+            raise StreamLogError(
                 f"HTTP {error.response.status_code}: {error_detail}"
             ) from error
 
@@ -114,7 +122,7 @@ def attempts(
             for attempt_number in range(total_attempts):
                 if time.monotonic() - start > timeout.total_seconds():
                     raise TimeoutError(
-                        f"Build log streaming timed out after {timeout.total_seconds():.0f}s"
+                        f"Log streaming timed out after {timeout.total_seconds():.0f}s"
                     )
 
                 with attempt(attempt_number):
@@ -144,7 +152,7 @@ class APIClient(httpx.Client):
             },
         )
 
-    @attempts(BUILD_LOG_MAX_RETRIES, BUILD_LOG_TIMEOUT)
+    @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
         self, deployment_id: str
     ) -> Generator[BuildLogLine, None, None]:
@@ -192,3 +200,44 @@ class APIClient(httpx.Client):
         except (ValidationError, json.JSONDecodeError) as e:
             logger.debug("Skipping malformed log: %s (error: %s)", line[:100], e)
             return None
+
+    @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
+    def stream_app_logs(
+        self,
+        app_id: str,
+        tail: int,
+        since: str,
+        follow: bool,
+    ) -> Generator[AppLogEntry, None, None]:
+        timeout = 120 if follow else 30
+        with self.stream(
+            "GET",
+            f"/apps/{app_id}/logs/stream",
+            params={
+                "tail": tail,
+                "since": since,
+                "follow": follow,
+            },
+            timeout=timeout,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line or not line.strip():  # pragma: no cover
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.debug("Failed to parse log line: %s", line)
+                    continue
+
+                if data.get("type") == "heartbeat":
+                    continue
+
+                if data.get("type") == "error":
+                    raise StreamLogError(data.get("message", "Unknown error"))
+
+                try:
+                    yield AppLogEntry.model_validate(data)
+                except ValidationError as e:  # pragma: no cover
+                    logger.debug("Failed to parse log entry: %s - %s", data, e)
+                    continue

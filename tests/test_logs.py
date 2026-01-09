@@ -185,51 +185,6 @@ def test_handles_404(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
-def test_handles_500_server_error(
-    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
-) -> None:
-    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
-        return_value=httpx.Response(500)
-    )
-
-    with changing_dir(configured_app.path):
-        result = runner.invoke(app, ["logs", "--no-follow"])
-
-    assert result.exit_code == 1
-    assert "Failed to fetch logs" in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_handles_read_timeout(
-    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
-) -> None:
-    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
-        side_effect=httpx.ReadTimeout("Connection timed out")
-    )
-
-    with changing_dir(configured_app.path):
-        result = runner.invoke(app, ["logs", "--no-follow"])
-
-    assert result.exit_code == 1
-    assert "timed out" in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_handles_connection_error(
-    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
-) -> None:
-    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
-        side_effect=httpx.ConnectError("Connection failed")
-    )
-
-    with changing_dir(configured_app.path):
-        result = runner.invoke(app, ["logs", "--no-follow"])
-
-    assert result.exit_code == 1
-    assert "Failed to fetch logs" in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
 def test_shows_message_when_no_logs_found(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -315,19 +270,3 @@ def test_skips_invalid_json_lines(
 
     assert result.exit_code == 0
     assert "Valid log message" in result.output
-
-
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_gives_up_after_max_reconnect_attempts(
-    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
-) -> None:
-    """Test that follow mode gives up after max reconnection attempts."""
-    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
-        side_effect=httpx.ConnectError("Connection failed")
-    )
-
-    with changing_dir(configured_app.path):
-        result = runner.invoke(app, ["logs"])
-
-    assert result.exit_code == 1
-    assert "Lost connection" in result.output

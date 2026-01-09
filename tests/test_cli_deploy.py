@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import BuildLogError, TooManyRetriesError
+from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir
 
@@ -787,7 +787,7 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
 
 @pytest.mark.parametrize(
     "error",
-    [BuildLogError, TooManyRetriesError, TimeoutError],
+    [StreamLogError, TooManyRetriesError, TimeoutError],
 )
 @pytest.mark.respx(base_url=settings.base_api_url)
 def test_shows_error_message_on_build_exception(
