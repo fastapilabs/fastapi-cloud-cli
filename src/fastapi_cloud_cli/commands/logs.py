@@ -14,7 +14,7 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config
-from fastapi_cloud_cli.utils.auth import is_logged_in
+from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
@@ -124,8 +124,9 @@ def logs(
     ),
 ) -> None:
     """Stream or fetch logs from your deployed app."""
+    identity = Identity()
     with get_rich_toolkit(minimal=True) as toolkit:
-        if not is_logged_in():
+        if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
                 tag="auth",
