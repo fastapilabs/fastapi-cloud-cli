@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add a confirmation step to the first CLI deployment . PR [#140](https://github.com/fastapilabs/fastapi-cloud-cli/pull/140) by [@alejsdev](https://github.com/alejsdev).
+
 ### Fixes
 
 * 🐛 Avoid archiving `.git` by default. PR [#143](https://github.com/fastapilabs/fastapi-cloud-cli/pull/143) by [@buurro](https://github.com/buurro).
