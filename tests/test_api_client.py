@@ -9,10 +9,10 @@ from time_machine import TimeMachineFixture
 
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import (
-    BUILD_LOG_MAX_RETRIES,
+    STREAM_LOGS_MAX_RETRIES,
     APIClient,
-    BuildLogError,
     BuildLogLineMessage,
+    StreamLogError,
     TooManyRetriesError,
 )
 from tests.utils import build_logs_response
@@ -243,7 +243,7 @@ def test_stream_build_logs_client_error_raises_immediately(
 ) -> None:
     logs_route.mock(return_value=Response(404, text="Not Found"))
 
-    with pytest.raises(BuildLogError, match="HTTP 404"):
+    with pytest.raises(StreamLogError, match="HTTP 404"):
         list(client.stream_build_logs(deployment_id))
 
 
@@ -255,7 +255,8 @@ def test_stream_build_logs_max_retries_exceeded(
 
     with patch("time.sleep"):
         with pytest.raises(
-            TooManyRetriesError, match=f"Failed after {BUILD_LOG_MAX_RETRIES} attempts"
+            TooManyRetriesError,
+            match=f"Failed after {STREAM_LOGS_MAX_RETRIES} attempts",
         ):
             list(client.stream_build_logs(deployment_id))
 
@@ -343,7 +344,7 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
     logs = client.stream_build_logs(deployment_id)
 
     with patch("time.sleep"), pytest.raises(TooManyRetriesError, match="Failed after"):
-        for _ in range(BUILD_LOG_MAX_RETRIES + 1):
+        for _ in range(STREAM_LOGS_MAX_RETRIES + 1):
             next(logs)
 
 
