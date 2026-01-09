@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Avoid archiving `.git` by default. PR [#143](https://github.com/fastapilabs/fastapi-cloud-cli/pull/143) by [@buurro](https://github.com/buurro).
+
 ### Internal
 
 * 👷 Add pre-commit workflow. PR [#135](https://github.com/fastapilabs/fastapi-cloud-cli/pull/135) by [@YuriiMotov](https://github.com/YuriiMotov).
