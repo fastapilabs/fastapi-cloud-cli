@@ -4,11 +4,12 @@ import time
 from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Optional
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
 from pydantic import BaseModel, ValidationError
+from rich.markup import escape
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.utils.api import APIClient
@@ -43,32 +44,34 @@ def _stream_logs(
     since: str,
     follow: bool,
 ) -> Generator[str, None, None]:
-    """Stream logs from the API."""
-    params: dict[str, Any] = {
-        "tail": tail,
-        "since": since,
-        "follow": follow,
-    }
-
     with APIClient() as client:
         timeout = 120 if follow else 30
         with client.stream(
             "GET",
             f"/apps/{app_id}/logs/stream",
-            params=params,
+            params={
+                "tail": tail,
+                "since": since,
+                "follow": follow,
+            },
             timeout=timeout,
         ) as response:
             response.raise_for_status()
+
             yield from response.iter_lines()
 
 
 def _format_log_line(log: LogEntry) -> str:
-    """Format a log entry for display with a colored indicator matching the UI."""
+    """Format a log entry for display with a colored indicator"""
     timestamp_str = log.timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     color = LOG_LEVEL_COLORS.get(log.level.lower())
+
+    message = escape(log.message)
+
     if color:
-        return f"[{color}]┃[/{color}] [dim]{timestamp_str}[/dim] {log.message}"
-    return f"[dim]┃[/dim] [dim]{timestamp_str}[/dim] {log.message}"
+        return f"[{color}]┃[/{color}] [dim]{timestamp_str}[/dim] {message}"
+
+    return f"[dim]┃[/dim] [dim]{timestamp_str}[/dim] {message}"
 
 
 def _process_log_stream(
@@ -78,7 +81,6 @@ def _process_log_stream(
     since: str,
     follow: bool,
 ) -> None:
-    """Process the log stream with reconnection logic for follow mode."""
     log_count = 0
     last_timestamp: datetime | None = None
     current_since = since
