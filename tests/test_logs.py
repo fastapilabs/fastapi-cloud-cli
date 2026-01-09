@@ -170,6 +170,21 @@ def test_handles_401_unauthorized(
 
 
 @pytest.mark.respx(base_url=settings.base_api_url)
+def test_handles_404(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(404)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow"])
+
+    assert result.exit_code == 1
+    assert "App not found" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
 def test_handles_500_server_error(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:

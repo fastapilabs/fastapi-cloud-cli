@@ -164,11 +164,17 @@ def _process_log_stream(
                 toolkit.print(
                     "The specified token is not valid. Use [blue]`fastapi login`[/] to generate a new token.",
                 )
+            if isinstance(e, HTTPStatusError) and e.response.status_code == 404:
+                toolkit.print(
+                    "App not found. Make sure to use the correct account.",
+                )
             elif isinstance(e, ReadTimeout):
                 toolkit.print(
                     "The request timed out. Please try again later.",
                 )
             else:
+                logger.exception("Failed to fetch logs")
+
                 toolkit.print(
                     "Failed to fetch logs. Please try again later.",
                 )
