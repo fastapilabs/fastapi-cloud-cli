@@ -125,6 +125,7 @@ def test_archive_respects_fastapicloudignore_unignore(
 
     # Rignore needs a .git folder to make .gitignore work
     (src_path / ".git").mkdir(exist_ok=True, parents=True)
+    (src_path / ".git" / "config").write_text("[core]\n\trepositoryformatversion = 0")
     (src_path / ".gitignore").write_text("ignore_me.txt\nbuild/")
 
     (src_path / ".fastapicloudignore").write_text("!static/build")

@@ -51,6 +51,7 @@ def _should_exclude_entry(path: Path) -> bool:
         "__pycache__",
         ".mypy_cache",
         ".pytest_cache",
+        ".git",
         ".gitignore",
         ".fastapicloudignore",
     ]
