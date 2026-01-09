@@ -557,7 +557,7 @@ def deploy(
     skip_wait: Annotated[
         bool, typer.Option("--no-wait", help="Skip waiting for deployment status")
     ] = False,
-    app_id: Annotated[
+    provided_app_id: Annotated[
         Union[str, None],
         typer.Option(
             "--app-id",
@@ -570,7 +570,9 @@ def deploy(
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
     """
     logger.debug("Deploy command started")
-    logger.debug("Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, app_id)
+    logger.debug(
+        "Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, provided_app_id
+    )
 
     identity = Identity()
 
@@ -612,15 +614,9 @@ def deploy(
 
         app_config = get_app_config(path_to_deploy)
 
-        if app_id and app_config and app_id != app_config.app_id:
-            logger.debug(
-                "Provided app_id (%s) differs from local config (%s)",
-                app_id,
-                app_config.app_id,
-            )
-
+        if app_config and provided_app_id and app_config.app_id != provided_app_id:
             toolkit.print(
-                f"[error]Error: Provided app ID ({app_id}) does not match the local "
+                f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
                 f"config ({app_config.app_id}).[/]"
             )
             toolkit.print_line()
@@ -629,17 +625,22 @@ def deploy(
                 "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
                 tag="tip",
             )
+
             raise typer.Exit(1) from None
 
-        target_app_id = app_id or (app_config.app_id if app_config else None)
-
-        if not target_app_id:
+        if provided_app_id:
+            target_app_id = provided_app_id
+        elif app_config:
+            target_app_id = app_config.app_id
+        else:
             logger.debug("No app config found, configuring new app")
+
             app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
             toolkit.print_line()
+
             target_app_id = app_config.app_id
 
-        if app_id:
+        if provided_app_id:
             toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
         else:
             toolkit.print("Deploying app...")
@@ -659,7 +660,8 @@ def deploy(
 
         if not app:
             toolkit.print_line()
-            if not app_id:
+
+            if not provided_app_id:
                 toolkit.print(
                     "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
                     tag="tip",
