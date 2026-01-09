@@ -2,8 +2,9 @@ import base64
 import binascii
 import json
 import logging
+import os
 import time
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -59,7 +60,7 @@ def _get_auth_token() -> Optional[str]:
     return auth_data.access_token
 
 
-def _is_token_expired(token: str) -> bool:
+def _is_jwt_expired(token: str) -> bool:
     try:
         parts = token.split(".")
 
@@ -108,21 +109,32 @@ def _is_token_expired(token: str) -> bool:
 
 
 class Identity:
+    auth_mode: Literal["token", "user"]
+
     def __init__(self) -> None:
         self.token = _get_auth_token()
+        self.auth_mode = "user"
+
+        # users using `FASTAPI_CLOUD_TOKEN`
+        if env_token := self._get_token_from_env():
+            self.token = env_token
+            self.auth_mode = "token"
+
+    def _get_token_from_env(self) -> Optional[str]:
+        return os.environ.get("FASTAPI_CLOUD_TOKEN")
 
     def is_expired(self) -> bool:
         if not self.token:
             return True
 
-        return _is_token_expired(self.token)
+        return _is_jwt_expired(self.token)
 
     def is_logged_in(self) -> bool:
         if self.token is None:
             logger.debug("Login status: False (no token)")
             return False
 
-        if self.is_expired():
+        if self.auth_mode == "user" and self.is_expired():
             logger.debug("Login status: False (token expired)")
             return False
 
