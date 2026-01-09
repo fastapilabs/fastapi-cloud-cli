@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -7,6 +8,7 @@ from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.api import TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import changing_dir
 
@@ -270,3 +272,53 @@ def test_skips_invalid_json_lines(
 
     assert result.exit_code == 0
     assert "Valid log message" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+def test_skips_heartbeat_messages(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    log_lines = [
+        json.dumps({"type": "heartbeat"}),
+        json.dumps(
+            {
+                "timestamp": "2025-12-05T14:32:01.123000Z",
+                "message": "Real log message",
+                "level": "info",
+            }
+        ),
+    ]
+    response_content = "\n".join(log_lines)
+
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(200, content=response_content)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow"])
+
+    assert result.exit_code == 0
+    assert "Real log message" in result.output
+    assert "heartbeat" not in result.output.lower()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [TooManyRetriesError, TimeoutError],
+)
+def test_handles_connection_loss(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    error: type[Exception],
+) -> None:
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.utils.api.APIClient.stream_app_logs",
+            side_effect=error("Connection lost"),
+        ),
+    ):
+        result = runner.invoke(app, ["logs", "--no-follow"])
+
+    assert result.exit_code == 1
+    assert "Lost connection to log stream" in result.output
