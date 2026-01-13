@@ -2,7 +2,9 @@
 
 ## Latest Changes
 
-### Features
+### Fixes
+
+* 🐛 Fix `env list` for secret environment variables. PR [#147](https://github.com/fastapilabs/fastapi-cloud-cli/pull/147) by [@patrick91](https://github.com/patrick91).
 
 ## 0.10.0
 
