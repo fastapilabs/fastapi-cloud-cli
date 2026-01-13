@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Optional, Union
 
 import typer
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class EnvironmentVariable(BaseModel):
     name: str
-    value: str
+    value: Optional[str] = None
 
 
 class EnvironmentVariableResponse(BaseModel):
