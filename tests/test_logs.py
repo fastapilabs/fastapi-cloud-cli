@@ -322,3 +322,57 @@ def test_handles_connection_loss(
 
     assert result.exit_code == 1
     assert "Lost connection to log stream" in result.output
+
+
+@pytest.mark.parametrize(
+    "invalid_since",
+    [
+        "5",  # missing unit
+        "m",  # missing number
+        "5x",  # invalid unit
+        "5min",  # invalid unit (should be 'm')
+        "1hour",  # invalid unit (should be 'h')
+        "5 m",  # space not allowed
+        "-5m",  # negative not allowed
+        "",  # empty string
+    ],
+)
+def test_rejects_invalid_since_format(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    invalid_since: str,
+) -> None:
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--since", invalid_since])
+
+    assert result.exit_code == 2
+    assert "Invalid format" in result.output
+
+
+@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.parametrize(
+    "valid_since",
+    [
+        "30s",  # seconds
+        "5m",  # minutes
+        "1h",  # hours
+        "2d",  # days
+        "100m",  # larger numbers
+    ],
+)
+def test_accepts_valid_since_format(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    configured_app: ConfiguredApp,
+    valid_since: str,
+) -> None:
+    route = respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    ).mock(return_value=httpx.Response(200, content=""))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow", "--since", valid_since])
+
+    assert result.exit_code == 0
+    url = str(route.calls[0].request.url).lower()
+    assert f"since={valid_since}" in url

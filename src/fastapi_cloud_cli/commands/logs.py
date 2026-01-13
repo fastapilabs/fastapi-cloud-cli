@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
@@ -29,6 +30,18 @@ LOG_LEVEL_COLORS = {
     "critical": "magenta",
     "fatal": "magenta",
 }
+
+SINCE_PATTERN = re.compile(r"^\d+[smhd]$")
+
+
+def _validate_since(value: str) -> str:
+    """Validate the --since parameter format."""
+    if not SINCE_PATTERN.match(value):
+        raise typer.BadParameter(
+            "Invalid format. Use a number followed by s, m, h, or d (e.g., '5m', '1h', '2d')."
+        )
+
+    return value
 
 
 def _format_log_line(log: AppLogEntry) -> str:
@@ -115,6 +128,7 @@ def logs(
         "-s",
         help="Show logs since a specific time (e.g., '5m', '1h', '2d').",
         show_default=True,
+        callback=_validate_since,
     ),
     follow: bool = typer.Option(
         True,
