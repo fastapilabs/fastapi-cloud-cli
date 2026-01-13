@@ -206,6 +206,13 @@ def set(
             help="A path to the folder containing the app you want to deploy"
         ),
     ] = None,
+    secret: Annotated[
+        bool,
+        typer.Option(
+            "--secret",
+            help="Mark the environment variable as secret",
+        ),
+    ] = False,
 ) -> Any:
     """
     Set an environment variable for the app.
@@ -233,12 +240,18 @@ def set(
             raise typer.Exit(1)
 
         if not name:
-            name = toolkit.input("Enter the name of the environment variable to set:")
+            if secret:
+                name = toolkit.input("Enter the name of the secret to set:")
+            else:
+                name = toolkit.input(
+                    "Enter the name of the environment variable to set:"
+                )
 
         if not value:
-            value = toolkit.input(
-                "Enter the value of the environment variable to set:", password=True
-            )
+            if secret:
+                value = toolkit.input("Enter the secret value:", password=True)
+            else:
+                value = toolkit.input("Enter the value of the environment variable:")
 
         with toolkit.progress(
             "Setting environment variable", transient=True
@@ -247,6 +260,9 @@ def set(
             assert value is not None
 
             with handle_http_errors(progress):
-                _set_environment_variable(app_config.app_id, name, value)
+                _set_environment_variable(app_config.app_id, name, value, secret)
 
-        toolkit.print(f"Environment variable [bold]{name}[/] set.")
+        if secret:
+            toolkit.print(f"Secret environment variable [bold]{name}[/] set.")
+        else:
+            toolkit.print(f"Environment variable [bold]{name}[/] set.")
