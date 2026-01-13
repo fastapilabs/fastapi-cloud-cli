@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add support for creating secrets. PR [#146](https://github.com/fastapilabs/fastapi-cloud-cli/pull/146) by [@patrick91](https://github.com/patrick91).
+
 ## 0.9.0
 
 ### Features
