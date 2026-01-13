@@ -137,7 +137,13 @@ def logs(
         help="Stream logs in real-time (use --no-follow to fetch and exit).",
     ),
 ) -> None:
-    """Stream or fetch logs from your deployed app."""
+    """Stream or fetch logs from your deployed app.
+
+    Examples:
+        fastapi cloud logs                      # Stream logs in real-time
+        fastapi cloud logs --no-follow          # Fetch recent logs and exit
+        fastapi cloud logs --tail 50 --since 1h # Last 50 logs from the past hour
+    """
     identity = Identity()
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():
