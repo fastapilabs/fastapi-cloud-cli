@@ -2,11 +2,15 @@
 
 ## Latest Changes
 
+## 0.10.1
+
 ### Fixes
 
 * 🐛 Fix `env list` for secret environment variables. PR [#147](https://github.com/fastapilabs/fastapi-cloud-cli/pull/147) by [@patrick91](https://github.com/patrick91).
 
 ## 0.10.0
+
+### Features
 
 * `fastapi cloud logs`. PR [#132](https://github.com/fastapilabs/fastapi-cloud-cli/pull/132) by [@savannahostrowski](https://github.com/savannahostrowski).
 * ✨ Add support for creating secrets. PR [#146](https://github.com/fastapilabs/fastapi-cloud-cli/pull/146) by [@patrick91](https://github.com/patrick91).
