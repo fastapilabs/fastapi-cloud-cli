@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add link command. PR [#148](https://github.com/fastapilabs/fastapi-cloud-cli/pull/148) by [@patrick91](https://github.com/patrick91).
+
 ### Fixes
 
 * 🐛 Exclude .env files from deployment uploads. PR [#150](https://github.com/fastapilabs/fastapi-cloud-cli/pull/150) by [@patrick91](https://github.com/patrick91).
