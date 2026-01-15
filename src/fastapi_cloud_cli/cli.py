@@ -2,6 +2,7 @@ import typer
 
 from .commands.deploy import deploy
 from .commands.env import env_app
+from .commands.link import link
 from .commands.login import login
 from .commands.logout import logout
 from .commands.logs import logs
@@ -25,6 +26,7 @@ cloud_app = typer.Typer(
 
 # fastapi cloud [command]
 cloud_app.command()(deploy)
+cloud_app.command()(link)
 cloud_app.command()(login)
 cloud_app.command()(logs)
 cloud_app.command()(logout)
