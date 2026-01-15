@@ -62,6 +62,9 @@ def _should_exclude_entry(path: Path) -> bool:
     if path.suffix == ".pyc":
         return True
 
+    if path.name == ".env" or path.name.startswith(".env."):
+        return True
+
     return False
 
 
