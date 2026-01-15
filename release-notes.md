@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.11.0
+
 ### Features
 
 * ✨ Add link command. PR [#148](https://github.com/fastapilabs/fastapi-cloud-cli/pull/148) by [@patrick91](https://github.com/patrick91).
