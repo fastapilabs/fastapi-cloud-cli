@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Exclude .env files from deployment uploads. PR [#150](https://github.com/fastapilabs/fastapi-cloud-cli/pull/150) by [@patrick91](https://github.com/patrick91).
+
 ## 0.10.1
 
 ### Fixes
