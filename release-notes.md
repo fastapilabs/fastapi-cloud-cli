@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Run mypy by pre-commit instead of `lint.yml` workflow. PR [#151](https://github.com/fastapilabs/fastapi-cloud-cli/pull/151) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.11.0
 
 ### Features
