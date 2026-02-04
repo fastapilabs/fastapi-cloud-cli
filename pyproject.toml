@@ -37,6 +37,7 @@ dependencies = [
     "pydantic[email] >= 2.0",
     "sentry-sdk >= 2.20.0",
     "fastar >= 0.8.0",
+    "tomli; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
