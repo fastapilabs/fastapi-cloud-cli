@@ -13,14 +13,13 @@ from fastapi_cloud_cli.config import Settings
 from tests.utils import create_jwt_token
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
-    logged_out_cli: None, respx_mock: respx.MockRouter
+    logged_out_cli: None, respx_mock: respx.MockRouter, settings: Settings
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
@@ -38,8 +37,10 @@ def test_shows_a_message_if_something_is_wrong(
         assert not mock_open.called
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_full_login(respx_mock: respx.MockRouter, temp_auth_config: Path) -> None:
+@pytest.mark.respx
+def test_full_login(
+    respx_mock: respx.MockRouter, temp_auth_config: Path, settings: Settings
+) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
             "/login/device/authorization", data={"client_id": settings.client_id}
@@ -78,8 +79,10 @@ def test_full_login(respx_mock: respx.MockRouter, temp_auth_config: Path) -> Non
         assert '"access_token":"test_token_1234"' in temp_auth_config.read_text()
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_fetch_access_token_success_immediately(respx_mock: respx.MockRouter) -> None:
+@pytest.mark.respx
+def test_fetch_access_token_success_immediately(
+    respx_mock: respx.MockRouter, settings: Settings
+) -> None:
     from fastapi_cloud_cli.commands.login import _fetch_access_token
     from fastapi_cloud_cli.utils.api import APIClient
 
@@ -98,9 +101,10 @@ def test_fetch_access_token_success_immediately(respx_mock: respx.MockRouter) ->
     assert access_token == "test_token_success"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_fetch_access_token_authorization_pending_then_success(
     respx_mock: respx.MockRouter,
+    settings: Settings,
 ) -> None:
     from fastapi_cloud_cli.commands.login import _fetch_access_token
     from fastapi_cloud_cli.utils.api import APIClient
@@ -128,9 +132,10 @@ def test_fetch_access_token_authorization_pending_then_success(
         mock_sleep.assert_called_once_with(3)
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_fetch_access_token_handles_400_error_not_authorization_pending(
     respx_mock: respx.MockRouter,
+    settings: Settings,
 ) -> None:
     from fastapi_cloud_cli.commands.login import _fetch_access_token
     from fastapi_cloud_cli.utils.api import APIClient
@@ -149,8 +154,10 @@ def test_fetch_access_token_handles_400_error_not_authorization_pending(
             _fetch_access_token(client, "test_device_code", 5)
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
-def test_fetch_access_token_handles_500_error(respx_mock: respx.MockRouter) -> None:
+@pytest.mark.respx
+def test_fetch_access_token_handles_500_error(
+    respx_mock: respx.MockRouter, settings: Settings
+) -> None:
     from fastapi_cloud_cli.commands.login import _fetch_access_token
     from fastapi_cloud_cli.utils.api import APIClient
 
@@ -168,7 +175,7 @@ def test_fetch_access_token_handles_500_error(respx_mock: respx.MockRouter) -> N
             _fetch_access_token(client, "test_device_code", 5)
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_notify_already_logged_in_user(
     respx_mock: respx.MockRouter, logged_in_cli: None
 ) -> None:
@@ -182,9 +189,9 @@ def test_notify_already_logged_in_user(
     )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_notify_expired_token_user(
-    respx_mock: respx.MockRouter, temp_auth_config: Path
+    respx_mock: respx.MockRouter, temp_auth_config: Path, settings: Settings
 ) -> None:
     past_exp = int(time.time()) - 3600
     expired_token = create_jwt_token({"sub": "test_user_12345", "exp": past_exp})

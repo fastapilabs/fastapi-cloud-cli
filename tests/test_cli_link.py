@@ -7,13 +7,11 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import AppConfig
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 
 def test_shows_a_message_if_not_logged_in(logged_out_cli: None) -> None:
@@ -33,7 +31,7 @@ def test_shows_a_message_if_already_linked(
     assert "This directory is already linked to an app." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_no_teams(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:
@@ -46,7 +44,7 @@ def test_shows_a_message_if_no_teams(
     assert "No teams found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_no_apps(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:
@@ -72,7 +70,7 @@ def test_shows_a_message_if_no_apps(
     assert "No apps found in this team." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_links_successfully(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:
@@ -105,7 +103,7 @@ def test_links_successfully(
     assert config.team_id == "team-1"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_on_teams_api_failure(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:
@@ -118,7 +116,7 @@ def test_shows_error_on_teams_api_failure(
     assert "Error fetching teams" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_on_apps_api_failure(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:
@@ -144,7 +142,7 @@ def test_shows_error_on_apps_api_failure(
     assert "Error fetching apps" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_links_with_multiple_teams_and_apps(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:

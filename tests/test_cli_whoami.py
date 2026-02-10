@@ -6,15 +6,13 @@ from httpx import ReadTimeout, Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
@@ -29,7 +27,7 @@ def test_shows_a_message_if_something_is_wrong(
     assert result.exit_code == 1
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_when_token_is_invalid(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
@@ -41,7 +39,7 @@ def test_shows_a_message_when_token_is_invalid(
     assert "The specified token is not valid" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_email(logged_in_cli: None, respx_mock: respx.MockRouter) -> None:
     respx_mock.get("/users/me").mock(
         return_value=Response(200, json={"email": "email@fastapi.com"})
@@ -53,7 +51,7 @@ def test_shows_email(logged_in_cli: None, respx_mock: respx.MockRouter) -> None:
     assert "email@fastapi.com" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_read_timeout(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
