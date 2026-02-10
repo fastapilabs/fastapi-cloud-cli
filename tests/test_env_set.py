@@ -7,11 +7,9 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -43,7 +41,7 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
     assert "No app found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -62,7 +60,7 @@ def test_shows_a_message_if_something_is_wrong(
     )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_message_when_it_sets(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -78,7 +76,7 @@ def test_shows_message_when_it_sets(
     assert "Environment variable SOME_VAR set" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_asks_for_name_and_value(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -103,7 +101,7 @@ def test_asks_for_name_and_value(
     assert "Environment variable SOME_VAR set" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_asks_for_name_and_value_for_secret(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -130,7 +128,7 @@ def test_asks_for_name_and_value_for_secret(
     assert "*" * 6 in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_sets_secret_flag(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:

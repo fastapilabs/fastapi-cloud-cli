@@ -20,7 +20,6 @@ from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -63,9 +62,12 @@ def _get_random_deployment(
     }
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_chooses_login_option_when_not_logged_in(
-    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+    logged_out_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    settings: Settings,
 ) -> None:
     steps = [Keys.ENTER]
 
@@ -108,7 +110,7 @@ def test_chooses_login_option_when_not_logged_in(
     assert mock_launch.called
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_chooses_waitlist_option_when_not_logged_in(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -153,7 +155,7 @@ def test_chooses_waitlist_option_when_not_logged_in(
     assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -214,7 +216,7 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_when_trying_to_get_teams(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -235,7 +237,7 @@ def test_shows_error_when_trying_to_get_teams(
         assert "Error fetching teams. Please try again later" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_invalid_auth(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -256,7 +258,7 @@ def test_handles_invalid_auth(
         assert "The specified token is not valid" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_teams(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -286,7 +288,7 @@ def test_shows_teams(
         assert team_2["name"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_asks_for_app_name_after_team(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -312,7 +314,7 @@ def test_asks_for_app_name_after_team(
         assert "What's your app name?" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_creates_app_on_backend(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -344,7 +346,7 @@ def test_creates_app_on_backend(
         assert "App created successfully" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_cancels_deployment_when_user_selects_no(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -378,7 +380,7 @@ def test_cancels_deployment_when_user_selects_no(
         assert "Deployment cancelled." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_uses_existing_app(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -408,7 +410,7 @@ def test_uses_existing_app(
         assert app_data["slug"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_exits_successfully_when_deployment_is_done(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -482,7 +484,7 @@ def test_exits_successfully_when_deployment_is_done(
         # TODO: show a message when the deployment is done (based on the status)
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -545,7 +547,7 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
         assert deployment_data["url"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_exits_with_error_when_deployment_fails_to_build(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -597,7 +599,7 @@ def test_exits_with_error_when_deployment_fails_to_build(
         assert deployment_data["dashboard_url"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_when_deployment_build_fails(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -648,7 +650,7 @@ def test_shows_error_when_deployment_build_fails(
         assert result.exit_code == 1
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_when_app_does_not_exist(
     logged_in_cli: None, configured_app: ConfiguredApp, respx_mock: respx.MockRouter
 ) -> None:
@@ -722,7 +724,7 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         return runner.invoke(app, ["deploy", "--no-wait"])
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_can_skip_waiting(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -733,7 +735,7 @@ def test_can_skip_waiting(
     assert "Check the status of your deployment at" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_creates_config_folder_and_creates_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -744,7 +746,7 @@ def test_creates_config_folder_and_creates_git_ignore(
     assert (tmp_path / ".fastapicloud" / ".gitignore").read_text() == "*"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_does_not_duplicate_entry_in_git_ignore(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -756,7 +758,7 @@ def test_does_not_duplicate_entry_in_git_ignore(
     assert git_ignore_path.read_text() == ".fastapicloud\n"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_for_invalid_waitlist_form_data(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -787,7 +789,7 @@ def test_shows_error_for_invalid_waitlist_form_data(
         assert "Invalid form data. Please try again." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_no_apps_found_message_when_team_has_no_apps(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -823,9 +825,9 @@ def test_shows_no_apps_found_message_when_team_has_no_apps(
 
 @pytest.mark.parametrize(
     "error",
-    [StreamLogError, TooManyRetriesError, TimeoutError],
+    [StreamLogError("stream error"), TooManyRetriesError(), TimeoutError()],
 )
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_message_on_build_exception(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter, error: Exception
 ) -> None:
@@ -869,7 +871,7 @@ def test_shows_error_message_on_build_exception(
         assert deployment_data["dashboard_url"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_error_message_on_build_log_http_error(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -911,7 +913,7 @@ def test_shows_error_message_on_build_log_http_error(
         assert deployment_data["dashboard_url"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 @patch("fastapi_cloud_cli.commands.deploy.WAITING_MESSAGES", ["short wait message"])
 def test_short_wait_messages(
     logged_in_cli: None,
@@ -978,7 +980,7 @@ def test_short_wait_messages(
         assert "short wait message" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 @patch("fastapi_cloud_cli.commands.deploy.LONG_WAIT_MESSAGES", ["long wait message"])
 def test_long_wait_messages(
     logged_in_cli: None,
@@ -1046,7 +1048,7 @@ def test_long_wait_messages(
         assert "long wait message" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_calls_upload_cancelled_when_user_interrupts(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1081,7 +1083,7 @@ def test_calls_upload_cancelled_when_user_interrupts(
         assert upload_cancelled_route.called
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_cancel_upload_swallows_exceptions(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1117,7 +1119,7 @@ def test_cancel_upload_swallows_exceptions(
         assert "HTTPStatusError" not in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_successfully_with_token(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1189,7 +1191,7 @@ def test_deploy_successfully_with_token(
         assert deployment_data["url"] in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_token_fails(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1218,7 +1220,7 @@ def test_deploy_with_token_fails(
         )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_app_id_arg(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1264,7 +1266,7 @@ def test_deploy_with_app_id_arg(
         assert f"Deploying to app {app_id}" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_app_id_from_env_var(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1310,7 +1312,7 @@ def test_deploy_with_app_id_from_env_var(
         assert f"Deploying to app {app_id}" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_app_id_matching_local_config(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1363,7 +1365,7 @@ def test_deploy_with_app_id_matching_local_config(
         assert f"Deploying to app {app_id}" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_app_id_mismatch_fails(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1386,7 +1388,7 @@ def test_deploy_with_app_id_mismatch_fails(
         assert "FASTAPI_CLOUD_APP_ID" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_deploy_with_app_id_arg_app_not_found(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
