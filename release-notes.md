@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ✅ Isolate tests from config. PR [#152](https://github.com/fastapilabs/fastapi-cloud-cli/pull/152) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * 👷 Run mypy by pre-commit instead of `lint.yml` workflow. PR [#151](https://github.com/fastapilabs/fastapi-cloud-cli/pull/151) by [@YuriiMotov](https://github.com/YuriiMotov).
