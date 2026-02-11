@@ -82,6 +82,7 @@ junit_family = "xunit2"
 parallel = true
 data_file = "coverage/.coverage"
 source = ["src", "tests"]
+relative_files = true
 context = '${CONTEXT}'
 dynamic_context = "test_function"
 omit = ["tests/assets/*"]
