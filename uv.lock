@@ -2,7 +2,9 @@ version = 1
 revision = 3
 requires-python = ">=3.9"
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
     "python_full_version < '3.10'",
 ]
 
@@ -67,7 +69,9 @@ name = "click"
 version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 dependencies = [
     { name = "colorama", marker = "python_full_version >= '3.10' and sys_platform == 'win32'" },
@@ -210,7 +214,9 @@ name = "coverage"
 version = "7.13.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/24/56/95b7e30fa389756cb56630faa728da46a27b8c6eb46f9d557c68fff12b65/coverage-7.13.4.tar.gz", hash = "sha256:e5c8f6ed1e61a8b2dcdf31eb0b9bbf0130750ca79c1c49eb898e2ad86f5ccc91", size = 827239, upload-time = "2026-02-09T12:59:03.86Z" }
 wheels = [
@@ -343,7 +349,9 @@ name = "dnspython"
 version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
 wheels = [
@@ -413,7 +421,9 @@ dev = [
 requires-dist = [
     { name = "fastar", specifier = ">=0.8.0" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
+    { name = "pydantic", extras = ["email"], marker = "python_full_version < '3.13'", specifier = ">=2.7.4" },
+    { name = "pydantic", extras = ["email"], marker = "python_full_version == '3.13.*'", specifier = ">=2.8.0" },
+    { name = "pydantic", extras = ["email"], marker = "python_full_version >= '3.14'", specifier = ">=2.12.0" },
     { name = "rich-toolkit", specifier = ">=0.19.4" },
     { name = "rignore", specifier = ">=0.5.1" },
     { name = "sentry-sdk", specifier = ">=2.20.0" },
@@ -694,7 +704,9 @@ name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
 wheels = [
@@ -721,7 +733,9 @@ name = "markdown-it-py"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 dependencies = [
     { name = "mdurl", marker = "python_full_version >= '3.10'" },
@@ -1553,7 +1567,9 @@ name = "uvicorn"
 version = "0.40.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 dependencies = [
     { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -1829,7 +1845,9 @@ name = "websockets"
 version = "16.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.10'",
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.13'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/24/4b2031d72e840ce4c1ccb255f693b15c334757fc50023e4db9537080b8c4/websockets-16.0.tar.gz", hash = "sha256:5f6261a5e56e8d5c42a4497b364ea24d94d9563e8fbd44e78ac40879c60179b5", size = 179346, upload-time = "2026-01-10T09:23:47.181Z" }
 wheels = [
