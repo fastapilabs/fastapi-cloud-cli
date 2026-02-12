@@ -10,7 +10,7 @@ from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
 
-from .auth import Identity
+from .auth import Identity, delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,50 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
     return RichToolkit(theme=theme)
 
 
+def handle_unauthorized() -> str:
+    message = "The specified token is not valid. "
+
+    identity = Identity()
+
+    if identity.auth_mode == "user":
+        delete_auth_config()
+
+        message += "Use `fastapi login` to generate a new token."
+    else:
+        message += "Make sure to use a valid token."
+
+    return message
+
+
+def handle_http_error(error: HTTPError, default_message: Optional[str] = None) -> str:
+    message: Optional[str] = None
+
+    if isinstance(error, HTTPStatusError):
+        status_code = error.response.status_code
+
+        # Handle validation errors from Pydantic models, this should make it easier to debug :)
+        if status_code == 422:
+            logger.debug(error.response.json())  # pragma: no cover
+
+        elif status_code == 401:
+            message = handle_unauthorized()
+
+        elif status_code == 403:
+            message = "You don't have permissions for this resource"
+
+    if not message:
+        message = (
+            default_message
+            or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{error}"
+        )
+
+    return message
+
+
 @contextlib.contextmanager
 def handle_http_errors(
     progress: Progress,
-    message: Optional[str] = None,
+    default_message: Optional[str] = None,
 ) -> Generator[None, None, None]:
     try:
         yield
@@ -86,25 +126,7 @@ def handle_http_errors(
     except HTTPError as e:
         logger.debug(e)
 
-        # Handle validation errors from Pydantic models, this should make it easier to debug :)
-        if isinstance(e, HTTPStatusError) and e.response.status_code == 422:
-            logger.debug(e.response.json())  # pragma: no cover
-
-        if isinstance(e, HTTPStatusError) and e.response.status_code in (401, 403):
-            message = "The specified token is not valid. "
-
-            identity = Identity()
-
-            if identity.auth_mode == "user":
-                message += "Use `fastapi login` to generate a new token."
-            else:
-                message += "Make sure to use a valid token."
-
-        else:
-            message = (
-                message
-                or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{e}"
-            )
+        message = handle_http_error(e, default_message)
 
         progress.set_error(message)
 

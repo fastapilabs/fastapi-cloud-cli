@@ -32,7 +32,9 @@ STREAM_LOGS_TIMEOUT = timedelta(minutes=5)
 class StreamLogError(Exception):
     """Raised when there's an error streaming logs (build or app logs)."""
 
-    pass
+    def __init__(self, message: str, *, status_code: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class TooManyRetriesError(Exception):
@@ -100,7 +102,8 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
             except Exception:
                 error_detail = "(response body unavailable)"
             raise StreamLogError(
-                f"HTTP {error.response.status_code}: {error_detail}"
+                f"HTTP {error.response.status_code}: {error_detail}",
+                status_code=error.response.status_code,
             ) from error
 
 

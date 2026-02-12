@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from httpx import HTTPError
 from rich.markup import escape
 from rich_toolkit import RichToolkit
 
@@ -16,7 +17,7 @@ from fastapi_cloud_cli.utils.api import (
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_error
 
 logger = logging.getLogger(__name__)
 
@@ -85,21 +86,20 @@ def _process_log_stream(
                 return
     except KeyboardInterrupt:  # pragma: no cover
         toolkit.print_line()
+
         return
     except StreamLogError as e:
-        error_msg = str(e)
-        if "HTTP 401" in error_msg or "HTTP 403" in error_msg:
-            toolkit.print(
-                "The specified token is not valid. Use [blue]`fastapi login`[/] to generate a new token.",
-            )
-        elif "HTTP 404" in error_msg:
-            toolkit.print(
-                "App not found. Make sure to use the correct account.",
-            )
+        if e.status_code == 404:
+            message = "App not found. Make sure to use the correct account."
+
+        elif isinstance(e.__cause__, HTTPError):
+            message = handle_http_error(e.__cause__)
+
         else:
-            toolkit.print(
-                f"[red]Error:[/] {escape(error_msg)}",
-            )
+            message = f"[red]Error:[/] {escape(str(e))}"
+
+        toolkit.print(message)
+
         raise typer.Exit(1) from None
     except (TooManyRetriesError, TimeoutError):
         toolkit.print(

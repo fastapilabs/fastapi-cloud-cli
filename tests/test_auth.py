@@ -78,6 +78,11 @@ def test_is_jwt_expired_edge_case_one_second_before() -> None:
     assert not _is_jwt_expired(token)
 
 
+def test_is_expired_with_no_token(temp_auth_config: Path) -> None:
+    assert not temp_auth_config.exists()
+    assert Identity().is_expired()
+
+
 def test_is_logged_in_with_no_token(temp_auth_config: Path) -> None:
     assert not temp_auth_config.exists()
     assert not Identity().is_logged_in()

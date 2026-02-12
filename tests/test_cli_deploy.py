@@ -17,7 +17,7 @@ from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, build_logs_response, changing_dir
+from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
 
 runner = CliRunner()
 
@@ -214,6 +214,24 @@ def test_shows_waitlist_form_when_not_logged_in_longer_flow(
     assert result.exit_code == 1
     assert "We're currently in private beta" in result.output
     assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
+
+
+def test_shows_login_prompt_when_token_is_expired(
+    temp_auth_config: Path, tmp_path: Path
+) -> None:
+    expired_token = create_jwt_token({"sub": "test_user", "exp": 0})
+    temp_auth_config.write_text(f'{{"access_token": "{expired_token}"}}')
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = [Keys.CTRL_C]
+        result = runner.invoke(app, ["deploy"])
+
+    assert "Welcome to FastAPI Cloud!" in result.output
+    assert "Your session has expired. Please log in again." in result.output
+    assert "What would you like to do?" in result.output
 
 
 @pytest.mark.respx

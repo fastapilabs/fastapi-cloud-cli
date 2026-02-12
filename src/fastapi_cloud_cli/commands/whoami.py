@@ -24,7 +24,7 @@ def whoami() -> Any:
 
     with APIClient() as client:
         with Progress(title="⚡ Fetching profile", transient=True) as progress:
-            with handle_http_errors(progress, message=""):
+            with handle_http_errors(progress, default_message=""):
                 response = client.get("/users/me")
                 response.raise_for_status()
 
