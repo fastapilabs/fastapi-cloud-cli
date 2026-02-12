@@ -40,6 +40,18 @@ def test_shows_a_message_when_token_is_invalid(
 
 
 @pytest.mark.respx
+def test_shows_a_message_when_user_has_no_permissions(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get("/users/me").mock(return_value=Response(403))
+
+    result = runner.invoke(app, ["whoami"])
+
+    assert result.exit_code == 1
+    assert "You don't have permissions for this resource" in result.output
+
+
+@pytest.mark.respx
 def test_shows_email(logged_in_cli: None, respx_mock: respx.MockRouter) -> None:
     respx_mock.get("/users/me").mock(
         return_value=Response(200, json={"email": "email@fastapi.com"})

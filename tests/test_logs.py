@@ -170,6 +170,21 @@ def test_handles_401_unauthorized(
 
 
 @pytest.mark.respx
+def test_handles_403_forbidden(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(403)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow"])
+
+    assert result.exit_code == 1
+    assert "You don't have permissions for this resource" in result.output
+
+
+@pytest.mark.respx
 def test_handles_404(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:

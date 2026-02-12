@@ -278,7 +278,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     with toolkit.progress("Fetching teams...") as progress:
         with handle_http_errors(
-            progress, message="Error fetching teams. Please try again later."
+            progress, default_message="Error fetching teams. Please try again later."
         ):
             teams = _get_teams()
 
@@ -303,7 +303,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
-                progress, message="Error fetching apps. Please try again later."
+                progress, default_message="Error fetching apps. Please try again later."
             ):
                 apps = _get_apps(team.id)
 
@@ -586,10 +586,16 @@ def deploy(
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
             toolkit.print_line()
 
-            toolkit.print(
-                "You need to be logged in to deploy to FastAPI Cloud.",
-                tag="info",
-            )
+            if identity.token and identity.is_expired():
+                toolkit.print(
+                    "Your session has expired. Please log in again.",
+                    tag="info",
+                )
+            else:
+                toolkit.print(
+                    "You need to be logged in to deploy to FastAPI Cloud.",
+                    tag="info",
+                )
             toolkit.print_line()
 
             choice = toolkit.ask(
@@ -600,8 +606,6 @@ def deploy(
                     Option({"name": "Join the waiting list", "value": "waitlist"}),
                 ],
             )
-
-            toolkit.print_line()
 
             if choice == "login":
                 login()
