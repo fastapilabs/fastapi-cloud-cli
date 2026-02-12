@@ -17,6 +17,10 @@ from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import APIClient, StreamLogError, TooManyRetriesError
@@ -39,9 +43,32 @@ def _cancel_upload(deployment_id: str) -> None:
     except Exception as e:
         logger.debug("Failed to notify server about upload cancellation: %s", e)
 
+def _project_name_from_pyproject(path: Path) -> str:
+    if not path.exists():
+        return ""
+    
+    try:
+        with path.open("rb") as f:
+            data = tomllib.load(f)
+
+        project_name = data.get("project", {}).get("name")
+        if project_name:
+            return project_name
+
+        poetry_name = data.get("tool", {}).get("poetry", {}).get("name")
+        if poetry_name:
+            return poetry_name
+
+    except Exception:
+        return ""
+
+    return ""
 
 def _get_app_name(path: Path) -> str:
-    # TODO: use pyproject.toml to get the app name
+    pyproject_path = path / "pyproject.toml"
+    name = _project_name_from_pyproject(pyproject_path)
+    if name:
+        return name
     return path.name
 
 
