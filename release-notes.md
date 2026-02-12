@@ -4,6 +4,7 @@
 
 ### Refactors
 
+* ♻️ Improve how we handle invalid tokens. PR [#153](https://github.com/fastapilabs/fastapi-cloud-cli/pull/153) by [@patrick91](https://github.com/patrick91).
 * ✅ Isolate tests from config. PR [#152](https://github.com/fastapilabs/fastapi-cloud-cli/pull/152) by [@patrick91](https://github.com/patrick91).
 
 ### Internal
