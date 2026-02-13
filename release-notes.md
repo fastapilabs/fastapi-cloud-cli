@@ -13,6 +13,7 @@
 
 ### Internal
 
+* 👷 Run tests with lower bound uv sync, update minimum dependencies. PR [#154](https://github.com/fastapilabs/fastapi-cloud-cli/pull/154) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 👷 Run mypy by pre-commit instead of `lint.yml` workflow. PR [#151](https://github.com/fastapilabs/fastapi-cloud-cli/pull/151) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.11.0
