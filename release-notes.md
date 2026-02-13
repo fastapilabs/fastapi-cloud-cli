@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.12.0
+
 ### Features
 
 * ✨ Allow to specify application directory. PR [#155](https://github.com/fastapilabs/fastapi-cloud-cli/pull/155) by [@patrick91](https://github.com/patrick91).
