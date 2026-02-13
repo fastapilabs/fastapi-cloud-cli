@@ -56,12 +56,13 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
         theme={
             "tag.title": "white on #009485",
             "tag": "white on #007166",
-            "placeholder": "grey85",
+            "placeholder": "grey62",
             "text": "white",
             "selected": "#007166",
             "result": "grey85",
             "progress": "on #007166",
             "error": "red",
+            "cancelled": "indian_red italic",
         },
     )
 

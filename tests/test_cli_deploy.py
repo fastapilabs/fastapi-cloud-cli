@@ -2,7 +2,7 @@ import random
 import string
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 from unittest.mock import patch
 
 import httpx
@@ -32,15 +32,32 @@ def _get_random_team() -> dict[str, str]:
     return {"name": name, "slug": slug, "id": id}
 
 
+class RandomApp(TypedDict):
+    name: str
+    slug: str
+    id: str
+    team_id: str
+    directory: Optional[str]
+
+
 def _get_random_app(
-    *, slug: Optional[str] = None, team_id: Optional[str] = None
-) -> dict[str, str]:
+    *,
+    slug: Optional[str] = None,
+    team_id: Optional[str] = None,
+    directory: Optional[str] = None,
+) -> RandomApp:
     name = "".join(random.choices(string.ascii_lowercase, k=10))
     slug = slug or "".join(random.choices(string.ascii_lowercase, k=10))
     id = "".join(random.choices(string.digits, k=10))
     team_id = team_id or "".join(random.choices(string.digits, k=10))
 
-    return {"name": name, "slug": slug, "id": id, "team_id": team_id}
+    return {
+        "name": name,
+        "slug": slug,
+        "id": id,
+        "team_id": team_id,
+        "directory": directory,
+    }
 
 
 def _get_random_deployment(
@@ -336,7 +353,7 @@ def test_asks_for_app_name_after_team(
 def test_creates_app_on_backend(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
-    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER, Keys.ENTER]
+    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER, Keys.ENTER, Keys.ENTER]
 
     team = _get_random_team()
 
@@ -347,9 +364,9 @@ def test_creates_app_on_backend(
         )
     )
 
-    respx_mock.post("/apps/", json={"name": "demo", "team_id": team["id"]}).mock(
-        return_value=Response(201, json=_get_random_app(team_id=team["id"]))
-    )
+    respx_mock.post(
+        "/apps/", json={"name": "demo", "team_id": team["id"], "directory": None}
+    ).mock(return_value=Response(201, json=_get_random_app(team_id=team["id"])))
 
     with (
         changing_dir(tmp_path),
@@ -365,6 +382,92 @@ def test_creates_app_on_backend(
 
 
 @pytest.mark.respx
+def test_creates_app_with_directory(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,
+        Keys.ENTER,
+        *"demo",
+        Keys.ENTER,
+        *"src",
+        Keys.ENTER,
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team]},
+        )
+    )
+
+    respx_mock.post(
+        "/apps/", json={"name": "demo", "team_id": team["id"], "directory": "src"}
+    ).mock(return_value=Response(201, json=_get_random_app(team_id=team["id"])))
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "App created successfully" in result.output
+        assert "Directory: src" in result.output
+
+
+@pytest.mark.respx
+@pytest.mark.parametrize(
+    "directory,expected_error",
+    [
+        ("~/src", "cannot start with '~'"),
+        ("/absolute/path", "must be a relative path, not absolute"),
+        ("src/../etc", "cannot contain '..' path segments"),
+        ("src/@app", "contains invalid characters"),
+    ],
+)
+def test_shows_validation_error_for_invalid_directory(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    directory: str,
+    expected_error: str,
+) -> None:
+    steps = [
+        Keys.ENTER,  # Select team
+        Keys.ENTER,  # Confirm new app
+        *"demo",
+        Keys.ENTER,  # App name
+        *directory,
+        Keys.ENTER,  # Submit invalid directory -> validation error shown
+        Keys.CTRL_C,  # Cancel
+    ]
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [_get_random_team()]},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert expected_error in result.output
+
+
+@pytest.mark.respx
 def test_cancels_deployment_when_user_selects_no(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -372,6 +475,7 @@ def test_cancels_deployment_when_user_selects_no(
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
         Keys.DOWN_ARROW,
         Keys.ENTER,
@@ -429,6 +533,219 @@ def test_uses_existing_app(
 
 
 @pytest.mark.respx
+def test_uses_existing_app_with_directory(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+        Keys.ENTER,  # Select app from list
+        Keys.ENTER,  # Accept pre-filled directory
+        Keys.DOWN_ARROW,  # Cancel deployment
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    app_data = _get_random_app(team_id=team["id"], directory="backend")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_data]})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert "Directory: backend" in result.output
+
+
+@pytest.mark.respx
+def test_uses_existing_app_and_changes_directory(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+        Keys.ENTER,  # Select app from list
+        *([Keys.BACKSPACE] * len("backend")),  # Clear pre-filled directory
+        *"src",
+        Keys.ENTER,  # Submit new directory
+        Keys.DOWN_ARROW,  # Cancel deployment
+        Keys.ENTER,
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    app_data = _get_random_app(team_id=team["id"], directory="backend")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_data]})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert "Directory: src" in result.output
+
+
+@pytest.mark.respx
+def test_updates_app_directory_via_api_when_changed(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+        Keys.ENTER,  # Select app from list
+        *([Keys.BACKSPACE] * len("backend")),  # Clear pre-filled directory
+        *"src",
+        Keys.ENTER,  # Submit new directory
+        Keys.ENTER,  # Confirm deployment
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    app_data = _get_random_app(team_id=team["id"], directory="backend")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_data]})
+    )
+
+    updated_app_data = {**app_data, "directory": "src"}
+
+    patch_route = respx_mock.patch(
+        f"/apps/{app_data['id']}", json={"directory": "src"}
+    ).mock(return_value=Response(200, json=updated_app_data))
+
+    respx_mock.get(f"/apps/{app_data['id']}").mock(
+        return_value=Response(200, json=updated_app_data)
+    )
+
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    respx_mock.post(f"/apps/{app_data['id']}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert patch_route.called
+        assert "App directory updated" in result.output
+
+
+@pytest.mark.respx
+def test_does_not_update_app_directory_when_unchanged(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [
+        Keys.ENTER,  # Select team
+        Keys.RIGHT_ARROW,  # Choose existing app (No)
+        Keys.ENTER,
+        Keys.ENTER,  # Select app from list
+        Keys.ENTER,  # Accept pre-filled directory (unchanged)
+        Keys.ENTER,  # Confirm deployment
+    ]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+
+    app_data = _get_random_app(team_id=team["id"], directory="backend")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_data]})
+    )
+
+    respx_mock.get(f"/apps/{app_data['id']}").mock(
+        return_value=Response(200, json=app_data)
+    )
+
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    respx_mock.post(f"/apps/{app_data['id']}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert "App directory updated" not in result.output
+
+
+@pytest.mark.respx
 def test_exits_successfully_when_deployment_is_done(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -436,6 +753,7 @@ def test_exits_successfully_when_deployment_is_done(
         Keys.ENTER,
         Keys.ENTER,
         *"demo",
+        Keys.ENTER,
         Keys.ENTER,
         Keys.ENTER,
     ]
@@ -447,9 +765,9 @@ def test_exits_successfully_when_deployment_is_done(
         return_value=Response(200, json={"data": [team_data]})
     )
 
-    respx_mock.post("/apps/", json={"name": "demo", "team_id": team_data["id"]}).mock(
-        return_value=Response(201, json=app_data)
-    )
+    respx_mock.post(
+        "/apps/", json={"name": "demo", "team_id": team_data["id"], "directory": None}
+    ).mock(return_value=Response(201, json=app_data))
 
     respx_mock.get(f"/apps/{app_data['id']}").mock(
         return_value=Response(200, json=app_data)
@@ -689,6 +1007,7 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         *"demo",
         Keys.ENTER,
         Keys.ENTER,
+        Keys.ENTER,
     ]
 
     team_data = _get_random_team()
@@ -702,9 +1021,9 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
         )
     )
 
-    respx_mock.post("/apps/", json={"name": "demo", "team_id": team_data["id"]}).mock(
-        return_value=Response(201, json=app_data)
-    )
+    respx_mock.post(
+        "/apps/", json={"name": "demo", "team_id": team_data["id"], "directory": None}
+    ).mock(return_value=Response(201, json=app_data))
 
     respx_mock.get(f"/apps/{app_data['id']}").mock(
         return_value=Response(200, json=app_data)
