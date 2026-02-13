@@ -1,8 +1,13 @@
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
-from fastapi_cloud_cli.commands.deploy import DeploymentStatus, _should_exclude_entry
+from fastapi_cloud_cli.commands.deploy import (
+    DeploymentStatus,
+    _should_exclude_entry,
+    validate_app_directory,
+)
 
 
 @pytest.mark.parametrize(
@@ -75,3 +80,60 @@ def test_deployment_status_to_human_readable(
 ) -> None:
     """Should convert deployment status to human readable format."""
     assert DeploymentStatus.to_human_readable(status) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        ("src", "src"),
+        ("src/app", "src/app"),
+        ("  src/app  ", "src/app"),
+        ("my-app", "my-app"),
+        ("my_app", "my_app"),
+        ("my.app", "my.app"),
+        ("src/my app", "src/my app"),
+        ("a/b/c", "a/b/c"),
+    ],
+)
+def test_validate_app_directory_valid(
+    value: Optional[str], expected: Optional[str]
+) -> None:
+    """Should accept valid directory values and normalize them."""
+    assert validate_app_directory(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected_message",
+    [
+        ("~/src", "cannot start with '~'"),
+        ("/absolute/path", "must be a relative path, not absolute"),
+        ("src/../etc", "cannot contain '..' path segments"),
+        ("..", "cannot contain '..' path segments"),
+        ("src/../../etc", "cannot contain '..' path segments"),
+        (
+            "src/@app",
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)",
+        ),
+        (
+            "src/$app",
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)",
+        ),
+        (
+            "src/app!",
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)",
+        ),
+        (
+            "src/app#1",
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)",
+        ),
+    ],
+)
+def test_validate_app_directory_invalid(value: str, expected_message: str) -> None:
+    """Should reject invalid directory values with descriptive errors."""
+    with pytest.raises(ValueError) as exc_info:
+        validate_app_directory(value)
+
+    assert str(exc_info.value) == expected_message

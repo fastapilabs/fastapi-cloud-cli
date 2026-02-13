@@ -1,11 +1,12 @@
 import contextlib
 import logging
+import re
 import subprocess
 import tempfile
 import time
 from enum import Enum
 from itertools import cycle
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from textwrap import dedent
 from typing import Annotated, Any, Optional, Union
 
@@ -13,7 +14,7 @@ import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
+from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
@@ -25,6 +26,39 @@ from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
+
+
+def validate_app_directory(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+
+    v = v.strip()
+
+    if not v:
+        return None
+
+    if v.startswith("~"):
+        raise ValueError("cannot start with '~'")
+
+    path = PurePosixPath(v)
+
+    if path.is_absolute():
+        raise ValueError("must be a relative path, not absolute")
+
+    if ".." in path.parts:
+        raise ValueError("cannot contain '..' path segments")
+
+    normalized = path.as_posix()
+
+    if not re.fullmatch(r"[A-Za-z0-9._/ -]+", normalized):
+        raise ValueError(
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)"
+        )
+
+    return normalized
+
+
+AppDirectory = Annotated[Optional[str], AfterValidator(validate_app_directory)]
 
 
 def _cancel_upload(deployment_id: str) -> None:
@@ -113,13 +147,26 @@ def _get_teams() -> list[Team]:
 class AppResponse(BaseModel):
     id: str
     slug: str
+    directory: Optional[str]
 
 
-def _create_app(team_id: str, app_name: str) -> AppResponse:
+def _update_app(app_id: str, directory: Optional[str]) -> AppResponse:
+    with APIClient() as client:
+        response = client.patch(
+            f"/apps/{app_id}",
+            json={"directory": directory},
+        )
+
+        response.raise_for_status()
+
+        return AppResponse.model_validate(response.json())
+
+
+def _create_app(team_id: str, app_name: str, directory: Optional[str]) -> AppResponse:
     with APIClient() as client:
         response = client.post(
             "/apps/",
-            json={"name": app_name, "team_id": team_id},
+            json={"name": app_name, "team_id": team_id, "directory": directory},
         )
 
         response.raise_for_status()
@@ -332,10 +379,26 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
+    initial_directory = selected_app.directory if selected_app else ""
+
+    directory_input = toolkit.input(
+        title="Path to the directory containing your app (e.g. src, backend):",
+        tag="dir",
+        value=initial_directory or "",
+        placeholder="[italic]Leave empty if it's the current directory[/italic]",
+        validator=TypeAdapter(AppDirectory),
+    )
+
+    directory: Optional[str] = directory_input if directory_input else None
+
+    toolkit.print_line()
+
     toolkit.print("Deployment configuration:", tag="summary")
     toolkit.print_line()
     toolkit.print(f"Team: [bold]{team.name}[/bold]")
     toolkit.print(f"App name: [bold]{app_name}[/bold]")
+    toolkit.print(f"Directory: [bold]{directory or '.'}[/bold]")
+
     toolkit.print_line()
 
     choice = toolkit.ask(
@@ -352,12 +415,21 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         toolkit.print("Deployment cancelled.")
         raise typer.Exit(0)
 
-    if selected_app:  # pragma: no cover
-        app = selected_app
+    if selected_app:
+        if directory != selected_app.directory:
+            with (
+                toolkit.progress(title="Updating app directory...") as progress,
+                handle_http_errors(progress),
+            ):
+                app = _update_app(selected_app.id, directory=directory)
+
+                progress.log(f"App directory updated to '{directory or '.'}'")
+        else:
+            app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
             with handle_http_errors(progress):
-                app = _create_app(team.id, app_name)
+                app = _create_app(team.id, app_name, directory=directory)
 
             progress.log(f"App created successfully! App slug: {app.slug}")
 
