@@ -1,7 +1,7 @@
 import contextlib
 import logging
 from collections.abc import Generator
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
@@ -84,8 +84,8 @@ def handle_unauthorized() -> str:
     return message
 
 
-def handle_http_error(error: HTTPError, default_message: Optional[str] = None) -> str:
-    message: Optional[str] = None
+def handle_http_error(error: HTTPError, default_message: str | None = None) -> str:
+    message: str | None = None
 
     if isinstance(error, HTTPStatusError):
         status_code = error.response.status_code
@@ -112,7 +112,7 @@ def handle_http_error(error: HTTPError, default_message: Optional[str] = None) -
 @contextlib.contextmanager
 def handle_http_errors(
     progress: Progress,
-    default_message: Optional[str] = None,
+    default_message: str | None = None,
 ) -> Generator[None, None, None]:
     try:
         yield

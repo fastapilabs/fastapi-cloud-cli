@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from httpx import HTTPError
@@ -110,7 +110,7 @@ def _process_log_stream(
 
 def logs(
     path: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Argument(
             help="Path to the folder containing the app (defaults to current directory)"
         ),
