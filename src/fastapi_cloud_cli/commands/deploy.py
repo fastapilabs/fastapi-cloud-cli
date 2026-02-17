@@ -8,7 +8,7 @@ from enum import Enum
 from itertools import cycle
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any
 
 import fastar
 import rignore
@@ -28,7 +28,7 @@ from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 logger = logging.getLogger(__name__)
 
 
-def validate_app_directory(v: Optional[str]) -> Optional[str]:
+def validate_app_directory(v: str | None) -> str | None:
     if v is None:
         return None
 
@@ -58,7 +58,7 @@ def validate_app_directory(v: Optional[str]) -> Optional[str]:
     return normalized
 
 
-AppDirectory = Annotated[Optional[str], AfterValidator(validate_app_directory)]
+AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
 
 def _cancel_upload(deployment_id: str) -> None:
@@ -147,10 +147,10 @@ def _get_teams() -> list[Team]:
 class AppResponse(BaseModel):
     id: str
     slug: str
-    directory: Optional[str]
+    directory: str | None
 
 
-def _update_app(app_id: str, directory: Optional[str]) -> AppResponse:
+def _update_app(app_id: str, directory: str | None) -> AppResponse:
     with APIClient() as client:
         response = client.patch(
             f"/apps/{app_id}",
@@ -162,7 +162,7 @@ def _update_app(app_id: str, directory: Optional[str]) -> AppResponse:
         return AppResponse.model_validate(response.json())
 
 
-def _create_app(team_id: str, app_name: str, directory: Optional[str]) -> AppResponse:
+def _create_app(team_id: str, app_name: str, directory: str | None) -> AppResponse:
     with APIClient() as client:
         response = client.post(
             "/apps/",
@@ -273,7 +273,7 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         logger.debug("Upload notification sent successfully")
 
 
-def _get_app(app_slug: str) -> Optional[AppResponse]:
+def _get_app(app_slug: str) -> AppResponse | None:
     with APIClient() as client:
         response = client.get(f"/apps/{app_slug}")
 
@@ -345,7 +345,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
-    selected_app: Optional[AppResponse] = None
+    selected_app: AppResponse | None = None
 
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
@@ -389,7 +389,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         validator=TypeAdapter(AppDirectory),
     )
 
-    directory: Optional[str] = directory_input if directory_input else None
+    directory: str | None = directory_input if directory_input else None
 
     toolkit.print_line()
 
@@ -518,13 +518,13 @@ def _wait_for_deployment(
 
 class SignupToWaitingList(BaseModel):
     email: EmailStr
-    name: Optional[str] = None
-    organization: Optional[str] = None
-    role: Optional[str] = None
-    team_size: Optional[str] = None
-    location: Optional[str] = None
-    use_case: Optional[str] = None
-    secret_code: Optional[str] = None
+    name: str | None = None
+    organization: str | None = None
+    role: str | None = None
+    team_size: str | None = None
+    location: str | None = None
+    use_case: str | None = None
+    secret_code: str | None = None
 
 
 def _send_waitlist_form(
@@ -624,7 +624,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
 def deploy(
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="A path to the folder containing the app you want to deploy"
         ),
@@ -633,7 +633,7 @@ def deploy(
         bool, typer.Option("--no-wait", help="Skip waiting for deployment status")
     ] = False,
     provided_app_id: Annotated[
-        Union[str, None],
+        str | None,
         typer.Option(
             "--app-id",
             help="Application ID to deploy to",

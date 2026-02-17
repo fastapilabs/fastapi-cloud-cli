@@ -1,17 +1,14 @@
 import json
 import logging
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
 from typing import (
     Annotated,
-    Callable,
     Literal,
-    Optional,
     TypeVar,
-    Union,
 )
 
 import httpx
@@ -32,7 +29,7 @@ STREAM_LOGS_TIMEOUT = timedelta(minutes=5)
 class StreamLogError(Exception):
     """Raised when there's an error streaming logs (build or app logs)."""
 
-    def __init__(self, message: str, *, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
@@ -49,16 +46,16 @@ class AppLogEntry(BaseModel):
 
 class BuildLogLineGeneric(BaseModel):
     type: Literal["complete", "failed", "timeout", "heartbeat"]
-    id: Optional[str] = None
+    id: str | None = None
 
 
 class BuildLogLineMessage(BaseModel):
     type: Literal["message"] = "message"
     message: str
-    id: Optional[str] = None
+    id: str | None = None
 
 
-BuildLogLine = Union[BuildLogLineMessage, BuildLogLineGeneric]
+BuildLogLine = BuildLogLineMessage | BuildLogLineGeneric
 BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
     Annotated[BuildLogLine, Field(discriminator="type")]
 )
@@ -197,7 +194,7 @@ class APIClient(httpx.Client):
 
             time.sleep(0.5)
 
-    def _parse_log_line(self, line: str) -> Optional[BuildLogLine]:
+    def _parse_log_line(self, line: str) -> BuildLogLine | None:
         try:
             return BuildLogAdapter.validate_json(line)
         except (ValidationError, json.JSONDecodeError) as e:

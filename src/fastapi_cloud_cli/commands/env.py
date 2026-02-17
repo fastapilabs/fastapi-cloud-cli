@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any
 
 import typer
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class EnvironmentVariable(BaseModel):
     name: str
-    value: Optional[str] = None
+    value: str | None = None
 
 
 class EnvironmentVariableResponse(BaseModel):
@@ -60,7 +60,7 @@ env_app = typer.Typer()
 @env_app.command()
 def list(
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="A path to the folder containing the app you want to deploy"
         ),
@@ -110,12 +110,12 @@ def list(
 
 @env_app.command()
 def delete(
-    name: Union[str, None] = typer.Argument(
+    name: str | None = typer.Argument(
         None,
         help="The name of the environment variable to delete",
     ),
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="A path to the folder containing the app you want to deploy"
         ),
@@ -192,16 +192,16 @@ def delete(
 
 @env_app.command()
 def set(
-    name: Union[str, None] = typer.Argument(
+    name: str | None = typer.Argument(
         None,
         help="The name of the environment variable to set",
     ),
-    value: Union[str, None] = typer.Argument(
+    value: str | None = typer.Argument(
         None,
         help="The value of the environment variable to set",
     ),
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="A path to the folder containing the app you want to deploy"
         ),

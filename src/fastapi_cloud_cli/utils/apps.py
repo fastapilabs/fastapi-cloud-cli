@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -12,7 +11,7 @@ class AppConfig(BaseModel):
     team_id: str
 
 
-def get_app_config(path_to_deploy: Path) -> Optional[AppConfig]:
+def get_app_config(path_to_deploy: Path) -> AppConfig | None:
     config_path = path_to_deploy / ".fastapicloud/cloud.json"
     logger.debug("Looking for app config at: %s", config_path)
 
