@@ -63,7 +63,9 @@ def _find_existing_token(client: object, app_id: str, token_name: str) -> Option
     return None
 
 
-def _create_or_regenerate_token(app_id: str, token_name: str) -> tuple[dict[str, str], bool]:
+def _create_or_regenerate_token(
+    app_id: str, token_name: str
+) -> tuple[dict[str, str], bool]:
     """Create a new deploy token, or regenerate if one already exists.
 
     Returns (token_data, regenerated).
@@ -274,7 +276,9 @@ def setup_ci(
             toolkit.progress(title="Creating deploy token...") as progress,
             handle_http_errors(progress, message="Error creating deploy token."),
         ):
-            token_data, regenerated = _create_or_regenerate_token(app_config.app_id, token_name)
+            token_data, regenerated = _create_or_regenerate_token(
+                app_config.app_id, token_name
+            )
             progress.log("Regenerated deploy token" if regenerated else msg_token)
 
         toolkit.print_line()

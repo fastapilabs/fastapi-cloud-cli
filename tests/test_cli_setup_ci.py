@@ -384,9 +384,7 @@ def test_handles_gh_command_errors_gracefully(
         changing_dir(configured_app.path),
         patch(
             "fastapi_cloud_cli.commands.setup_ci.subprocess.run",
-            side_effect=_mock_subprocess_run(
-                gh_view_error=True, gh_secret_error=True
-            ),
+            side_effect=_mock_subprocess_run(gh_view_error=True, gh_secret_error=True),
         ),
     ):
         result = runner.invoke(app, ["setup-ci"])
