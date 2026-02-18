@@ -3,7 +3,7 @@ import logging
 import re
 import subprocess
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -35,7 +35,7 @@ def _get_origin() -> str:
         raise typer.Exit(1) from None
 
 
-def _repo_slug_from_origin(origin: str) -> Optional[str]:
+def _repo_slug_from_origin(origin: str) -> str | None:
     """Extract 'owner/repo' from a GitHub remote URL."""
     match = re.search(r"github\.com[:/](.+?)(?:\.git)?$", origin)
     return match.group(1) if match else None
@@ -53,13 +53,13 @@ def _token_name(repo_slug: str) -> str:
     return f"{TOKEN_NAME_PREFIX} — {repo_slug}"
 
 
-def _find_existing_token(client: object, app_id: str, token_name: str) -> Optional[str]:
+def _find_existing_token(client: APIClient, app_id: str, token_name: str) -> str | None:
     """Return the token ID if a token with the given name already exists."""
     response = client.get(f"/apps/{app_id}/tokens")
     response.raise_for_status()
     for token in response.json()["data"]:
         if token["name"] == token_name:
-            return token["id"]
+            return str(token["id"])
     return None
 
 
@@ -104,7 +104,7 @@ def _get_default_branch() -> str:
         )
 
         repo_info = json.loads(result.stdout)
-        return repo_info["defaultBranchRef"]["name"]
+        return str(repo_info["defaultBranchRef"]["name"])
     except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError):
         return "main"
 
@@ -145,7 +145,7 @@ jobs:
 
 def setup_ci(
     path: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Argument(
             help="Path to the folder containing the app (defaults to current directory)"
         ),
@@ -171,7 +171,7 @@ def setup_ci(
         help="Prints steps that would be taken without actually performing them",
         show_default=True,
     ),
-    file: Optional[str] = typer.Option(
+    file: str | None = typer.Option(
         None,
         "--file",
         "-f",
@@ -274,7 +274,9 @@ def setup_ci(
         toolkit.print("Creating deploy token...", tag="cloud")
         with (
             toolkit.progress(title="Creating deploy token...") as progress,
-            handle_http_errors(progress, message="Error creating deploy token."),
+            handle_http_errors(
+                progress, default_message="Error creating deploy token."
+            ),
         ):
             token_data, regenerated = _create_or_regenerate_token(
                 app_config.app_id, token_name
@@ -332,7 +334,7 @@ def setup_ci(
                     else:
                         toolkit.print("Skipped writing workflow file.")
                         toolkit.print_line()
-                        workflow_path = None
+                        workflow_path = None  # type: ignore[assignment]
                 toolkit.print_line()
             else:
                 toolkit.print("Writing workflow file...", tag="workflow")

@@ -1,6 +1,7 @@
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -9,12 +10,10 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 GITHUB_ORIGIN = "git@github.com:owner/repo.git"
 GITLAB_ORIGIN = "git@gitlab.com:owner/repo.git"
@@ -27,10 +26,10 @@ def _mock_subprocess_run(
     default_branch: str = "main",
     gh_view_error: bool = False,
     gh_secret_error: bool = False,
-):
+) -> Any:
     """Create a side_effect for setup_ci.subprocess.run."""
 
-    def side_effect(cmd, **kwargs):
+    def side_effect(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         if cmd[:3] == ["git", "config", "--get"]:
             return subprocess.CompletedProcess(cmd, 0, stdout=f"{origin}\n", stderr="")
         if cmd[:2] == ["gh", "--version"]:
@@ -120,7 +119,7 @@ def test_shows_error_when_origin_is_not_github(
     assert "Remote origin is not a GitHub repository" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_detects_github_origin_and_completes_successfully(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -154,7 +153,7 @@ def test_detects_github_origin_and_completes_successfully(
     assert "Done" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_detects_non_main_default_branch(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -242,7 +241,7 @@ def test_dry_run_secrets_only_skips_workflow(
     assert "deploy.yml" not in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_creates_token_sets_secrets_and_writes_workflow(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -293,7 +292,7 @@ def test_creates_token_sets_secrets_and_writes_workflow(
     )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_regenerates_existing_token(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -343,7 +342,7 @@ def test_regenerates_existing_token(
     assert "Regenerated deploy token" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_manual_instructions_when_gh_not_installed(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -372,7 +371,7 @@ def test_shows_manual_instructions_when_gh_not_installed(
     assert "Done" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_gh_command_errors_gracefully(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -393,7 +392,7 @@ def test_handles_gh_command_errors_gracefully(
     assert "Done" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_file_flag_uses_custom_filename(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -424,7 +423,7 @@ def test_file_flag_uses_custom_filename(
     assert (configured_app.path / ".github" / "workflows" / "ci.yml").exists()
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_overwrites_existing_workflow_when_confirmed(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -461,7 +460,7 @@ def test_overwrites_existing_workflow_when_confirmed(
     assert "Deploy to FastAPI Cloud" in (workflow_dir / "deploy.yml").read_text()
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_skips_writing_workflow_when_declined(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
@@ -502,7 +501,7 @@ def test_skips_writing_workflow_when_declined(
     assert (workflow_dir / "deploy.yml").read_text() == "old content"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_renames_workflow_when_declined_and_new_name_given(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
