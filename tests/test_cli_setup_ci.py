@@ -1,5 +1,4 @@
 import subprocess
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -39,11 +38,8 @@ def test_shows_login_message_when_not_logged_in(logged_out_cli: None) -> None:
     assert "No credentials found" in result.output
 
 
-def test_shows_error_when_app_not_configured(
-    logged_in_cli: None, tmp_path: Path
-) -> None:
-    with changing_dir(tmp_path):
-        result = runner.invoke(app, ["setup-ci"])
+def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
+    result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 1
     assert "No app linked to this directory" in result.output
@@ -360,11 +356,9 @@ def test_creates_token_sets_secrets_and_writes_workflow(
     assert "Done" in result.output
     assert "2027-02-18" in result.output
 
-    # Verify secrets were set
     mock_secret.assert_any_call("FASTAPI_CLOUD_TOKEN", "test-token-value")
     mock_secret.assert_any_call("FASTAPI_CLOUD_APP_ID", app_id)
 
-    # Verify workflow file was written with correct content
     workflow_file = configured_app.path / ".github" / "workflows" / "deploy.yml"
     assert workflow_file.exists()
     content = workflow_file.read_text()
