@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 import subprocess
@@ -14,34 +13,19 @@ from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
 
-TOKEN_NAME_PREFIX = "GitHub Actions"
 TOKEN_EXPIRES_DAYS = 365
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/deploy.yml")
 
 
-def _get_origin() -> str:
-    try:
-        result = subprocess.run(
-            ["git", "config", "--get", "remote.origin.url"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        logger.error(
-            "Error retrieving git remote origin URL. Make sure you're in a git repository with a remote origin set."
-        )
-        raise typer.Exit(1) from None
-
-
 def _repo_slug_from_origin(origin: str) -> str | None:
     """Extract 'owner/repo' from a GitHub remote URL."""
+    # Handles URLs like: git@github.com:owner/repo.git or https://github.com/owner/repo.git
     match = re.search(r"github\.com[:/](.+?)(?:\.git)?$", origin)
     return match.group(1) if match else None
 
 
 def _check_gh_cli_installed() -> bool:
+    """Check if the GitHub CLI (gh) is installed and available."""
     try:
         subprocess.run(["gh", "--version"], capture_output=True, text=True, check=True)
         return True
@@ -49,18 +33,24 @@ def _check_gh_cli_installed() -> bool:
         return False
 
 
-def _token_name(repo_slug: str) -> str:
-    return f"{TOKEN_NAME_PREFIX} — {repo_slug}"
+def _get_remote_origin() -> str:
+    """Get the remote origin URL of the Git repository."""
+    result = subprocess.run(
+        ["git", "config", "--get", "remote.origin.url"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
 
 
-def _find_existing_token(client: APIClient, app_id: str, token_name: str) -> str | None:
-    """Return the token ID if a token with the given name already exists."""
-    response = client.get(f"/apps/{app_id}/tokens")
-    response.raise_for_status()
-    for token in response.json()["data"]:
-        if token["name"] == token_name:
-            return str(token["id"])
-    return None
+def _set_github_secret(name: str, value: str) -> None:
+    """Set a GitHub Actions secret via the gh CLI."""
+    subprocess.run(
+        ["gh", "secret", "set", name, "--body", value],
+        capture_output=True,
+        check=True,
+    )
 
 
 def _create_or_regenerate_token(
@@ -71,7 +61,14 @@ def _create_or_regenerate_token(
     Returns (token_data, regenerated).
     """
     with APIClient() as client:
-        existing_id = _find_existing_token(client, app_id, token_name)
+        existing_id = None
+
+        response = client.get(f"/apps/{app_id}/tokens")
+        response.raise_for_status()
+        for token in response.json()["data"]:
+            if token["name"] == token_name:
+                existing_id = token["id"]
+                break
 
         if existing_id:
             response = client.post(
@@ -93,36 +90,20 @@ def _create_or_regenerate_token(
 
 
 def _get_default_branch() -> str:
-    if not _check_gh_cli_installed():
-        return "main"
+    """Get the default branch of the Git repository."""
     try:
         result = subprocess.run(
-            ["gh", "repo", "view", "--json", "defaultBranchRef"],
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
             capture_output=True,
             text=True,
             check=True,
         )
-
-        repo_info = json.loads(result.stdout)
-        return str(repo_info["defaultBranchRef"]["name"])
-    except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError):
+        return result.stdout.strip().split("/")[-1]
+    except subprocess.CalledProcessError:
         return "main"
 
 
-def _set_github_secret(secret_name: str, secret_value: str) -> None:
-    try:
-        subprocess.run(
-            ["gh", "secret", "set", secret_name, "--body", secret_value],
-            capture_output=True,
-            check=True,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        logger.error(f"Error setting GitHub secret: {e}")
-
-
-def _write_workflow_file(
-    branch: str, workflow_path: Path = DEFAULT_WORKFLOW_PATH
-) -> str:
+def _write_workflow_file(branch: str, workflow_path: Path) -> None:
     workflow_content = f"""name: Deploy to FastAPI Cloud
 on:
   push:
@@ -140,7 +121,6 @@ jobs:
 """
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(workflow_content)
-    return str(workflow_path)
 
 
 def setup_ci(
@@ -150,12 +130,11 @@ def setup_ci(
             help="Path to the folder containing the app (defaults to current directory)"
         ),
     ] = None,
-    branch: str = typer.Option(
-        "main",
+    branch: str | None = typer.Option(
+        None,
         "--branch",
         "-b",
-        help="Branch that triggers deploys",
-        show_default=True,
+        help="Branch that triggers deploys (defaults to the repo's default branch)",
     ),
     secrets_only: bool = typer.Option(
         False,
@@ -208,7 +187,15 @@ def setup_ci(
             )
             raise typer.Exit(1)
 
-        origin = _get_origin()
+        try:
+            origin = _get_remote_origin()
+        except subprocess.CalledProcessError:
+            toolkit.print(
+                "Error retrieving git remote origin URL. Make sure you're in a git repository with a remote origin set.",
+                tag="error",
+            )
+            raise typer.Exit(1) from None
+
         if "github.com" not in origin:
             toolkit.print(
                 "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
@@ -217,12 +204,11 @@ def setup_ci(
             raise typer.Exit(1)
 
         repo_slug = _repo_slug_from_origin(origin) or origin
+        has_gh = _check_gh_cli_installed()
 
-        default_branch = _get_default_branch()
-        if branch == "main" and default_branch != "main":
-            branch = default_branch
+        if not branch:
+            branch = _get_default_branch()
 
-        # -- header --
         if dry_run:
             toolkit.print(
                 "[yellow]This is a dry run — no changes will be made[/yellow]"
@@ -252,8 +238,7 @@ def setup_ci(
                 toolkit.print(msg_workflow)
             return
 
-        # -- create deploy token --
-        token_name = _token_name(repo_slug)
+        token_name = f"GitHub Actions — {repo_slug}"
         toolkit.print("Generating deploy token...")
         toolkit.print_line()
         with (
@@ -269,14 +254,16 @@ def setup_ci(
 
         toolkit.print_line()
 
-        # -- set github secrets --
-        has_gh = _check_gh_cli_installed()
         if has_gh:
             toolkit.print(f"Setting repo secrets on [bold]{repo_slug}[/bold]")
             toolkit.print_line()
             with toolkit.progress(title="Setting repo secrets...") as progress:
-                _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
-                _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
+                try:
+                    _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
+                    _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    progress.set_error("Failed to set GitHub secrets via gh CLI.")
+                    raise typer.Exit(1) from None
                 progress.log(msg_secrets)
         else:
             secrets_url = f"https://github.com/{repo_slug}/settings/secrets/actions"
@@ -292,13 +279,13 @@ def setup_ci(
 
         toolkit.print_line()
 
-        # -- write workflow file --
         if not secrets_only:
             if file:
                 workflow_path = Path(f".github/workflows/{file}")
             else:
                 workflow_path = DEFAULT_WORKFLOW_PATH
 
+            write_workflow = True
             if not file and workflow_path.exists():
                 overwrite = toolkit.confirm(
                     f"Workflow file [bold]{workflow_path}[/bold] already exists. Overwrite?",
@@ -306,19 +293,18 @@ def setup_ci(
                     default=False,
                 )
                 if not overwrite:
-                    new_name = typer.prompt(
-                        "Enter a new filename (or press Enter to skip)",
-                        default="",
-                        show_default=False,
-                    )
+                    new_name = toolkit.input(
+                        "Enter a new filename (without path) or leave blank to skip writing the workflow file:",
+                        tag="workflow",
+                    ).strip()
                     if new_name:
                         workflow_path = Path(f".github/workflows/{new_name}")
                     else:
                         toolkit.print("Skipped writing workflow file.")
                         toolkit.print_line()
-                        workflow_path = None  # type: ignore[assignment]
+                        write_workflow = False
                 toolkit.print_line()
-            if workflow_path is not None:
+            if write_workflow:
                 msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
                 with toolkit.progress(title="Writing workflow file...") as progress:
                     _write_workflow_file(branch, workflow_path)
