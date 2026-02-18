@@ -1,5 +1,6 @@
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -26,7 +27,7 @@ def _mock_subprocess_run(
     default_branch: str = "main",
     gh_view_error: bool = False,
     gh_secret_error: bool = False,
-) -> Any:
+) -> Callable[..., subprocess.CompletedProcess[str]]:
     """Create a side_effect for setup_ci.subprocess.run."""
 
     def side_effect(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
