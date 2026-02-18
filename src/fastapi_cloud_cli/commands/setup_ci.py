@@ -230,28 +230,15 @@ def setup_ci(
             toolkit.print_line()
 
         toolkit.print_title("Configuring CI", tag="FastAPI")
-
         toolkit.print_line()
 
-        toolkit.print(
-            f'Detected repo: [bold]{repo_slug}[/bold] (from git remote "origin")',
-            tag="repo",
-        )
-        toolkit.print_line()
-        toolkit.print(
-            f"Deploy branch: [bold]{branch}[/bold]",
-            tag="info",
-        )
-        toolkit.print_line()
-        toolkit.print(
-            f"Detected app: [bold]{app_config.app_id}[/bold]",
-            tag="app",
-        )
+        toolkit.print(f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})")
         toolkit.print_line()
 
         msg_token = "Created deploy token"
-        msg_secret_token = f"Set [bold]FASTAPI_CLOUD_TOKEN[/bold] on {repo_slug}"
-        msg_secret_app = f"Set [bold]FASTAPI_CLOUD_APP_ID[/bold] on {repo_slug}"
+        msg_secrets = (
+            "Set [bold]FASTAPI_CLOUD_TOKEN[/bold] and [bold]FASTAPI_CLOUD_APP_ID[/bold]"
+        )
         workflow_file = file or DEFAULT_WORKFLOW_PATH.name
         msg_workflow = (
             f"Wrote [bold].github/workflows/{workflow_file}[/bold] (branch: {branch})"
@@ -259,21 +246,18 @@ def setup_ci(
         msg_done = "Done — commit and push to start deploying."
 
         if dry_run:
-            toolkit.print(msg_token, tag="cloud")
-            toolkit.print_line()
-            toolkit.print(msg_secret_token, tag="secret")
-            toolkit.print_line()
-            toolkit.print(msg_secret_app, tag="secret")
+            toolkit.print(msg_token)
+            toolkit.print(msg_secrets)
             if not secrets_only:
-                toolkit.print_line()
-                toolkit.print(msg_workflow, tag="workflow")
+                toolkit.print(msg_workflow)
             return
 
         # -- create deploy token --
         token_name = _token_name(repo_slug)
-        toolkit.print("Creating deploy token...", tag="cloud")
+        toolkit.print("Generating deploy token...")
+        toolkit.print_line()
         with (
-            toolkit.progress(title="Creating deploy token...") as progress,
+            toolkit.progress(title="Generating deploy token...") as progress,
             handle_http_errors(
                 progress, default_message="Error creating deploy token."
             ),
@@ -288,14 +272,12 @@ def setup_ci(
         # -- set github secrets --
         has_gh = _check_gh_cli_installed()
         if has_gh:
-            toolkit.print("Setting GitHub secrets...", tag="secret")
-            with toolkit.progress(title="Setting FASTAPI_CLOUD_TOKEN...") as progress:
+            toolkit.print(f"Setting repo secrets on [bold]{repo_slug}[/bold]")
+            toolkit.print_line()
+            with toolkit.progress(title="Setting repo secrets...") as progress:
                 _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
-                progress.log(msg_secret_token)
-
-            with toolkit.progress(title="Setting FASTAPI_CLOUD_APP_ID...") as progress:
                 _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
-                progress.log(msg_secret_app)
+                progress.log(msg_secrets)
         else:
             secrets_url = f"https://github.com/{repo_slug}/settings/secrets/actions"
             toolkit.print(
@@ -336,9 +318,6 @@ def setup_ci(
                         toolkit.print_line()
                         workflow_path = None  # type: ignore[assignment]
                 toolkit.print_line()
-            else:
-                toolkit.print("Writing workflow file...", tag="workflow")
-
             if workflow_path is not None:
                 msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
                 with toolkit.progress(title="Writing workflow file...") as progress:
@@ -347,10 +326,9 @@ def setup_ci(
 
                 toolkit.print_line()
 
-        toolkit.print(msg_done, tag="cloud")
+        toolkit.print(msg_done)
         toolkit.print_line()
         toolkit.print(
             f"Your deploy token expires on [bold]{token_data['expired_at'][:10]}[/bold]. "
             "Regenerate it from the dashboard or re-run this command before then.",
-            tag="info",
         )
