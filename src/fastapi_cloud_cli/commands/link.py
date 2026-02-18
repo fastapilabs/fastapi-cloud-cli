@@ -49,7 +49,8 @@ def link() -> Any:
 
         with toolkit.progress("Fetching teams...") as progress:
             with handle_http_errors(
-                progress, message="Error fetching teams. Please try again later."
+                progress,
+                default_message="Error fetching teams. Please try again later.",
             ):
                 with APIClient() as client:
                     response = client.get("/teams/")
@@ -77,7 +78,7 @@ def link() -> Any:
 
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
-                progress, message="Error fetching apps. Please try again later."
+                progress, default_message="Error fetching apps. Please try again later."
             ):
                 with APIClient() as client:
                     response = client.get("/apps/", params={"team_id": team["id"]})

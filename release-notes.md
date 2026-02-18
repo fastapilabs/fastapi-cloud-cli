@@ -2,8 +2,26 @@
 
 ## Latest Changes
 
+## 0.13.0
+
+### Breaking Changes
+
+* ➖ Drop support for Python 3.9. PR [#156](https://github.com/fastapilabs/fastapi-cloud-cli/pull/156) by [@tiangolo](https://github.com/tiangolo).
+
+## 0.12.0
+
+### Features
+
+* ✨ Allow to specify application directory. PR [#155](https://github.com/fastapilabs/fastapi-cloud-cli/pull/155) by [@patrick91](https://github.com/patrick91).
+
+### Refactors
+
+* ♻️ Improve how we handle invalid tokens. PR [#153](https://github.com/fastapilabs/fastapi-cloud-cli/pull/153) by [@patrick91](https://github.com/patrick91).
+* ✅ Isolate tests from config. PR [#152](https://github.com/fastapilabs/fastapi-cloud-cli/pull/152) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
+* 👷 Run tests with lower bound uv sync, update minimum dependencies. PR [#154](https://github.com/fastapilabs/fastapi-cloud-cli/pull/154) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 👷 Run mypy by pre-commit instead of `lint.yml` workflow. PR [#151](https://github.com/fastapilabs/fastapi-cloud-cli/pull/151) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.11.0

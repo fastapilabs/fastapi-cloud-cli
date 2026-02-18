@@ -1,19 +1,20 @@
 import contextlib
 import logging
+import re
 import subprocess
 import tempfile
 import time
 from enum import Enum
 from itertools import cycle
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from textwrap import dedent
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any
 
 import fastar
 import rignore
 import typer
 from httpx import Client
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError
+from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
@@ -25,6 +26,39 @@ from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
+
+
+def validate_app_directory(v: str | None) -> str | None:
+    if v is None:
+        return None
+
+    v = v.strip()
+
+    if not v:
+        return None
+
+    if v.startswith("~"):
+        raise ValueError("cannot start with '~'")
+
+    path = PurePosixPath(v)
+
+    if path.is_absolute():
+        raise ValueError("must be a relative path, not absolute")
+
+    if ".." in path.parts:
+        raise ValueError("cannot contain '..' path segments")
+
+    normalized = path.as_posix()
+
+    if not re.fullmatch(r"[A-Za-z0-9._/ -]+", normalized):
+        raise ValueError(
+            "contains invalid characters (allowed: letters, numbers, space, / . _ -)"
+        )
+
+    return normalized
+
+
+AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
 
 def _cancel_upload(deployment_id: str) -> None:
@@ -113,13 +147,26 @@ def _get_teams() -> list[Team]:
 class AppResponse(BaseModel):
     id: str
     slug: str
+    directory: str | None
 
 
-def _create_app(team_id: str, app_name: str) -> AppResponse:
+def _update_app(app_id: str, directory: str | None) -> AppResponse:
+    with APIClient() as client:
+        response = client.patch(
+            f"/apps/{app_id}",
+            json={"directory": directory},
+        )
+
+        response.raise_for_status()
+
+        return AppResponse.model_validate(response.json())
+
+
+def _create_app(team_id: str, app_name: str, directory: str | None) -> AppResponse:
     with APIClient() as client:
         response = client.post(
             "/apps/",
-            json={"name": app_name, "team_id": team_id},
+            json={"name": app_name, "team_id": team_id, "directory": directory},
         )
 
         response.raise_for_status()
@@ -226,7 +273,7 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
         logger.debug("Upload notification sent successfully")
 
 
-def _get_app(app_slug: str) -> Optional[AppResponse]:
+def _get_app(app_slug: str) -> AppResponse | None:
     with APIClient() as client:
         response = client.get(f"/apps/{app_slug}")
 
@@ -278,7 +325,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     with toolkit.progress("Fetching teams...") as progress:
         with handle_http_errors(
-            progress, message="Error fetching teams. Please try again later."
+            progress, default_message="Error fetching teams. Please try again later."
         ):
             teams = _get_teams()
 
@@ -298,12 +345,12 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
-    selected_app: Optional[AppResponse] = None
+    selected_app: AppResponse | None = None
 
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
-                progress, message="Error fetching apps. Please try again later."
+                progress, default_message="Error fetching apps. Please try again later."
             ):
                 apps = _get_apps(team.id)
 
@@ -332,10 +379,26 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     toolkit.print_line()
 
+    initial_directory = selected_app.directory if selected_app else ""
+
+    directory_input = toolkit.input(
+        title="Path to the directory containing your app (e.g. src, backend):",
+        tag="dir",
+        value=initial_directory or "",
+        placeholder="[italic]Leave empty if it's the current directory[/italic]",
+        validator=TypeAdapter(AppDirectory),
+    )
+
+    directory: str | None = directory_input if directory_input else None
+
+    toolkit.print_line()
+
     toolkit.print("Deployment configuration:", tag="summary")
     toolkit.print_line()
     toolkit.print(f"Team: [bold]{team.name}[/bold]")
     toolkit.print(f"App name: [bold]{app_name}[/bold]")
+    toolkit.print(f"Directory: [bold]{directory or '.'}[/bold]")
+
     toolkit.print_line()
 
     choice = toolkit.ask(
@@ -352,12 +415,21 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         toolkit.print("Deployment cancelled.")
         raise typer.Exit(0)
 
-    if selected_app:  # pragma: no cover
-        app = selected_app
+    if selected_app:
+        if directory != selected_app.directory:
+            with (
+                toolkit.progress(title="Updating app directory...") as progress,
+                handle_http_errors(progress),
+            ):
+                app = _update_app(selected_app.id, directory=directory)
+
+                progress.log(f"App directory updated to '{directory or '.'}'")
+        else:
+            app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
             with handle_http_errors(progress):
-                app = _create_app(team.id, app_name)
+                app = _create_app(team.id, app_name, directory=directory)
 
             progress.log(f"App created successfully! App slug: {app.slug}")
 
@@ -446,13 +518,13 @@ def _wait_for_deployment(
 
 class SignupToWaitingList(BaseModel):
     email: EmailStr
-    name: Optional[str] = None
-    organization: Optional[str] = None
-    role: Optional[str] = None
-    team_size: Optional[str] = None
-    location: Optional[str] = None
-    use_case: Optional[str] = None
-    secret_code: Optional[str] = None
+    name: str | None = None
+    organization: str | None = None
+    role: str | None = None
+    team_size: str | None = None
+    location: str | None = None
+    use_case: str | None = None
+    secret_code: str | None = None
 
 
 def _send_waitlist_form(
@@ -552,7 +624,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
 
 def deploy(
     path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Argument(
             help="A path to the folder containing the app you want to deploy"
         ),
@@ -561,7 +633,7 @@ def deploy(
         bool, typer.Option("--no-wait", help="Skip waiting for deployment status")
     ] = False,
     provided_app_id: Annotated[
-        Union[str, None],
+        str | None,
         typer.Option(
             "--app-id",
             help="Application ID to deploy to",
@@ -586,10 +658,16 @@ def deploy(
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
             toolkit.print_line()
 
-            toolkit.print(
-                "You need to be logged in to deploy to FastAPI Cloud.",
-                tag="info",
-            )
+            if identity.token and identity.is_expired():
+                toolkit.print(
+                    "Your session has expired. Please log in again.",
+                    tag="info",
+                )
+            else:
+                toolkit.print(
+                    "You need to be logged in to deploy to FastAPI Cloud.",
+                    tag="info",
+                )
             toolkit.print_line()
 
             choice = toolkit.ask(
@@ -600,8 +678,6 @@ def deploy(
                     Option({"name": "Join the waiting list", "value": "waitlist"}),
                 ],
             )
-
-            toolkit.print_line()
 
             if choice == "login":
                 login()

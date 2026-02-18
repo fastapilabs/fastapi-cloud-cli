@@ -1,14 +1,11 @@
 import logging
 import os
-from typing import Union
 
 from rich.console import Console
 from rich.logging import RichHandler
 
 
-def setup_logging(
-    terminal_width: Union[int, None] = None, level: Union[int, None] = None
-) -> None:
+def setup_logging(terminal_width: int | None = None, level: int | None = None) -> None:
     if level is None:
         level = (
             logging.DEBUG if os.getenv("FASTAPI_CLOUD_DEBUG") == "1" else logging.INFO

@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import time
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -36,7 +36,7 @@ def delete_auth_config() -> None:
         logger.debug("Auth config file doesn't exist, nothing to delete")
 
 
-def read_auth_config() -> Optional[AuthConfig]:
+def read_auth_config() -> AuthConfig | None:
     auth_path = get_auth_path()
     logger.debug("Reading auth config from: %s", auth_path)
 
@@ -48,7 +48,7 @@ def read_auth_config() -> Optional[AuthConfig]:
     return AuthConfig.model_validate_json(auth_path.read_text(encoding="utf-8"))
 
 
-def _get_auth_token() -> Optional[str]:
+def _get_auth_token() -> str | None:
     logger.debug("Getting auth token")
     auth_data = read_auth_config()
 
@@ -120,7 +120,7 @@ class Identity:
             self.token = env_token
             self.auth_mode = "token"
 
-    def _get_token_from_env(self) -> Optional[str]:
+    def _get_token_from_env(self) -> str | None:
         return os.environ.get("FASTAPI_CLOUD_TOKEN")
 
     def is_expired(self) -> bool:

@@ -28,6 +28,7 @@ class Keys:
     ENTER = "\r"
     CTRL_C = "\x03"
     TAB = "\t"
+    BACKSPACE = "\x7f"
 
 
 def create_jwt_token(payload: dict[str, Any]) -> str:

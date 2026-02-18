@@ -7,7 +7,6 @@ import respx
 from httpx import Response
 from time_machine import TimeMachineFixture
 
-from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import (
     STREAM_LOGS_MAX_RETRIES,
     APIClient,
@@ -16,8 +15,6 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from tests.utils import build_logs_response
-
-settings = Settings.get()
 
 
 @pytest.fixture
@@ -31,15 +28,11 @@ def deployment_id() -> str:
     return "test-deployment-123"
 
 
-api_mock = respx.mock(base_url=settings.base_api_url)
-
-
 @pytest.fixture
-def logs_route(deployment_id: str) -> respx.Route:
-    return api_mock.get(f"/deployments/{deployment_id}/build-logs")
+def logs_route(respx_mock: respx.MockRouter, deployment_id: str) -> respx.Route:
+    return respx_mock.get(f"/deployments/{deployment_id}/build-logs")
 
 
-@api_mock
 def test_stream_build_logs_successful(
     logs_route: respx.Route,
     client: APIClient,
@@ -69,7 +62,6 @@ def test_stream_build_logs_successful(
     assert logs[2].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_failed(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -91,7 +83,6 @@ def test_stream_build_logs_failed(
 
 
 @pytest.mark.parametrize("terminal_type", ["complete", "failed"])
-@api_mock
 def test_stream_build_logs_stop_after_terminal_state(
     logs_route: respx.Route,
     client: APIClient,
@@ -116,7 +107,6 @@ def test_stream_build_logs_stop_after_terminal_state(
     assert logs[1].type == terminal_type
 
 
-@api_mock
 def test_stream_build_logs_internal_messages_are_skipped(
     logs_route: respx.Route,
     client: APIClient,
@@ -140,7 +130,6 @@ def test_stream_build_logs_internal_messages_are_skipped(
     assert logs[1].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_malformed_json_is_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -161,7 +150,6 @@ def test_stream_build_logs_malformed_json_is_skipped(
     assert logs[1].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_unknown_log_type_is_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -188,7 +176,6 @@ def test_stream_build_logs_unknown_log_type_is_skipped(
     "network_error",
     [httpx.NetworkError, httpx.TimeoutException, httpx.RemoteProtocolError],
 )
-@api_mock
 def test_stream_build_logs_network_error_retry(
     logs_route: respx.Route,
     client: APIClient,
@@ -216,7 +203,6 @@ def test_stream_build_logs_network_error_retry(
     assert logs[0].message == "Success after retry"
 
 
-@api_mock
 def test_stream_build_logs_server_error_retry(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -237,7 +223,6 @@ def test_stream_build_logs_server_error_retry(
     assert logs[0].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_client_error_raises_immediately(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -247,7 +232,6 @@ def test_stream_build_logs_client_error_raises_immediately(
         list(client.stream_build_logs(deployment_id))
 
 
-@api_mock
 def test_stream_build_logs_max_retries_exceeded(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -261,7 +245,6 @@ def test_stream_build_logs_max_retries_exceeded(
             list(client.stream_build_logs(deployment_id))
 
 
-@api_mock
 def test_stream_build_logs_empty_lines_are_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -284,7 +267,6 @@ def test_stream_build_logs_empty_lines_are_skipped(
     assert logs[1].type == "complete"
 
 
-@respx.mock(base_url=settings.base_api_url)
 def test_stream_build_logs_continue_after_timeout(
     respx_mock: respx.MockRouter,
     client: APIClient,
@@ -328,7 +310,6 @@ def test_stream_build_logs_continue_after_timeout(
         assert next(logs).type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -348,7 +329,6 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
             next(logs)
 
 
-@api_mock
 def test_stream_build_logs_retry_timeout(
     logs_route: respx.Route,
     client: APIClient,
