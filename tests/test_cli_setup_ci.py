@@ -228,6 +228,7 @@ def test_dry_run_shows_planned_steps(
     assert "FASTAPI_CLOUD_TOKEN" in result.output
     assert "FASTAPI_CLOUD_APP_ID" in result.output
     assert "deploy.yml" in result.output
+    assert "Regenerated" in result.output  # Disclaimer about regeneration
 
 
 def test_dry_run_secrets_only_skips_workflow(
@@ -253,6 +254,7 @@ def test_dry_run_secrets_only_skips_workflow(
     assert result.exit_code == 0
     assert "FASTAPI_CLOUD_TOKEN" in result.output
     assert "deploy.yml" not in result.output
+    assert "Regenerated" in result.output  # Disclaimer about regeneration
 
 
 @pytest.mark.respx

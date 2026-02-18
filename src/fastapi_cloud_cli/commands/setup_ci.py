@@ -140,7 +140,7 @@ def setup_ci(
         False,
         "--secrets-only",
         "-s",
-        help="Provisions token and sets secrets, skip writing the workflow file",
+        help="Provisions token and sets secrets, skips writing the workflow file",
         show_default=True,
     ),
     dry_run: bool = typer.Option(
@@ -236,11 +236,14 @@ def setup_ci(
             toolkit.print(msg_secrets)
             if not secrets_only:
                 toolkit.print(msg_workflow)
+            toolkit.print_line()
+            toolkit.print(
+                "[dim]Note: Dry run shows planned actions. "
+                "Actual run may show 'Regenerated' if token already exists.[/dim]"
+            )
             return
 
         token_name = f"GitHub Actions — {repo_slug}"
-        toolkit.print("Generating deploy token...")
-        toolkit.print_line()
         with (
             toolkit.progress(title="Generating deploy token...") as progress,
             handle_http_errors(
@@ -255,8 +258,6 @@ def setup_ci(
         toolkit.print_line()
 
         if has_gh:
-            toolkit.print(f"Setting repo secrets on [bold]{repo_slug}[/bold]")
-            toolkit.print_line()
             with toolkit.progress(title="Setting repo secrets...") as progress:
                 try:
                     _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
@@ -269,7 +270,7 @@ def setup_ci(
             secrets_url = f"https://github.com/{repo_slug}/settings/secrets/actions"
             toolkit.print(
                 "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
-                tag="secret",
+                tag="info",
             )
             toolkit.print_line()
             toolkit.print(f"  Repository: [blue]{secrets_url}[/]")
@@ -314,6 +315,7 @@ def setup_ci(
 
         toolkit.print(msg_done)
         toolkit.print_line()
+        # Token expiration date is in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ), extract date portion
         toolkit.print(
             f"Your deploy token expires on [bold]{token_data['expired_at'][:10]}[/bold]. "
             "Regenerate it from the dashboard or re-run this command before then.",
