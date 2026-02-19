@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Add `windows-latest` to test matrix. PR [#158](https://github.com/fastapilabs/fastapi-cloud-cli/pull/158) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.13.0
 
 ### Breaking Changes
