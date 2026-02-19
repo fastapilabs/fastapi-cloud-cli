@@ -1,14 +1,15 @@
 import base64
 import json
 import os
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 
 @contextmanager
-def changing_dir(directory: Union[str, Path]) -> Generator[None, None, None]:
+def changing_dir(directory: str | Path) -> Generator[None, None, None]:
     initial_dir = os.getcwd()
     os.chdir(directory)
     try:
@@ -22,13 +23,25 @@ def build_logs_response(*logs: dict[str, Any]) -> str:
     return "\n".join(json.dumps(log) for log in logs)
 
 
-class Keys:
-    RIGHT_ARROW = "\x1b[C"
-    DOWN_ARROW = "\x1b[B"
-    ENTER = "\r"
-    CTRL_C = "\x03"
-    TAB = "\t"
-    BACKSPACE = "\x7f"
+if sys.platform == "win32":
+
+    class Keys:
+        RIGHT_ARROW = "\xe0M"
+        DOWN_ARROW = "\xe0P"
+        ENTER = "\r"
+        CTRL_C = "\x03"
+        TAB = "\t"
+        BACKSPACE = "\x08"
+
+else:
+
+    class Keys:
+        RIGHT_ARROW = "\x1b[C"
+        DOWN_ARROW = "\x1b[B"
+        ENTER = "\r"
+        CTRL_C = "\x03"
+        TAB = "\t"
+        BACKSPACE = "\x7f"
 
 
 def create_jwt_token(payload: dict[str, Any]) -> str:
