@@ -40,7 +40,7 @@ class FastAPIStyle(TaggedStyle):
         tag = emojis[self.animation_counter % len(emojis)]
 
         if done:
-            tag = emojis[-1]
+            tag = metadata.get("done_emoji", emojis[-1])
 
         left_padding = self.tag_width - 1
         left_padding = max(0, left_padding)

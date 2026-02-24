@@ -464,7 +464,10 @@ def _wait_for_deployment(
 
     with (
         toolkit.progress(
-            next(messages), inline_logs=True, lines_to_show=20
+            next(messages),
+            inline_logs=True,
+            lines_to_show=20,
+            done_emoji="🚀",
         ) as progress,
         APIClient() as client,
     ):
@@ -476,6 +479,7 @@ def _wait_for_deployment(
                     progress.log(Text.from_ansi(log.message.rstrip()))
 
                 if log.type == "complete":
+                    progress.title = "Build complete!"
                     progress.log("")
                     progress.log(
                         f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
@@ -753,7 +757,9 @@ def deploy(
             archive(path or Path.cwd(), archive_path)
 
             with (
-                toolkit.progress(title="Creating deployment") as progress,
+                toolkit.progress(
+                    title="Creating deployment", done_emoji="📦"
+                ) as progress,
                 handle_http_errors(progress),
             ):
                 logger.debug("Creating deployment for app: %s", app.id)

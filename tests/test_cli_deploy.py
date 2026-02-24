@@ -2,7 +2,7 @@ import random
 import string
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import TypedDict
 from unittest.mock import patch
 
 import httpx
@@ -37,14 +37,14 @@ class RandomApp(TypedDict):
     slug: str
     id: str
     team_id: str
-    directory: Optional[str]
+    directory: str | None
 
 
 def _get_random_app(
     *,
-    slug: Optional[str] = None,
-    team_id: Optional[str] = None,
-    directory: Optional[str] = None,
+    slug: str | None = None,
+    team_id: str | None = None,
+    directory: str | None = None,
 ) -> RandomApp:
     name = "".join(random.choices(string.ascii_lowercase, k=10))
     slug = slug or "".join(random.choices(string.ascii_lowercase, k=10))
@@ -62,7 +62,7 @@ def _get_random_app(
 
 def _get_random_deployment(
     *,
-    app_id: Optional[str] = None,
+    app_id: str | None = None,
     status: str = "waiting_upload",
 ) -> dict[str, str]:
     id = "".join(random.choices(string.digits, k=10))
@@ -1314,7 +1314,7 @@ def test_short_wait_messages(
     with changing_dir(tmp_path), patch("time.sleep"):
         result = runner.invoke(app, ["deploy"])
 
-        assert "short wait message" in result.output
+        assert "Build complete!" in result.output
 
 
 @pytest.mark.respx
@@ -1382,7 +1382,7 @@ def test_long_wait_messages(
     with changing_dir(tmp_path), patch("time.sleep"):
         result = runner.invoke(app, ["deploy"])
 
-        assert "long wait message" in result.output
+        assert "Build complete!" in result.output
 
 
 @pytest.mark.respx

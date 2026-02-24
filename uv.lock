@@ -258,7 +258,7 @@ requires-dist = [
     { name = "pydantic", extras = ["email"], marker = "python_full_version < '3.13'", specifier = ">=2.7.4" },
     { name = "pydantic", extras = ["email"], marker = "python_full_version == '3.13.*'", specifier = ">=2.8.0" },
     { name = "pydantic", extras = ["email"], marker = "python_full_version >= '3.14'", specifier = ">=2.12.0" },
-    { name = "rich-toolkit", specifier = ">=0.19.4" },
+    { name = "rich-toolkit", specifier = ">=0.19.6" },
     { name = "rignore", specifier = ">=0.5.1" },
     { name = "sentry-sdk", specifier = ">=2.20.0" },
     { name = "typer", specifier = ">=0.16.0" },
@@ -884,16 +884,16 @@ wheels = [
 
 [[package]]
 name = "rich-toolkit"
-version = "0.19.4"
+version = "0.19.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/c9/4bbf4bfee195ed1b7d7a6733cc523ca61dbfb4a3e3c12ea090aaffd97597/rich_toolkit-0.19.4.tar.gz", hash = "sha256:52e23d56f9dc30d1343eb3b3f6f18764c313fbfea24e52e6a1d6069bec9c18eb", size = 193951, upload-time = "2026-02-12T10:08:15.814Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/1a/57df3ff9967d8d009e928b4b2136fdd0aed70b68f5e5467b8d61e0d5cff2/rich_toolkit-0.19.6.tar.gz", hash = "sha256:b730f02d6f319ababadb8dd6b89ff2a1dec8f5511fb7d5c23eae64d4cb5ee99d", size = 194589, upload-time = "2026-02-24T12:13:31.254Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/31/97d39719def09c134385bfcfbedfed255168b571e7beb3ad7765aae660ca/rich_toolkit-0.19.4-py3-none-any.whl", hash = "sha256:34ac344de8862801644be8b703e26becf44b047e687f208d7829e8f7cfc311d6", size = 32757, upload-time = "2026-02-12T10:08:15.037Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/78/369699f9bdbe0c1ee7b53b7673273d295666ea673b49897a28cc828c7d53/rich_toolkit-0.19.6-py3-none-any.whl", hash = "sha256:cff77090c0b28ff4f6e0178a59d57cf5615283593b96dc999ee7d8614b499201", size = 32753, upload-time = "2026-02-24T12:13:32.045Z" },
 ]
 
 [[package]]
