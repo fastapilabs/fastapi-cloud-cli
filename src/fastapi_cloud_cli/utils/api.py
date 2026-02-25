@@ -4,6 +4,7 @@ import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import timedelta
+from enum import Enum
 from functools import wraps
 from typing import (
     Annotated,
@@ -138,6 +139,57 @@ def attempts(
     return decorator
 
 
+class DeploymentStatus(str, Enum):
+    waiting_upload = "waiting_upload"
+    ready_for_build = "ready_for_build"
+    building = "building"
+    extracting = "extracting"
+    extracting_failed = "extracting_failed"
+    building_image = "building_image"
+    building_image_failed = "building_image_failed"
+    deploying = "deploying"
+    deploying_failed = "deploying_failed"
+    verifying = "verifying"
+    verifying_failed = "verifying_failed"
+    verifying_skipped = "verifying_skipped"
+    success = "success"
+    failed = "failed"
+
+    @classmethod
+    def to_human_readable(cls, status: "DeploymentStatus") -> str:
+        return {
+            cls.waiting_upload: "Waiting for upload",
+            cls.ready_for_build: "Ready for build",
+            cls.building: "Building",
+            cls.extracting: "Extracting",
+            cls.extracting_failed: "Extracting failed",
+            cls.building_image: "Building image",
+            cls.building_image_failed: "Build failed",
+            cls.deploying: "Deploying",
+            cls.deploying_failed: "Deploying failed",
+            cls.verifying: "Verifying",
+            cls.verifying_failed: "Verifying failed",
+            cls.verifying_skipped: "Verification skipped",
+            cls.success: "Success",
+            cls.failed: "Failed",
+        }[status]
+
+
+SUCCESSFUL_STATUSES = {DeploymentStatus.success, DeploymentStatus.verifying_skipped}
+FAILED_STATUSES = {
+    DeploymentStatus.failed,
+    DeploymentStatus.verifying_failed,
+    DeploymentStatus.deploying_failed,
+    DeploymentStatus.building_image_failed,
+    DeploymentStatus.extracting_failed,
+}
+TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES
+
+POLL_INTERVAL = 2.0
+POLL_TIMEOUT = timedelta(seconds=120)
+POLL_MAX_RETRIES = 5
+
+
 class APIClient(httpx.Client):
     def __init__(self) -> None:
         settings = Settings.get()
@@ -241,3 +293,33 @@ class APIClient(httpx.Client):
                 except ValidationError as e:  # pragma: no cover
                     logger.debug("Failed to parse log entry: %s - %s", data, e)
                     continue
+
+    def poll_deployment_status(
+        self,
+        app_id: str,
+        deployment_id: str,
+    ) -> DeploymentStatus:
+        start = time.monotonic()
+        error_count = 0
+
+        while True:
+            if time.monotonic() - start > POLL_TIMEOUT.total_seconds():
+                raise TimeoutError("Deployment verification timed out")
+
+            with attempt(error_count):
+                response = self.get(f"/apps/{app_id}/deployments/{deployment_id}")
+                response.raise_for_status()
+                status = DeploymentStatus(response.json()["status"])
+                error_count = 0
+
+                if status in TERMINAL_STATUSES:
+                    return status
+
+                time.sleep(POLL_INTERVAL)
+                continue
+
+            error_count += 1
+            if error_count >= POLL_MAX_RETRIES:
+                raise TooManyRetriesError(
+                    f"Failed after {POLL_MAX_RETRIES} attempts polling deployment status"
+                )

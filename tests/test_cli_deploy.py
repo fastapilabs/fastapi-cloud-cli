@@ -666,6 +666,10 @@ def test_updates_app_directory_via_api_when_changed(
         )
     )
 
+    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with (
         changing_dir(tmp_path),
         patch("rich_toolkit.container.getchar") as mock_getchar,
@@ -731,6 +735,10 @@ def test_does_not_update_app_directory_when_unchanged(
                 {"type": "complete"},
             ),
         )
+    )
+
+    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
     with (
@@ -807,6 +815,10 @@ def test_exits_successfully_when_deployment_is_done(
         )
     )
 
+    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with (
         changing_dir(tmp_path),
         patch("rich_toolkit.container.getchar") as mock_getchar,
@@ -816,8 +828,6 @@ def test_exits_successfully_when_deployment_is_done(
         result = runner.invoke(app, ["deploy"])
 
         assert result.exit_code == 0
-
-        # TODO: show a message when the deployment is done (based on the status)
 
 
 @pytest.mark.respx
@@ -867,6 +877,10 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
         f"/deployments/{deployment_data['id']}/upload-complete",
     ).mock(return_value=Response(200))
 
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy"])
 
@@ -874,10 +888,6 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
 
         # check that logs are shown
         assert "All good!" in result.output
-
-        # check that the dashboard URL is shown
-        assert "You can also check the app logs at" in result.output
-        assert deployment_data["dashboard_url"] in result.output
 
         # check that the app URL is shown
         assert deployment_data["url"] in result.output
@@ -1311,10 +1321,15 @@ def test_short_wait_messages(
         side_effect=build_logs_handler
     )
 
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with changing_dir(tmp_path), patch("time.sleep"):
         result = runner.invoke(app, ["deploy"])
 
-        assert "Build complete!" in result.output
+        assert result.exit_code == 0
+        assert "Ready the chicken!" in result.output
 
 
 @pytest.mark.respx
@@ -1379,10 +1394,15 @@ def test_long_wait_messages(
         side_effect=build_logs_handler
     )
 
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with changing_dir(tmp_path), patch("time.sleep"):
         result = runner.invoke(app, ["deploy"])
 
-        assert "Build complete!" in result.output
+        assert result.exit_code == 0
+        assert "Ready the chicken!" in result.output
 
 
 @pytest.mark.respx
@@ -1512,6 +1532,11 @@ def test_deploy_successfully_with_token(
         headers={"Authorization": "Bearer hello"},
     ).mock(return_value=Response(200))
 
+    respx_mock.get(
+        f"/apps/{app_id}/deployments/{deployment_data['id']}",
+        headers={"Authorization": "Bearer hello"},
+    ).mock(return_value=Response(200, json={**deployment_data, "status": "success"}))
+
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy"], env={"FASTAPI_CLOUD_TOKEN": "hello"})
 
@@ -1519,10 +1544,6 @@ def test_deploy_successfully_with_token(
 
         # check that logs are shown
         assert "All good!" in result.output
-
-        # check that the dashboard URL is shown
-        assert "You can also check the app logs at" in result.output
-        assert deployment_data["dashboard_url"] in result.output
 
         # check that the app URL is shown
         assert deployment_data["url"] in result.output
@@ -1596,6 +1617,10 @@ def test_deploy_with_app_id_arg(
         )
     )
 
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy", "--app-id", app_id])
 
@@ -1640,6 +1665,10 @@ def test_deploy_with_app_id_from_env_var(
                 {"type": "complete"},
             ),
         )
+    )
+
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
     with changing_dir(tmp_path):
@@ -1693,6 +1722,10 @@ def test_deploy_with_app_id_matching_local_config(
         )
     )
 
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy", "--app-id", app_id])
 
@@ -1740,3 +1773,217 @@ def test_deploy_with_app_id_arg_app_not_found(
         assert "App not found" in result.output
         # Should NOT show unlink tip when using --app-id
         assert "unlink" not in result.output
+
+
+def _setup_deployment_mocks(
+    respx_mock: respx.MockRouter,
+    app_id: str,
+    team_id: str,
+    deployment_data: dict[str, str],
+    tmp_path: Path,
+) -> None:
+    """Set up common deployment mocks for a configured app."""
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    app_data = _get_random_app()
+    app_data["id"] = app_id
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+
+
+@pytest.mark.respx
+def test_verification_failure_after_build_complete(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(
+            200, json={**deployment_data, "status": "verifying_failed"}
+        )
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+        assert "Deployment failed" in result.output
+        assert "Verifying failed" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+
+@pytest.mark.respx
+def test_polling_with_intermediate_states(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+
+    call_count = 0
+
+    def poll_handler(request: httpx.Request, route: respx.Route) -> Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            return Response(200, json={**deployment_data, "status": "verifying"})
+        return Response(200, json={**deployment_data, "status": "success"})
+
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        side_effect=poll_handler
+    )
+
+    with changing_dir(tmp_path), patch("time.sleep"):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert deployment_data["url"] in result.output
+
+
+@pytest.mark.respx
+def test_polling_timeout_shows_dashboard_link(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
+            side_effect=TimeoutError("Deployment verification timed out"),
+        ),
+    ):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert "Could not confirm deployment status" in result.output
+        assert deployment_data["dashboard_url"] in result.output
+
+
+@pytest.mark.respx
+def test_verifying_skipped_treated_as_success(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(
+            200, json={**deployment_data, "status": "verifying_skipped"}
+        )
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 0
+        assert deployment_data["url"] in result.output
+
+
+@pytest.mark.respx
+def test_ctrl_c_during_verification_shows_cancelled(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
+            side_effect=KeyboardInterrupt(),
+        ),
+    ):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "🟡" in result.output
+        assert "Cancelled" in result.output
+        assert "✅" not in result.output
+
+
+@pytest.mark.respx
+def test_ctrl_c_during_build_streaming_shows_cancelled(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+            side_effect=KeyboardInterrupt(),
+        ),
+    ):
+        result = runner.invoke(app, ["deploy"])
+
+        assert "🟡" in result.output
+        assert "Cancelled." in result.output

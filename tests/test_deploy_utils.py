@@ -1,13 +1,12 @@
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
 from fastapi_cloud_cli.commands.deploy import (
-    DeploymentStatus,
     _should_exclude_entry,
     validate_app_directory,
 )
+from fastapi_cloud_cli.utils.api import DeploymentStatus
 
 
 @pytest.mark.parametrize(
@@ -98,9 +97,7 @@ def test_deployment_status_to_human_readable(
         ("a/b/c", "a/b/c"),
     ],
 )
-def test_validate_app_directory_valid(
-    value: Optional[str], expected: Optional[str]
-) -> None:
+def test_validate_app_directory_valid(value: str | None, expected: str | None) -> None:
     """Should accept valid directory values and normalize them."""
     assert validate_app_directory(value) == expected
 
