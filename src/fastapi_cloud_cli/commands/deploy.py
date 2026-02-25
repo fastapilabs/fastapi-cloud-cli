@@ -4,7 +4,6 @@ import re
 import subprocess
 import tempfile
 import time
-from enum import Enum
 from itertools import cycle
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
@@ -20,7 +19,13 @@ from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient, StreamLogError, TooManyRetriesError
+from fastapi_cloud_cli.utils.api import (
+    SUCCESSFUL_STATUSES,
+    APIClient,
+    DeploymentStatus,
+    StreamLogError,
+    TooManyRetriesError,
+)
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
@@ -172,42 +177,6 @@ def _create_app(team_id: str, app_name: str, directory: str | None) -> AppRespon
         response.raise_for_status()
 
         return AppResponse.model_validate(response.json())
-
-
-class DeploymentStatus(str, Enum):
-    waiting_upload = "waiting_upload"
-    ready_for_build = "ready_for_build"
-    building = "building"
-    extracting = "extracting"
-    extracting_failed = "extracting_failed"
-    building_image = "building_image"
-    building_image_failed = "building_image_failed"
-    deploying = "deploying"
-    deploying_failed = "deploying_failed"
-    verifying = "verifying"
-    verifying_failed = "verifying_failed"
-    verifying_skipped = "verifying_skipped"
-    success = "success"
-    failed = "failed"
-
-    @classmethod
-    def to_human_readable(cls, status: "DeploymentStatus") -> str:
-        return {
-            cls.waiting_upload: "Waiting for upload",
-            cls.ready_for_build: "Ready for build",
-            cls.building: "Building",
-            cls.extracting: "Extracting",
-            cls.extracting_failed: "Extracting failed",
-            cls.building_image: "Building image",
-            cls.building_image_failed: "Build failed",
-            cls.deploying: "Deploying",
-            cls.deploying_failed: "Deploying failed",
-            cls.verifying: "Verifying",
-            cls.verifying_failed: "Verifying failed",
-            cls.verifying_skipped: "Verification skipped",
-            cls.success: "Success",
-            cls.failed: "Failed",
-        }[status]
 
 
 class CreateDeploymentResponse(BaseModel):
@@ -440,6 +409,42 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
     return app_config
 
 
+def _verify_deployment(
+    toolkit: RichToolkit,
+    client: APIClient,
+    app_id: str,
+    deployment: CreateDeploymentResponse,
+) -> None:
+    with toolkit.progress(
+        title="Verifying deployment...",
+        inline_logs=True,
+        done_emoji="✅",
+    ) as progress:
+        try:
+            final_status = client.poll_deployment_status(app_id, deployment.id)
+        except (TimeoutError, TooManyRetriesError, StreamLogError):
+            progress.metadata["done_emoji"] = "⚠️"
+            progress.current_message = (
+                f"Could not confirm deployment status. "
+                f"Check the dashboard: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+            )
+            return
+
+        if final_status in SUCCESSFUL_STATUSES:
+            progress.current_message = f"Ready the chicken! 🐔 Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+        else:
+            progress.metadata["done_emoji"] = "❌"
+            progress.current_message = "Deployment failed"
+
+            human_status = DeploymentStatus.to_human_readable(final_status)
+
+            progress.log(
+                f"😔 Oh no! Deployment failed: {human_status}. "
+                f"Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+            )
+            raise typer.Exit(1)
+
+
 def _wait_for_deployment(
     toolkit: RichToolkit, app_id: str, deployment: CreateDeploymentResponse
 ) -> None:
@@ -448,11 +453,6 @@ def _wait_for_deployment(
     toolkit.print(
         "Checking the status of your deployment 👀",
         tag="cloud",
-    )
-    toolkit.print_line()
-
-    toolkit.print(
-        f"You can also check the status at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
     )
     toolkit.print_line()
 
@@ -471,6 +471,8 @@ def _wait_for_deployment(
         ) as progress,
         APIClient() as client,
     ):
+        build_complete = False
+
         try:
             for log in client.stream_build_logs(deployment.id):
                 time_elapsed = time.monotonic() - started_at
@@ -479,18 +481,8 @@ def _wait_for_deployment(
                     progress.log(Text.from_ansi(log.message.rstrip()))
 
                 if log.type == "complete":
+                    build_complete = True
                     progress.title = "Build complete!"
-                    progress.log("")
-                    progress.log(
-                        f"You can also check the app logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                    )
-
-                    progress.log("")
-
-                    progress.log(
-                        f"🐔 Ready the chicken! Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
-                    )
-
                     break
 
                 if log.type == "failed":
@@ -518,6 +510,11 @@ def _wait_for_deployment(
             )
 
             raise typer.Exit(1) from None
+
+        if build_complete:
+            toolkit.print_line()
+
+            _verify_deployment(toolkit, client, app_id, deployment)
 
 
 class SignupToWaitingList(BaseModel):
