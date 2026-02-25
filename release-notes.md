@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Wait for verification after building. PR [#160](https://github.com/fastapilabs/fastapi-cloud-cli/pull/160) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * 💄 Update how we show messages. PR [#159](https://github.com/fastapilabs/fastapi-cloud-cli/pull/159) by [@patrick91](https://github.com/patrick91).
