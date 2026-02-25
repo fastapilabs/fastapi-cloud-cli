@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* 💄 Update how we show messages. PR [#159](https://github.com/fastapilabs/fastapi-cloud-cli/pull/159) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * 👷 Add `windows-latest` to test matrix. PR [#158](https://github.com/fastapilabs/fastapi-cloud-cli/pull/158) by [@YuriiMotov](https://github.com/YuriiMotov).
