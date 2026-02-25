@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.14.0
+
 ### Features
 
 * ✨ Wait for verification after building. PR [#160](https://github.com/fastapilabs/fastapi-cloud-cli/pull/160) by [@patrick91](https://github.com/patrick91).
