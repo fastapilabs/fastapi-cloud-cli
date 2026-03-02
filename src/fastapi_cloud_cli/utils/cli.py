@@ -1,7 +1,7 @@
 import contextlib
 import logging
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Literal
 
 import typer
 from httpx import HTTPError, HTTPStatusError, ReadTimeout
@@ -24,9 +24,12 @@ class FastAPIStyle(TaggedStyle):
         metadata: dict[str, Any],
         is_animated: bool = False,
         done: bool = False,
+        animation_status: Literal["started", "stopped", "error"] | None = None,
     ) -> tuple[list[Segment], int]:
         if not is_animated:
-            return super()._get_tag_segments(metadata, is_animated, done)
+            return super()._get_tag_segments(
+                metadata, is_animated, done, animation_status=animation_status
+            )
 
         emojis = [
             "🥚",
@@ -40,7 +43,10 @@ class FastAPIStyle(TaggedStyle):
         tag = emojis[self.animation_counter % len(emojis)]
 
         if done:
-            tag = emojis[-1]
+            tag = metadata.get("done_emoji", emojis[-1])
+
+        if animation_status == "error":
+            tag = "🟡"
 
         left_padding = self.tag_width - 1
         left_padding = max(0, left_padding)

@@ -2,6 +2,20 @@
 
 ## Latest Changes
 
+## 0.14.0
+
+### Features
+
+* ✨ Wait for verification after building. PR [#160](https://github.com/fastapilabs/fastapi-cloud-cli/pull/160) by [@patrick91](https://github.com/patrick91).
+
+### Refactors
+
+* 💄 Update how we show messages. PR [#159](https://github.com/fastapilabs/fastapi-cloud-cli/pull/159) by [@patrick91](https://github.com/patrick91).
+
+### Internal
+
+* 👷 Add `windows-latest` to test matrix. PR [#158](https://github.com/fastapilabs/fastapi-cloud-cli/pull/158) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.13.0
 
 ### Breaking Changes
