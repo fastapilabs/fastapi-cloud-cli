@@ -6,6 +6,10 @@
 
 * 📝 Add dates to release notes. PR [#161](https://github.com/fastapilabs/fastapi-cloud-cli/pull/161) by [@YuriiMotov](https://github.com/YuriiMotov).
 
+### Internal
+
+* ⬆ Bump actions/setup-python from 5 to 6. PR [#84](https://github.com/fastapilabs/fastapi-cloud-cli/pull/84) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.14.0 (2026-02-25)
 
 ### Features
