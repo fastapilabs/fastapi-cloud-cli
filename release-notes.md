@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump tiangolo/issue-manager from 0.5.1 to 0.6.0. PR [#85](https://github.com/fastapilabs/fastapi-cloud-cli/pull/85) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/setup-python from 5 to 6. PR [#84](https://github.com/fastapilabs/fastapi-cloud-cli/pull/84) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
 ## 0.14.0 (2026-02-25)
