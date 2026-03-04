@@ -5,16 +5,14 @@ import respx
 from httpx import ReadTimeout, Response
 from typer.testing import CliRunner
 
-from fastapi_cloud_cli.cli import app
-from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.cli import cloud_app as app
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
@@ -29,7 +27,7 @@ def test_shows_a_message_if_something_is_wrong(
     assert result.exit_code == 1
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_when_token_is_invalid(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
@@ -41,7 +39,19 @@ def test_shows_a_message_when_token_is_invalid(
     assert "The specified token is not valid" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
+def test_shows_a_message_when_user_has_no_permissions(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get("/users/me").mock(return_value=Response(403))
+
+    result = runner.invoke(app, ["whoami"])
+
+    assert result.exit_code == 1
+    assert "You don't have permissions for this resource" in result.output
+
+
+@pytest.mark.respx
 def test_shows_email(logged_in_cli: None, respx_mock: respx.MockRouter) -> None:
     respx_mock.get("/users/me").mock(
         return_value=Response(200, json={"email": "email@fastapi.com"})
@@ -53,7 +63,7 @@ def test_shows_email(logged_in_cli: None, respx_mock: respx.MockRouter) -> None:
     assert "email@fastapi.com" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_read_timeout(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
@@ -70,3 +80,10 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
 
     assert result.exit_code == 0
     assert "No credentials found. Use `fastapi login` to login." in result.output
+
+
+def test_shows_logged_in_via_token(logged_out_cli: None) -> None:
+    result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
+
+    assert result.exit_code == 0
+    assert "Using API token from environment variable" in result.output

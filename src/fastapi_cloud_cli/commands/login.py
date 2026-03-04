@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import AuthConfig, write_auth_config
+from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def _start_device_authorization(
 
     response.raise_for_status()
 
-    return AuthorizationData.model_validate(response.json())
+    return AuthorizationData.model_validate_json(response.text)
 
 
 def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
@@ -67,7 +67,7 @@ def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -
 
         time.sleep(interval)
 
-    response_data = TokenResponse.model_validate(response.json())
+    response_data = TokenResponse.model_validate_json(response.text)
 
     return response_data.access_token
 
@@ -76,6 +76,17 @@ def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
+    identity = Identity()
+
+    if identity.is_logged_in():
+        with get_rich_toolkit(minimal=True) as toolkit:
+            toolkit.print("You are already logged in.")
+            toolkit.print(
+                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
+            )
+
+        return
+
     with get_rich_toolkit() as toolkit, APIClient() as client:
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
 
