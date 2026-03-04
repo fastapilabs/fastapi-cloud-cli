@@ -7,17 +7,15 @@ import respx
 from httpx import Response
 from time_machine import TimeMachineFixture
 
-from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import (
-    BUILD_LOG_MAX_RETRIES,
+    STREAM_LOGS_MAX_RETRIES,
     APIClient,
-    BuildLogError,
     BuildLogLineMessage,
+    DeploymentStatus,
+    StreamLogError,
     TooManyRetriesError,
 )
 from tests.utils import build_logs_response
-
-settings = Settings.get()
 
 
 @pytest.fixture
@@ -31,15 +29,11 @@ def deployment_id() -> str:
     return "test-deployment-123"
 
 
-api_mock = respx.mock(base_url=settings.base_api_url)
-
-
 @pytest.fixture
-def logs_route(deployment_id: str) -> respx.Route:
-    return api_mock.get(f"/deployments/{deployment_id}/build-logs")
+def logs_route(respx_mock: respx.MockRouter, deployment_id: str) -> respx.Route:
+    return respx_mock.get(f"/deployments/{deployment_id}/build-logs")
 
 
-@api_mock
 def test_stream_build_logs_successful(
     logs_route: respx.Route,
     client: APIClient,
@@ -69,7 +63,6 @@ def test_stream_build_logs_successful(
     assert logs[2].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_failed(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -91,7 +84,6 @@ def test_stream_build_logs_failed(
 
 
 @pytest.mark.parametrize("terminal_type", ["complete", "failed"])
-@api_mock
 def test_stream_build_logs_stop_after_terminal_state(
     logs_route: respx.Route,
     client: APIClient,
@@ -116,7 +108,6 @@ def test_stream_build_logs_stop_after_terminal_state(
     assert logs[1].type == terminal_type
 
 
-@api_mock
 def test_stream_build_logs_internal_messages_are_skipped(
     logs_route: respx.Route,
     client: APIClient,
@@ -140,7 +131,6 @@ def test_stream_build_logs_internal_messages_are_skipped(
     assert logs[1].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_malformed_json_is_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -161,7 +151,6 @@ def test_stream_build_logs_malformed_json_is_skipped(
     assert logs[1].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_unknown_log_type_is_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -188,7 +177,6 @@ def test_stream_build_logs_unknown_log_type_is_skipped(
     "network_error",
     [httpx.NetworkError, httpx.TimeoutException, httpx.RemoteProtocolError],
 )
-@api_mock
 def test_stream_build_logs_network_error_retry(
     logs_route: respx.Route,
     client: APIClient,
@@ -216,7 +204,6 @@ def test_stream_build_logs_network_error_retry(
     assert logs[0].message == "Success after retry"
 
 
-@api_mock
 def test_stream_build_logs_server_error_retry(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -237,17 +224,15 @@ def test_stream_build_logs_server_error_retry(
     assert logs[0].type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_client_error_raises_immediately(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
     logs_route.mock(return_value=Response(404, text="Not Found"))
 
-    with pytest.raises(BuildLogError, match="HTTP 404"):
+    with pytest.raises(StreamLogError, match="HTTP 404"):
         list(client.stream_build_logs(deployment_id))
 
 
-@api_mock
 def test_stream_build_logs_max_retries_exceeded(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -255,12 +240,12 @@ def test_stream_build_logs_max_retries_exceeded(
 
     with patch("time.sleep"):
         with pytest.raises(
-            TooManyRetriesError, match=f"Failed after {BUILD_LOG_MAX_RETRIES} attempts"
+            TooManyRetriesError,
+            match=f"Failed after {STREAM_LOGS_MAX_RETRIES} attempts",
         ):
             list(client.stream_build_logs(deployment_id))
 
 
-@api_mock
 def test_stream_build_logs_empty_lines_are_skipped(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -283,7 +268,6 @@ def test_stream_build_logs_empty_lines_are_skipped(
     assert logs[1].type == "complete"
 
 
-@respx.mock(base_url=settings.base_api_url)
 def test_stream_build_logs_continue_after_timeout(
     respx_mock: respx.MockRouter,
     client: APIClient,
@@ -327,7 +311,6 @@ def test_stream_build_logs_continue_after_timeout(
         assert next(logs).type == "complete"
 
 
-@api_mock
 def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
@@ -343,11 +326,10 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
     logs = client.stream_build_logs(deployment_id)
 
     with patch("time.sleep"), pytest.raises(TooManyRetriesError, match="Failed after"):
-        for _ in range(BUILD_LOG_MAX_RETRIES + 1):
+        for _ in range(STREAM_LOGS_MAX_RETRIES + 1):
             next(logs)
 
 
-@api_mock
 def test_stream_build_logs_retry_timeout(
     logs_route: respx.Route,
     client: APIClient,
@@ -370,3 +352,55 @@ def test_stream_build_logs_retry_timeout(
 
     with patch("time.sleep"), pytest.raises(TimeoutError, match="timed out"):
         list(client.stream_build_logs(deployment_id))
+
+
+@pytest.fixture
+def app_id() -> str:
+    return "test-app-456"
+
+
+@pytest.fixture
+def poll_route(
+    respx_mock: respx.MockRouter, app_id: str, deployment_id: str
+) -> respx.Route:
+    return respx_mock.get(f"/apps/{app_id}/deployments/{deployment_id}")
+
+
+def test_poll_deployment_status_recovers_from_transient_errors(
+    poll_route: respx.Route, client: APIClient, app_id: str, deployment_id: str
+) -> None:
+    call_count = 0
+
+    def handler(request: httpx.Request, route: respx.Route) -> Response:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            return Response(500)
+        return Response(200, json={"status": "success"})
+
+    poll_route.mock(side_effect=handler)
+
+    with patch("time.sleep"):
+        status = client.poll_deployment_status(app_id, deployment_id)
+
+    assert status == DeploymentStatus.success
+    assert call_count == 3
+
+
+def test_poll_deployment_status_raises_after_max_consecutive_errors(
+    poll_route: respx.Route, client: APIClient, app_id: str, deployment_id: str
+) -> None:
+    poll_route.mock(return_value=Response(500))
+
+    with patch("time.sleep"), pytest.raises(TooManyRetriesError):
+        client.poll_deployment_status(app_id, deployment_id)
+
+
+def test_poll_deployment_status_timeout(
+    client: APIClient, app_id: str, deployment_id: str
+) -> None:
+    with (
+        patch("fastapi_cloud_cli.utils.api.POLL_TIMEOUT", timedelta(seconds=-1)),
+        pytest.raises(TimeoutError, match="timed out"),
+    ):
+        client.poll_deployment_status(app_id, deployment_id)

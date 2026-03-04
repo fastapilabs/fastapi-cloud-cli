@@ -1,55 +1,64 @@
 import json
 import logging
 import time
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import timedelta
+from enum import Enum
 from functools import wraps
 from typing import (
-    Callable,
-    Generator,
+    Annotated,
     Literal,
-    Optional,
     TypeVar,
-    Union,
 )
 
 import httpx
-from pydantic import BaseModel, Field, ValidationError
-from typing_extensions import Annotated, ParamSpec
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.auth import get_auth_token
-from fastapi_cloud_cli.utils.pydantic_compat import TypeAdapter
+
+from .auth import Identity
 
 logger = logging.getLogger(__name__)
 
-BUILD_LOG_MAX_RETRIES = 3
-BUILD_LOG_TIMEOUT = timedelta(minutes=5)
+STREAM_LOGS_MAX_RETRIES = 3
+STREAM_LOGS_TIMEOUT = timedelta(minutes=5)
 
 
-class BuildLogError(Exception):
-    pass
+class StreamLogError(Exception):
+    """Raised when there's an error streaming logs (build or app logs)."""
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class TooManyRetriesError(Exception):
     pass
 
 
+class AppLogEntry(BaseModel):
+    timestamp: str
+    message: str
+    level: str
+
+
 class BuildLogLineGeneric(BaseModel):
     type: Literal["complete", "failed", "timeout", "heartbeat"]
-    id: Optional[str] = None
+    id: str | None = None
 
 
 class BuildLogLineMessage(BaseModel):
     type: Literal["message"] = "message"
     message: str
-    id: Optional[str] = None
+    id: str | None = None
 
 
-BuildLogLine = Union[BuildLogLineMessage, BuildLogLineGeneric]
-BuildLogAdapter = TypeAdapter[BuildLogLine](
-    Annotated[BuildLogLine, Field(discriminator="type")]  # type: ignore
+BuildLogLine = BuildLogLineMessage | BuildLogLineGeneric
+BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
+    Annotated[BuildLogLine, Field(discriminator="type")]
 )
 
 
@@ -90,8 +99,9 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
                 error_detail = error.response.text
             except Exception:
                 error_detail = "(response body unavailable)"
-            raise BuildLogError(
-                f"HTTP {error.response.status_code}: {error_detail}"
+            raise StreamLogError(
+                f"HTTP {error.response.status_code}: {error_detail}",
+                status_code=error.response.status_code,
             ) from error
 
 
@@ -114,8 +124,7 @@ def attempts(
             for attempt_number in range(total_attempts):
                 if time.monotonic() - start > timeout.total_seconds():
                     raise TimeoutError(
-                        "Build log streaming timed out after %ds",
-                        timeout.total_seconds(),
+                        f"Log streaming timed out after {timeout.total_seconds():.0f}s"
                     )
 
                 with attempt(attempt_number):
@@ -130,22 +139,72 @@ def attempts(
     return decorator
 
 
+class DeploymentStatus(str, Enum):
+    waiting_upload = "waiting_upload"
+    ready_for_build = "ready_for_build"
+    building = "building"
+    extracting = "extracting"
+    extracting_failed = "extracting_failed"
+    building_image = "building_image"
+    building_image_failed = "building_image_failed"
+    deploying = "deploying"
+    deploying_failed = "deploying_failed"
+    verifying = "verifying"
+    verifying_failed = "verifying_failed"
+    verifying_skipped = "verifying_skipped"
+    success = "success"
+    failed = "failed"
+
+    @classmethod
+    def to_human_readable(cls, status: "DeploymentStatus") -> str:
+        return {
+            cls.waiting_upload: "Waiting for upload",
+            cls.ready_for_build: "Ready for build",
+            cls.building: "Building",
+            cls.extracting: "Extracting",
+            cls.extracting_failed: "Extracting failed",
+            cls.building_image: "Building image",
+            cls.building_image_failed: "Build failed",
+            cls.deploying: "Deploying",
+            cls.deploying_failed: "Deploying failed",
+            cls.verifying: "Verifying",
+            cls.verifying_failed: "Verifying failed",
+            cls.verifying_skipped: "Verification skipped",
+            cls.success: "Success",
+            cls.failed: "Failed",
+        }[status]
+
+
+SUCCESSFUL_STATUSES = {DeploymentStatus.success, DeploymentStatus.verifying_skipped}
+FAILED_STATUSES = {
+    DeploymentStatus.failed,
+    DeploymentStatus.verifying_failed,
+    DeploymentStatus.deploying_failed,
+    DeploymentStatus.building_image_failed,
+    DeploymentStatus.extracting_failed,
+}
+TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES
+
+POLL_INTERVAL = 2.0
+POLL_TIMEOUT = timedelta(seconds=120)
+POLL_MAX_RETRIES = 5
+
+
 class APIClient(httpx.Client):
     def __init__(self) -> None:
         settings = Settings.get()
-
-        token = get_auth_token()
+        identity = Identity()
 
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {identity.token}",
                 "User-Agent": f"fastapi-cloud-cli/{__version__}",
             },
         )
 
-    @attempts(BUILD_LOG_MAX_RETRIES, BUILD_LOG_TIMEOUT)
+    @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
         self, deployment_id: str
     ) -> Generator[BuildLogLine, None, None]:
@@ -187,9 +246,80 @@ class APIClient(httpx.Client):
 
             time.sleep(0.5)
 
-    def _parse_log_line(self, line: str) -> Optional[BuildLogLine]:
+    def _parse_log_line(self, line: str) -> BuildLogLine | None:
         try:
             return BuildLogAdapter.validate_json(line)
         except (ValidationError, json.JSONDecodeError) as e:
             logger.debug("Skipping malformed log: %s (error: %s)", line[:100], e)
             return None
+
+    @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
+    def stream_app_logs(
+        self,
+        app_id: str,
+        tail: int,
+        since: str,
+        follow: bool,
+    ) -> Generator[AppLogEntry, None, None]:
+        timeout = 120 if follow else 30
+        with self.stream(
+            "GET",
+            f"/apps/{app_id}/logs/stream",
+            params={
+                "tail": tail,
+                "since": since,
+                "follow": follow,
+            },
+            timeout=timeout,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line or not line.strip():  # pragma: no cover
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.debug("Failed to parse log line: %s", line)
+                    continue
+
+                if data.get("type") == "heartbeat":
+                    continue
+
+                if data.get("type") == "error":
+                    raise StreamLogError(data.get("message", "Unknown error"))
+
+                try:
+                    yield AppLogEntry.model_validate(data)
+                except ValidationError as e:  # pragma: no cover
+                    logger.debug("Failed to parse log entry: %s - %s", data, e)
+                    continue
+
+    def poll_deployment_status(
+        self,
+        app_id: str,
+        deployment_id: str,
+    ) -> DeploymentStatus:
+        start = time.monotonic()
+        error_count = 0
+
+        while True:
+            if time.monotonic() - start > POLL_TIMEOUT.total_seconds():
+                raise TimeoutError("Deployment verification timed out")
+
+            with attempt(error_count):
+                response = self.get(f"/apps/{app_id}/deployments/{deployment_id}")
+                response.raise_for_status()
+                status = DeploymentStatus(response.json()["status"])
+                error_count = 0
+
+                if status in TERMINAL_STATUSES:
+                    return status
+
+                time.sleep(POLL_INTERVAL)
+                continue
+
+            error_count += 1
+            if error_count >= POLL_MAX_RETRIES:
+                raise TooManyRetriesError(
+                    f"Failed after {POLL_MAX_RETRIES} attempts polling deployment status"
+                )
