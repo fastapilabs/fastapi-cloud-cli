@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump actions/download-artifact from 5 to 6. PR [#101](https://github.com/fastapilabs/fastapi-cloud-cli/pull/101) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/upload-artifact from 4 to 5. PR [#102](https://github.com/fastapilabs/fastapi-cloud-cli/pull/102) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump tiangolo/issue-manager from 0.5.1 to 0.6.0. PR [#85](https://github.com/fastapilabs/fastapi-cloud-cli/pull/85) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/setup-python from 5 to 6. PR [#84](https://github.com/fastapilabs/fastapi-cloud-cli/pull/84) by [@dependabot[bot]](https://github.com/apps/dependabot).
