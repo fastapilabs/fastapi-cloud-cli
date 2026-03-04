@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Docs
+
+* 📝 Add dates to release notes. PR [#161](https://github.com/fastapilabs/fastapi-cloud-cli/pull/161) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.14.0 (2026-02-25)
 
 ### Features
