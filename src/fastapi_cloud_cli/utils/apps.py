@@ -1,10 +1,7 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel
-
-from fastapi_cloud_cli.utils.pydantic_compat import model_dump_json, model_validate_json
 
 logger = logging.getLogger("fastapi_cli")
 
@@ -14,7 +11,7 @@ class AppConfig(BaseModel):
     team_id: str
 
 
-def get_app_config(path_to_deploy: Path) -> Optional[AppConfig]:
+def get_app_config(path_to_deploy: Path) -> AppConfig | None:
     config_path = path_to_deploy / ".fastapicloud/cloud.json"
     logger.debug("Looking for app config at: %s", config_path)
 
@@ -23,7 +20,7 @@ def get_app_config(path_to_deploy: Path) -> Optional[AppConfig]:
         return None
 
     logger.debug("App config loaded successfully")
-    return model_validate_json(AppConfig, config_path.read_text(encoding="utf-8"))
+    return AppConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
 
 
 README = """
@@ -52,7 +49,7 @@ def write_app_config(path_to_deploy: Path, app_config: AppConfig) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     config_path.write_text(
-        model_dump_json(app_config),
+        app_config.model_dump_json(),
         encoding="utf-8",
     )
     readme_path.write_text(README, encoding="utf-8")

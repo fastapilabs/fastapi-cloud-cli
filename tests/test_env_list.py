@@ -6,12 +6,10 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from tests.conftest import ConfiguredApp
 from tests.utils import changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -30,7 +28,7 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
     assert "No app found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -48,7 +46,7 @@ def test_shows_a_message_if_something_is_wrong(
     )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_no_env_variables(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -63,7 +61,7 @@ def test_shows_a_message_if_no_env_variables(
     assert "No environment variables found." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_environment_variables_names(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -85,3 +83,32 @@ def test_shows_environment_variables_names(
     assert result.exit_code == 0
     assert "SECRET_KEY" in result.output
     assert "API_KEY" in result.output
+
+
+@pytest.mark.respx
+def test_shows_secret_environment_variables_without_value(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    """Test that secret env vars without a value field are handled correctly."""
+    respx_mock.get(f"/apps/{configured_app.app_id}/environment-variables/").mock(
+        return_value=Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "name": "SECRET_KEY",
+                        "is_secret": True,
+                        "created_at": "2026-01-13T19:01:07.408378Z",
+                        "updated_at": "2026-01-13T19:01:07.408389Z",
+                        "connected_resource": None,
+                    },
+                ]
+            },
+        )
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["env", "list"])
+
+    assert result.exit_code == 0
+    assert "SECRET_KEY" in result.output

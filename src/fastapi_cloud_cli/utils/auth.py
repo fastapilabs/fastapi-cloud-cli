@@ -2,12 +2,11 @@ import base64
 import binascii
 import json
 import logging
+import os
 import time
-from typing import Optional
+from typing import Literal
 
 from pydantic import BaseModel
-
-from fastapi_cloud_cli.utils.pydantic_compat import model_dump_json, model_validate_json
 
 from .config import get_auth_path
 
@@ -22,7 +21,7 @@ def write_auth_config(auth_data: AuthConfig) -> None:
     auth_path = get_auth_path()
     logger.debug("Writing auth config to: %s", auth_path)
 
-    auth_path.write_text(model_dump_json(auth_data), encoding="utf-8")
+    auth_path.write_text(auth_data.model_dump_json(), encoding="utf-8")
     logger.debug("Auth config written successfully")
 
 
@@ -37,7 +36,7 @@ def delete_auth_config() -> None:
         logger.debug("Auth config file doesn't exist, nothing to delete")
 
 
-def read_auth_config() -> Optional[AuthConfig]:
+def read_auth_config() -> AuthConfig | None:
     auth_path = get_auth_path()
     logger.debug("Reading auth config from: %s", auth_path)
 
@@ -46,10 +45,10 @@ def read_auth_config() -> Optional[AuthConfig]:
         return None
 
     logger.debug("Auth config loaded successfully")
-    return model_validate_json(AuthConfig, auth_path.read_text(encoding="utf-8"))
+    return AuthConfig.model_validate_json(auth_path.read_text(encoding="utf-8"))
 
 
-def get_auth_token() -> Optional[str]:
+def _get_auth_token() -> str | None:
     logger.debug("Getting auth token")
     auth_data = read_auth_config()
 
@@ -61,7 +60,7 @@ def get_auth_token() -> Optional[str]:
     return auth_data.access_token
 
 
-def is_token_expired(token: str) -> bool:
+def _is_jwt_expired(token: str) -> bool:
     try:
         parts = token.split(".")
 
@@ -109,16 +108,35 @@ def is_token_expired(token: str) -> bool:
         return True
 
 
-def is_logged_in() -> bool:
-    token = get_auth_token()
+class Identity:
+    auth_mode: Literal["token", "user"]
 
-    if token is None:
-        logger.debug("Login status: False (no token)")
-        return False
+    def __init__(self) -> None:
+        self.token = _get_auth_token()
+        self.auth_mode = "user"
 
-    if is_token_expired(token):
-        logger.debug("Login status: False (token expired)")
-        return False
+        # users using `FASTAPI_CLOUD_TOKEN`
+        if env_token := self._get_token_from_env():
+            self.token = env_token
+            self.auth_mode = "token"
 
-    logger.debug("Login status: True")
-    return True
+    def _get_token_from_env(self) -> str | None:
+        return os.environ.get("FASTAPI_CLOUD_TOKEN")
+
+    def is_expired(self) -> bool:
+        if not self.token:
+            return True
+
+        return _is_jwt_expired(self.token)
+
+    def is_logged_in(self) -> bool:
+        if self.token is None:
+            logger.debug("Login status: False (no token)")
+            return False
+
+        if self.auth_mode == "user" and self.is_expired():
+            logger.debug("Login status: False (token expired)")
+            return False
+
+        logger.debug("Login status: True")
+        return True

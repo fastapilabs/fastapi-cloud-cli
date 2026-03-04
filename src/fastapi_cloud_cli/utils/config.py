@@ -1,9 +1,15 @@
+import os
 from pathlib import Path
 
 import typer
 
 
 def get_config_folder() -> Path:
+    config_dir = os.getenv("FASTAPI_CLOUD_CLI_CONFIG_DIR")
+
+    if config_dir:
+        return Path(config_dir).expanduser()
+
     return Path(typer.get_app_dir("fastapi-cli"))
 
 

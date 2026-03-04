@@ -1,13 +1,15 @@
 import base64
 import json
 import os
+import sys
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Generator, Union
+from typing import Any
 
 
 @contextmanager
-def changing_dir(directory: Union[str, Path]) -> Generator[None, None, None]:
+def changing_dir(directory: str | Path) -> Generator[None, None, None]:
     initial_dir = os.getcwd()
     os.chdir(directory)
     try:
@@ -16,20 +18,33 @@ def changing_dir(directory: Union[str, Path]) -> Generator[None, None, None]:
         os.chdir(initial_dir)
 
 
-def build_logs_response(*logs: Dict[str, Any]) -> str:
+def build_logs_response(*logs: dict[str, Any]) -> str:
     """Helper to create NDJSON build logs response."""
     return "\n".join(json.dumps(log) for log in logs)
 
 
-class Keys:
-    RIGHT_ARROW = "\x1b[C"
-    DOWN_ARROW = "\x1b[B"
-    ENTER = "\r"
-    CTRL_C = "\x03"
-    TAB = "\t"
+if sys.platform == "win32":
+
+    class Keys:
+        RIGHT_ARROW = "\xe0M"
+        DOWN_ARROW = "\xe0P"
+        ENTER = "\r"
+        CTRL_C = "\x03"
+        TAB = "\t"
+        BACKSPACE = "\x08"
+
+else:
+
+    class Keys:
+        RIGHT_ARROW = "\x1b[C"
+        DOWN_ARROW = "\x1b[B"
+        ENTER = "\r"
+        CTRL_C = "\x03"
+        TAB = "\t"
+        BACKSPACE = "\x7f"
 
 
-def create_jwt_token(payload: Dict[str, Any]) -> str:
+def create_jwt_token(payload: dict[str, Any]) -> str:
     # Note: This creates a JWT with an invalid signature, but that's OK for our tests
     # since we only parse the payload, not verify the signature.
 

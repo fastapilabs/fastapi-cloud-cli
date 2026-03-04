@@ -125,6 +125,7 @@ def test_archive_respects_fastapicloudignore_unignore(
 
     # Rignore needs a .git folder to make .gitignore work
     (src_path / ".git").mkdir(exist_ok=True, parents=True)
+    (src_path / ".git" / "config").write_text("[core]\n\trepositoryformatversion = 0")
     (src_path / ".gitignore").write_text("ignore_me.txt\nbuild/")
 
     (src_path / ".fastapicloudignore").write_text("!static/build")
@@ -142,12 +143,13 @@ def test_archive_respects_fastapicloudignore_unignore(
     }
 
 
-def test_archive_includes_hidden_files(
+def test_archive_includes_hidden_files_but_excludes_env(
     src_path: Path, tar_path: Path, dst_path: Path
 ) -> None:
-    """Should include hidden files in the archive by default."""
+    """Should include hidden files but exclude .env files."""
     (src_path / "main.py").write_text("print('hello')")
     (src_path / ".env").write_text("SECRET_KEY=xyz")
+    (src_path / ".env.local").write_text("LOCAL_KEY=abc")
     (src_path / ".config").mkdir()
     (src_path / ".config" / "settings.json").write_text('{"setting": "value"}')
 
@@ -158,7 +160,6 @@ def test_archive_includes_hidden_files(
 
     assert set(dst_path.glob("**/*")) == {
         dst_path / "main.py",
-        dst_path / ".env",
         dst_path / ".config",
         dst_path / ".config" / "settings.json",
     }
