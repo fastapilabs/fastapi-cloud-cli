@@ -23,7 +23,7 @@ jobs:
 
       - run: pip install smokeshow
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-html
           path: htmlcov
