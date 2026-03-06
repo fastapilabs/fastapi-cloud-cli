@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump actions/download-artifact from 6 to 8. PR [#163](https://github.com/fastapilabs/fastapi-cloud-cli/pull/163) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/checkout from 5 to 6. PR [#164](https://github.com/fastapilabs/fastapi-cloud-cli/pull/164) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/upload-artifact from 5 to 7. PR [#165](https://github.com/fastapilabs/fastapi-cloud-cli/pull/165) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/checkout from 5 to 6. PR [#119](https://github.com/fastapilabs/fastapi-cloud-cli/pull/119) by [@dependabot[bot]](https://github.com/apps/dependabot).
