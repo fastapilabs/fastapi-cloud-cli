@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump tiangolo/latest-changes from 0.4.0 to 0.4.1. PR [#162](https://github.com/fastapilabs/fastapi-cloud-cli/pull/162) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/download-artifact from 6 to 8. PR [#163](https://github.com/fastapilabs/fastapi-cloud-cli/pull/163) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/checkout from 5 to 6. PR [#164](https://github.com/fastapilabs/fastapi-cloud-cli/pull/164) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump actions/upload-artifact from 5 to 7. PR [#165](https://github.com/fastapilabs/fastapi-cloud-cli/pull/165) by [@dependabot[bot]](https://github.com/apps/dependabot).
