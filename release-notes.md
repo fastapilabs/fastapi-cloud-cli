@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.14.1 (2026-04-07)
+
 ### Fixes
 
 * 🐛 Fix nested progress in deploy causing weird output. PR [#166](https://github.com/fastapilabs/fastapi-cloud-cli/pull/166) by [@patrick91](https://github.com/patrick91).
