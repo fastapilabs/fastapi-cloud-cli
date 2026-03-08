@@ -462,54 +462,54 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with (
-        toolkit.progress(
-            next(messages),
-            inline_logs=True,
-            lines_to_show=20,
-            done_emoji="🚀",
-        ) as progress,
-        APIClient() as client,
-    ):
-        build_complete = False
+    with APIClient() as client:
+        with (
+            toolkit.progress(
+                next(messages),
+                inline_logs=True,
+                lines_to_show=20,
+                done_emoji="🚀",
+            ) as progress,
+        ):
+            build_complete = False
 
-        try:
-            for log in client.stream_build_logs(deployment.id):
-                time_elapsed = time.monotonic() - started_at
+            try:
+                for log in client.stream_build_logs(deployment.id):
+                    time_elapsed = time.monotonic() - started_at
 
-                if log.type == "message":
-                    progress.log(Text.from_ansi(log.message.rstrip()))
+                    if log.type == "message":
+                        progress.log(Text.from_ansi(log.message.rstrip()))
 
-                if log.type == "complete":
-                    build_complete = True
-                    progress.title = "Build complete!"
-                    break
+                    if log.type == "complete":
+                        build_complete = True
+                        progress.title = "Build complete!"
+                        break
 
-                if log.type == "failed":
-                    progress.log("")
-                    progress.log(
-                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                    )
-                    raise typer.Exit(1)
+                    if log.type == "failed":
+                        progress.log("")
+                        progress.log(
+                            f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                        )
+                        raise typer.Exit(1)
 
-                if time_elapsed > 30:
-                    messages = cycle(LONG_WAIT_MESSAGES)
+                    if time_elapsed > 30:
+                        messages = cycle(LONG_WAIT_MESSAGES)
 
-                if (time.monotonic() - last_message_changed_at) > 2:
-                    progress.title = next(messages)
+                    if (time.monotonic() - last_message_changed_at) > 2:
+                        progress.title = next(messages)
 
-                    last_message_changed_at = time.monotonic()
+                        last_message_changed_at = time.monotonic()
 
-        except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
-            progress.set_error(
-                dedent(f"""
-                [error]Build log streaming failed: {e}[/]
+            except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
+                progress.set_error(
+                    dedent(f"""
+                    [error]Build log streaming failed: {e}[/]
 
-                Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
-                """).strip()
-            )
+                    Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
+                    """).strip()
+                )
 
-            raise typer.Exit(1) from None
+                raise typer.Exit(1) from None
 
         if build_complete:
             toolkit.print_line()
