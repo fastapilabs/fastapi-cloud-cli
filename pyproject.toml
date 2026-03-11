@@ -104,6 +104,9 @@ show_contexts = true
 strict = true
 exclude = ["tests/assets/*"]
 
+[tool.ty.src]
+exclude = ["tests/assets/**"]
+
 [tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
