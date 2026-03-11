@@ -52,6 +52,7 @@ dev = [
     "ruff==0.13.0",
     "respx==0.22.0",
     "time-machine==2.15.0",
+    "ty>=0.0.9",
 ]
 
 [project.urls]
@@ -102,6 +103,9 @@ show_contexts = true
 [tool.mypy]
 strict = true
 exclude = ["tests/assets/*"]
+
+[tool.ty.src]
+exclude = ["tests/assets/**"]
 
 [tool.ruff.lint]
 select = [

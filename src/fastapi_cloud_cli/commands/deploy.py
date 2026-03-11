@@ -478,7 +478,7 @@ def _wait_for_deployment(
                     time_elapsed = time.monotonic() - started_at
 
                     if log.type == "message":
-                        progress.log(Text.from_ansi(log.message.rstrip()))
+                        progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
 
                     if log.type == "complete":
                         build_complete = True
@@ -581,13 +581,13 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
         )
         form.add_input("secret_code", label="Secret code", placeholder="123456")
 
-        result = form.run()  # type: ignore
+        result = form.run()  # type: ignore  # ty: ignore[unused-ignore-comment]
 
         try:
             result = SignupToWaitingList.model_validate(
                 {
                     "email": email,
-                    **result,  # type: ignore
+                    **result,  # type: ignore  # ty: ignore[unused-ignore-comment]
                 },
             )
         except ValidationError:
