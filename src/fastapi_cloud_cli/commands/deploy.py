@@ -587,7 +587,7 @@ def _waitlist_form(toolkit: RichToolkit) -> None:
             result = SignupToWaitingList.model_validate(
                 {
                     "email": email,
-                    **result,
+                    **result,  # type: ignore  # ty: ignore[unused-ignore-comment]
                 },
             )
         except ValidationError:
