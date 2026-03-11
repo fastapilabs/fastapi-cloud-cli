@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.15.0 (2026-03-11)
+
 ### Features
 
 * ✨ Add `fastapi cloud setup-ci`. PR [#157](https://github.com/fastapilabs/fastapi-cloud-cli/pull/157) by [@savannahostrowski](https://github.com/savannahostrowski).
@@ -10,7 +12,7 @@
 
 * 👷 Add `ty` to precommit. PR [#167](https://github.com/fastapilabs/fastapi-cloud-cli/pull/167) by [@svlandeg](https://github.com/svlandeg).
 
-## 0.14.1 (2026-04-07)
+## 0.14.1 (2026-03-07)
 
 ### Fixes
 
