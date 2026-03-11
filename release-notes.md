@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add `fastapi cloud setup-ci`. PR [#157](https://github.com/fastapilabs/fastapi-cloud-cli/pull/157) by [@savannahostrowski](https://github.com/savannahostrowski).
+
 ## 0.14.1 (2026-04-07)
 
 ### Fixes
