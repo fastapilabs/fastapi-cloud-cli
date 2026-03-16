@@ -7,11 +7,9 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -43,7 +41,7 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
     assert "No app found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -61,7 +59,7 @@ def test_shows_a_message_if_something_is_wrong(
     )
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_message_if_not_found(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -86,7 +84,7 @@ def test_shows_a_message_if_name_is_invalid(
     assert "The environment variable name aaa-aaa is invalid." in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_message_when_it_deletes(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -101,7 +99,7 @@ def test_shows_message_when_it_deletes(
     assert "Environment variable SOME_VAR deleted" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_selector_for_environment_variables(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
@@ -134,7 +132,7 @@ def test_shows_selector_for_environment_variables(
     assert "Environment variable SECRET_KEY deleted" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_message_if_no_environment_variable(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:

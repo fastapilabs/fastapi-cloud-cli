@@ -25,17 +25,34 @@ jobs:
   test:
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: ["3.14"]
+        uv-resolution:
+          - highest
+        include:
+          - python-version: "3.10"
+            os: ubuntu-latest
+            uv-resolution: lowest-direct
+          - python-version: "3.11"
+            os: macos-latest
+            uv-resolution: lowest-direct
+          - python-version: "3.12"
+            os: windows-latest
+            uv-resolution: highest
+          - python-version: "3.13"
+            os: macos-latest
+            uv-resolution: lowest-direct
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      UV_RESOLUTION: ${{ matrix.uv-resolution }}
     steps:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -52,17 +69,17 @@ jobs:
         with:
           limit-access-to-actor: true
       - name: Install Dependencies
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --all-extras --dev
       - run: mkdir coverage
       - name: Test
-        run: uv run --no-sync scripts/test.sh
+        run: uv run --no-sync bash scripts/test.sh
         env:
           COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
           CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}
       - name: Store coverage files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ runner.os }}-${{ matrix.python-version }}
           path: coverage
           include-hidden-files: true
 
@@ -74,7 +91,7 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version-file: "pyproject.toml"
@@ -84,7 +101,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: Get coverage files
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           path: coverage
@@ -94,7 +111,7 @@ jobs:
       - run: uv run coverage combine coverage
       - run: uv run coverage html --title "Coverage for ${{ github.sha }}"
       - name: Store coverage HTML
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-html
           path: htmlcov

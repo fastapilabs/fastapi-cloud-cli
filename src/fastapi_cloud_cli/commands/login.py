@@ -78,17 +78,13 @@ def login() -> Any:
     """
     identity = Identity()
 
-    if identity.is_expired():
-        with get_rich_toolkit(minimal=True) as toolkit:
-            toolkit.print("Your session has expired. Logging in again...")
-            toolkit.print_line()
-
     if identity.is_logged_in():
         with get_rich_toolkit(minimal=True) as toolkit:
             toolkit.print("You are already logged in.")
             toolkit.print(
                 "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
             )
+
         return
 
     with get_rich_toolkit() as toolkit, APIClient() as client:

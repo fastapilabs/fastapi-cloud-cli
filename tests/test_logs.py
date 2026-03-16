@@ -7,13 +7,11 @@ import respx
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import changing_dir
 
 runner = CliRunner()
-settings = Settings.get()
 
 
 def test_shows_message_if_not_logged_in(logged_out_cli: None) -> None:
@@ -30,7 +28,7 @@ def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
     assert "No app linked to this directory" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_displays_logs(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -66,7 +64,7 @@ def test_displays_logs(
     assert "GET /health 200" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_passes_default_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -86,7 +84,7 @@ def test_passes_default_params(
     assert configured_app.app_id in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_passes_custom_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -106,7 +104,7 @@ def test_passes_custom_params(
     assert "follow=false" in url
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_displays_all_log_levels(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -156,7 +154,7 @@ def test_displays_all_log_levels(
     assert "Error message" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_401_unauthorized(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -171,7 +169,22 @@ def test_handles_401_unauthorized(
     assert "token is not valid" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
+def test_handles_403_forbidden(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(403)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow"])
+
+    assert result.exit_code == 1
+    assert "You don't have permissions for this resource" in result.output
+
+
+@pytest.mark.respx
 def test_handles_404(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -186,7 +199,7 @@ def test_handles_404(
     assert "App not found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_shows_message_when_no_logs_found(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -201,7 +214,7 @@ def test_shows_message_when_no_logs_found(
     assert "No logs found" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_server_error_message(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -221,7 +234,7 @@ def test_handles_server_error_message(
     assert "Log storage unavailable" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_handles_unknown_log_level(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -247,7 +260,7 @@ def test_handles_unknown_log_level(
     assert "Unknown level message" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_skips_invalid_json_lines(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -274,7 +287,7 @@ def test_skips_invalid_json_lines(
     assert "Valid log message" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 def test_skips_heartbeat_messages(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -349,7 +362,7 @@ def test_rejects_invalid_since_format(
     assert "Invalid format" in result.output
 
 
-@pytest.mark.respx(base_url=settings.base_api_url)
+@pytest.mark.respx
 @pytest.mark.parametrize(
     "valid_since",
     [
