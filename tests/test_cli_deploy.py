@@ -24,8 +24,8 @@ runner = CliRunner()
 assets_path = Path(__file__).parent / "assets"
 
 
-def _get_random_team() -> dict[str, str]:
-    name = "".join(random.choices(string.ascii_lowercase, k=10))
+def _get_random_team(name: str | None = None) -> dict[str, str]:
+    name = name or "".join(random.choices(string.ascii_lowercase, k=10))
     slug = "".join(random.choices(string.ascii_lowercase, k=10))
     id = "".join(random.choices(string.digits, k=10))
 
@@ -324,6 +324,42 @@ def test_shows_teams(
 
 
 @pytest.mark.respx
+def test_filter_teams(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [*"al", Keys.ENTER, Keys.CTRL_C]
+
+    team_1 = _get_random_team(name="Alpha Team")
+    team_2 = _get_random_team(name="Beta Team")
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team_1, team_2]},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "Filter: al" in result.output
+
+        # Truncate part of the output before "Filter: al"
+        filer_pos = result.output.rfind("Filter: al")
+        last_output = result.output[filer_pos:]
+
+        assert team_1["name"] in last_output
+        assert team_2["name"] not in last_output
+
+
+@pytest.mark.respx
 def test_asks_for_app_name_after_team(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -347,6 +383,48 @@ def test_asks_for_app_name_after_team(
         assert result.exit_code == 1
 
         assert "What's your app name?" in result.output
+
+
+@pytest.mark.respx
+def test_filter_apps(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, *"an", Keys.ENTER, Keys.CTRL_C]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team]},
+        )
+    )
+
+    app_1 = _get_random_app(team_id=team["id"], slug="My App")
+    app_2 = _get_random_app(team_id=team["id"], slug="Another App")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_1, app_2]})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "Filter: an" in result.output
+
+        # Truncate part of the output before "Filter: an"
+        filer_pos = result.output.rfind("Filter: an")
+        last_output = result.output[filer_pos:]
+
+        assert app_1["slug"] not in last_output
+        assert app_2["slug"] in last_output
 
 
 @pytest.mark.respx
