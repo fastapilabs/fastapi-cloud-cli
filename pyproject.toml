@@ -54,6 +54,7 @@ dev = [
     "respx==0.22.0",
     "time-machine==2.15.0",
     "ty>=0.0.9",
+    "pre-commit>=4.5.1",
 ]
 
 [project.urls]

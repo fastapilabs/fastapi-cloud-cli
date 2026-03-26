@@ -11,16 +11,13 @@ from typing import Annotated, Any
 
 import fastar
 import rignore
+import tomli as tomllib
 import typer
 from httpx import Client
 from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import (
@@ -82,26 +79,28 @@ def _cancel_upload(deployment_id: str) -> None:
     except Exception as e:
         logger.debug("Failed to notify server about upload cancellation: %s", e)
 
+
 def _project_name_from_pyproject(path: Path) -> str:
     if not path.exists():
         return ""
-    
+
     try:
         with path.open("rb") as f:
             data = tomllib.load(f)
 
         project_name = data.get("project", {}).get("name")
         if project_name:
-            return project_name
+            return str(project_name)
 
         poetry_name = data.get("tool", {}).get("poetry", {}).get("name")
         if poetry_name:
-            return poetry_name
+            return str(poetry_name)
 
     except Exception:
         return ""
 
     return ""
+
 
 def _get_app_name(path: Path) -> str:
     pyproject_path = path / "pyproject.toml"
@@ -529,11 +528,13 @@ def _wait_for_deployment(
 
             except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
                 progress.set_error(
-                    dedent(f"""
+                    dedent(
+                        f"""
                     [error]Build log streaming failed: {e}[/]
 
                     Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
-                    """).strip()
+                    """
+                    ).strip()
                 )
 
                 raise typer.Exit(1) from None
