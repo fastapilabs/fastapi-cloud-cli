@@ -43,53 +43,53 @@ class ProgressFile(BinaryIO):
         return self._file.__iter__()
 
     def __next__(self) -> bytes:
-        return next(self._file)
+        return next(self._file)  # pragma: no cover
 
     @property
     def mode(self) -> str:
-        return self._file.mode
+        return self._file.mode  # pragma: no cover
 
     def readable(self) -> bool:
-        return self._file.readable()
+        return self._file.readable()  # pragma: no cover
 
     def seekable(self) -> bool:
-        return self._file.seekable()
+        return self._file.seekable()  # pragma: no cover
 
     # Methods below are just to satisfy the BinaryIO interface
 
     def write(self, *_args: Any, **kwargs: Any) -> int:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def readline(self, *_args: Any, **kwargs: Any) -> bytes:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def readlines(self, *_args: Any, **kwargs: Any) -> list[bytes]:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def writelines(self, *_args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def __enter__(self) -> BinaryIO:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def __exit__(self, *_args: Any) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def close(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @property
     def closed(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def flush(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def isatty(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def writable(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     def truncate(self, *_args: Any, **kwargs: Any) -> int:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
