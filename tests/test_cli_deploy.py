@@ -9,9 +9,9 @@ from unittest.mock import patch
 import httpx
 import pytest
 import respx
-import rich_toolkit
 from click.testing import Result
 from httpx import Response
+from rich_toolkit.progress import Progress
 from time_machine import TimeMachineFixture
 from typer.testing import CliRunner
 
@@ -1737,7 +1737,7 @@ def test_upload_deployment_progress(
 
     with (
         changing_dir(tmp_path),
-        patch.object(rich_toolkit.toolkit.Progress, "log") as mock_progress,
+        patch.object(Progress, "log") as mock_progress,
     ):
         result = runner.invoke(app, ["deploy"])
         assert result.exit_code == 0
