@@ -225,7 +225,7 @@ def _upload_deployment(
     )
     logger.debug("Archive path: %s, size: %s bytes", archive_path, archive_size)
 
-    def progress_callback(bytes_read: int):
+    def progress_callback(bytes_read: int) -> None:
         progress.log(
             f"Uploading deployment ({_format_size(bytes_read)} of {archive_size_str})..."
         )
