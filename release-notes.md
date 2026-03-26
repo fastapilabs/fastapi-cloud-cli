@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 🔥 Remove unused `tests/assets`. PR [#170](https://github.com/fastapilabs/fastapi-cloud-cli/pull/170) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.15.0 (2026-03-11)
 
 ### Features
