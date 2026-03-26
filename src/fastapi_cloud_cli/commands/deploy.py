@@ -17,6 +17,7 @@ from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, Validatio
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
+from rich_toolkit.progress import Progress
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import (
@@ -29,6 +30,7 @@ from fastapi_cloud_cli.utils.api import (
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
 logger = logging.getLogger(__name__)
 
@@ -201,16 +203,32 @@ class RequestUploadResponse(BaseModel):
     fields: dict[str, str]
 
 
-def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
+def _format_size(size_in_bytes: int) -> str:
+    if size_in_bytes >= 1024 * 1024:
+        return f"{size_in_bytes / (1024 * 1024):.2f} MB"
+    elif size_in_bytes >= 1024:
+        return f"{size_in_bytes / 1024:.2f} KB"
+    else:
+        return f"{size_in_bytes} bytes"
+
+
+def _upload_deployment(
+    deployment_id: str, archive_path: Path, progress: Progress
+) -> None:
+    archive_size = archive_path.stat().st_size
+    archive_size_str = _format_size(archive_size)
+
+    progress.log(f"Uploading deployment ({archive_size_str})...")
     logger.debug(
         "Starting deployment upload for deployment: %s",
         deployment_id,
     )
-    logger.debug(
-        "Archive path: %s, size: %s bytes",
-        archive_path,
-        archive_path.stat().st_size,
-    )
+    logger.debug("Archive path: %s, size: %s bytes", archive_path, archive_size)
+
+    def progress_callback(bytes_read: int):
+        progress.log(
+            f"Uploading deployment ({_format_size(bytes_read)} of {archive_size_str})..."
+        )
 
     with APIClient() as fastapi_client, Client() as client:
         # Get the upload URL
@@ -223,10 +241,13 @@ def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
 
         logger.debug("Starting file upload to S3")
         with open(archive_path, "rb") as archive_file:
+            archive_file_with_progress = ProgressFile(
+                archive_file, progress_callback=progress_callback
+            )
             upload_response = client.post(
                 upload_data.url,
                 data=upload_data.fields,
-                files={"file": archive_file},
+                files={"file": archive_file_with_progress},
             )
 
         upload_response.raise_for_status()
@@ -767,9 +788,7 @@ def deploy(
                         f"Deployment created successfully! Deployment slug: {deployment.slug}"
                     )
 
-                    progress.log("Uploading deployment...")
-
-                    _upload_deployment(deployment.id, archive_path)
+                    _upload_deployment(deployment.id, archive_path, progress=progress)
 
                     progress.log("Deployment uploaded successfully!")
                 except KeyboardInterrupt:
