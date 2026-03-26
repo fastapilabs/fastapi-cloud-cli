@@ -11,7 +11,11 @@ from typing import Annotated, Any
 
 import fastar
 import rignore
-import tomli as tomllib
+
+try:
+    import tomllib  # type: ignore[import-not-found]
+except ImportError:
+    import tomli as tomllib
 import typer
 from httpx import Client
 from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
