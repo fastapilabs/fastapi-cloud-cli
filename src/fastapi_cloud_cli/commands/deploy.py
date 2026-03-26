@@ -325,6 +325,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         "Select the team you want to deploy to:",
         tag="team",
         options=[Option({"name": team.name, "value": team}) for team in teams],
+        allow_filtering=True,
     )
 
     toolkit.print_line()
@@ -356,6 +357,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
             options=[Option({"name": app.slug, "value": app}) for app in apps],
+            allow_filtering=True,
         )
 
     app_name = (
