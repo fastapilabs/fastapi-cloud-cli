@@ -76,6 +76,7 @@ def test_callback_tracks_cumulative_bytes() -> None:
 
     mock_callback.assert_has_calls([call(10), call(30), call(40)])
 
+
 def test_callback_called_on_eof() -> None:
     file = _make_file(b"abcd")
     mock_callback = Mock()
