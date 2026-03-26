@@ -11,6 +11,11 @@ from typing import Annotated, Any
 
 import fastar
 import rignore
+
+try:
+    import tomllib  # type: ignore[import-not-found]
+except ImportError:
+    import tomli as tomllib
 import typer
 from httpx import Client
 from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
@@ -79,8 +84,33 @@ def _cancel_upload(deployment_id: str) -> None:
         logger.debug("Failed to notify server about upload cancellation: %s", e)
 
 
+def _project_name_from_pyproject(path: Path) -> str:
+    if not path.exists():
+        return ""
+
+    try:
+        with path.open("rb") as f:
+            data = tomllib.load(f)
+
+        project_name = data.get("project", {}).get("name")
+        if project_name:
+            return str(project_name)
+
+        poetry_name = data.get("tool", {}).get("poetry", {}).get("name")
+        if poetry_name:
+            return str(poetry_name)
+
+    except Exception:
+        return ""
+
+    return ""
+
+
 def _get_app_name(path: Path) -> str:
-    # TODO: use pyproject.toml to get the app name
+    pyproject_path = path / "pyproject.toml"
+    name = _project_name_from_pyproject(pyproject_path)
+    if name:
+        return name
     return path.name
 
 
@@ -504,11 +534,13 @@ def _wait_for_deployment(
 
             except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
                 progress.set_error(
-                    dedent(f"""
+                    dedent(
+                        f"""
                     [error]Build log streaming failed: {e}[/]
 
                     Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
-                    """).strip()
+                    """
+                    ).strip()
                 )
 
                 raise typer.Exit(1) from None
