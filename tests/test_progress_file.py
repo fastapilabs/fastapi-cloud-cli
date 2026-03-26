@@ -76,6 +76,15 @@ def test_callback_tracks_cumulative_bytes() -> None:
 
     mock_callback.assert_has_calls([call(10), call(30), call(40)])
 
+def test_callback_called_on_eof() -> None:
+    file = _make_file(b"abcd")
+    mock_callback = Mock()
+
+    pf = ProgressFile(file, progress_callback=mock_callback)
+    pf.read(3)
+    pf.read(3)
+    mock_callback.assert_has_calls([call(3), call(4)])
+
 
 def test_name_property() -> None:
     file = _make_file(name="test.tar.gz")

@@ -22,7 +22,8 @@ class ProgressFile:
         data = self._file.read(n)
         self._bytes_read += len(data)
         now_ = datetime.now().timestamp()
-        if now_ - self._last_update_time >= self._update_interval:
+        is_eof = (len(data) == 0) or (n > 0 and len(data) < n)
+        if (now_ - self._last_update_time >= self._update_interval) or is_eof:
             self._progress_callback(self._bytes_read)
             self._last_update_time = now_
         return data
