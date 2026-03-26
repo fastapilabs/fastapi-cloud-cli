@@ -1,5 +1,9 @@
-import typer
+from typing import Annotated
 
+import typer
+from rich import print
+
+from . import __version__
 from .commands.deploy import deploy
 from .commands.env import env_app
 from .commands.link import link
@@ -16,10 +20,32 @@ setup_logging()
 
 app = typer.Typer(rich_markup_mode="rich")
 
+
+def version_callback(value: bool) -> None:
+    if value:
+        print(f"FastAPI Cloud CLI version: [green]{__version__}[/green]")
+        raise typer.Exit()
+
+
 cloud_app = typer.Typer(
     rich_markup_mode="rich",
     help="Manage [bold]FastAPI[/bold] Cloud deployments. 🚀",
 )
+
+
+@cloud_app.callback()
+def cloud_main(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show the version and exit.",
+        ),
+    ] = False,
+) -> None: ...
+
 
 # TODO: use the app structure
 
