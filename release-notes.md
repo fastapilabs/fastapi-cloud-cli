@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* 💄 Allow filtering for teams and apps. PR [#169](https://github.com/fastapilabs/fastapi-cloud-cli/pull/169) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ### Internal
 
 * 🔥 Remove unused `tests/assets`. PR [#170](https://github.com/fastapilabs/fastapi-cloud-cli/pull/170) by [@YuriiMotov](https://github.com/YuriiMotov).
