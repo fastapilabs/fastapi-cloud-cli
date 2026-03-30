@@ -2017,6 +2017,7 @@ def test_ctrl_c_during_verification_shows_cancelled(
             "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
             side_effect=KeyboardInterrupt(),
         ),
+        patch("fastapi_cloud_cli.utils.cli.IS_TTY", True),
     ):
         result = runner.invoke(app, ["deploy"])
 
@@ -2060,6 +2061,7 @@ def test_ctrl_c_during_build_streaming_shows_cancelled(
             "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
             side_effect=KeyboardInterrupt(),
         ),
+        patch("fastapi_cloud_cli.utils.cli.IS_TTY", True),
     ):
         result = runner.invoke(app, ["deploy"])
 

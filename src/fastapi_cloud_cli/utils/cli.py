@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import sys
 from collections.abc import Generator
 from typing import Any, Literal
 
@@ -13,6 +14,8 @@ from rich_toolkit.styles import MinimalStyle, TaggedStyle
 from .auth import Identity, delete_auth_config
 
 logger = logging.getLogger(__name__)
+
+IS_TTY = sys.stdout.isatty()
 
 
 class FastAPIStyle(TaggedStyle):
@@ -55,7 +58,7 @@ class FastAPIStyle(TaggedStyle):
 
 
 def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
-    style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
+    style = MinimalStyle() if (minimal or not IS_TTY) else FastAPIStyle(tag_width=11)
 
     theme = RichToolkitTheme(
         style=style,
