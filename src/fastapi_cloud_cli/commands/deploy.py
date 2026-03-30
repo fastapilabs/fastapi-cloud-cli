@@ -7,7 +7,7 @@ import time
 from itertools import cycle
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
-from typing import Annotated, Any
+from typing import Annotated, Any, BinaryIO, cast
 
 import fastar
 import rignore
@@ -247,7 +247,7 @@ def _upload_deployment(
             upload_response = client.post(
                 upload_data.url,
                 data=upload_data.fields,
-                files={"file": archive_file_with_progress},
+                files={"file": cast(BinaryIO, archive_file_with_progress)},
             )
 
         upload_response.raise_for_status()

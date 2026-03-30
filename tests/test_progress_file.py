@@ -15,13 +15,6 @@ def _make_file(
     return f
 
 
-def test_read_returns_data() -> None:
-    file = _make_file(b"abc")
-    pf = ProgressFile(file, progress_callback=lambda _: None)
-
-    assert pf.read() == b"abc"
-
-
 def test_read_with_size() -> None:
     file = _make_file(b"abcdef")
     pf = ProgressFile(file, progress_callback=lambda _: None)
@@ -94,18 +87,7 @@ def test_name_property() -> None:
     assert pf.name == "test.tar.gz"
 
 
-def test_seek_and_tell() -> None:
-    file = _make_file(b"abcdef")
-    pf = ProgressFile(file, progress_callback=lambda _: None)
-
-    pf.seek(3)
-    assert pf.tell() == 3
-
-    pf.seek(0)
-    assert pf.tell() == 0
-
-
-def test_seek_resets_bytes_read() -> None:
+def test_callback_uses_current_file_position_after_seek() -> None:
     file = _make_file(b"abcde")
     mock_callback = Mock()
 
@@ -120,11 +102,3 @@ def test_seek_resets_bytes_read() -> None:
     pf.read(3)
 
     mock_callback.assert_has_calls([call(3), call(5)])
-
-
-def test_iter_delegates() -> None:
-    file = _make_file(b"line1\nline2\n")
-    pf = ProgressFile(file, progress_callback=lambda _: None)
-
-    lines = list(pf)
-    assert lines == [b"line1\n", b"line2\n"]
