@@ -75,7 +75,7 @@ def _get_random_deployment(
         "slug": slug,
         "status": status,
         "url": "http://test.com",
-        "dashboard_url": "http://test.com",
+        "dashboard_url": "http://test.com/user-6bb66217/apps/appp-77c97ddb/deployments/0032cc32-8108-42d6-a294-846bce8235b8",
     }
 
 
@@ -2000,9 +2000,21 @@ def test_verifying_skipped_treated_as_success(
         assert deployment_data["url"] in result.output
 
 
+@pytest.mark.parametrize(
+    ("is_tty", "expected_in_output", "expected_not_in_output"),
+    [
+        (True, ["🟡", "Cancelled"], ["✅"]),
+        (False, ["Cancelled."], ["✅", "🟡"]),
+    ],
+)
 @pytest.mark.respx
 def test_ctrl_c_during_verification_shows_cancelled(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    is_tty: bool,
+    expected_in_output: list[str],
+    expected_not_in_output: list[str],
 ) -> None:
     app_data = _get_random_app()
     app_id = app_data["id"]
@@ -2017,18 +2029,32 @@ def test_ctrl_c_during_verification_shows_cancelled(
             "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
             side_effect=KeyboardInterrupt(),
         ),
-        patch("fastapi_cloud_cli.utils.cli.IS_TTY", True),
+        patch("fastapi_cloud_cli.utils.cli.IS_TTY", is_tty),
     ):
         result = runner.invoke(app, ["deploy"])
 
-        assert "🟡" in result.output
-        assert "Cancelled" in result.output
-        assert "✅" not in result.output
+        for expected in expected_in_output:
+            assert expected in result.output
+
+        for not_expected in expected_not_in_output:
+            assert not_expected not in result.output
 
 
+@pytest.mark.parametrize(
+    ("is_tty", "expected_in_output", "expected_not_in_output"),
+    [
+        (True, ["🟡", "Cancelled"], []),
+        (False, ["Cancelled."], ["🟡"]),
+    ],
+)
 @pytest.mark.respx
 def test_ctrl_c_during_build_streaming_shows_cancelled(
-    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    is_tty: bool,
+    expected_in_output: list[str],
+    expected_not_in_output: list[str],
 ) -> None:
     app_data = _get_random_app()
     app_id = app_data["id"]
@@ -2061,9 +2087,12 @@ def test_ctrl_c_during_build_streaming_shows_cancelled(
             "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
             side_effect=KeyboardInterrupt(),
         ),
-        patch("fastapi_cloud_cli.utils.cli.IS_TTY", True),
+        patch("fastapi_cloud_cli.utils.cli.IS_TTY", is_tty),
     ):
         result = runner.invoke(app, ["deploy"])
 
-        assert "🟡" in result.output
-        assert "Cancelled." in result.output
+        for expected in expected_in_output:
+            assert expected in result.output
+
+        for not_expected in expected_not_in_output:
+            assert not_expected not in result.output
