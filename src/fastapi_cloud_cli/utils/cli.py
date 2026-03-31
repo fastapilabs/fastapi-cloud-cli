@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os
 import sys
 from collections.abc import Generator
 from typing import Any, Literal
@@ -59,6 +60,10 @@ class FastAPIStyle(TaggedStyle):
 
 def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
     style = MinimalStyle() if (minimal or not IS_TTY) else FastAPIStyle(tag_width=11)
+
+    if not IS_TTY:
+        if not os.environ.get("COLUMNS"):
+            style.console.width = 1000
 
     theme = RichToolkitTheme(
         style=style,
