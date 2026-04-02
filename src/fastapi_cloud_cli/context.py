@@ -17,8 +17,7 @@ class Context:
 
     def get_identity(self) -> Identity:
         if not self._is_initialized:
-            logger.debug("Context not initialized, initializing with default settings")
-            self.initialize()
+            raise RuntimeError("Context must be initialized before use")
         return Identity(prefer_auth_mode=self.prefer_auth_mode)
 
 

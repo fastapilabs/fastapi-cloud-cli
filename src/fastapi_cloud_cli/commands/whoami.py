@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def whoami() -> Any:
-    ctx.initialize(prefer_auth_mode="token")
     identity = ctx.get_identity()
 
     if identity.auth_mode == "token":
