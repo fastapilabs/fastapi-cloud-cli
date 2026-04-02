@@ -4,15 +4,16 @@ from typing import Any
 from rich import print
 from rich_toolkit.progress import Progress
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import handle_http_errors
 
 logger = logging.getLogger(__name__)
 
 
 def whoami() -> Any:
-    identity = Identity()
+    ctx.initialize(prefer_auth_mode="token")
+    identity = ctx.get_identity()
 
     if identity.auth_mode == "token":
         print("⚡ [bold]Using API token from environment variable[/bold]")

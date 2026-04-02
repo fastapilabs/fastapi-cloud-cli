@@ -7,8 +7,9 @@ import typer
 from pydantic import BaseModel
 
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
+from fastapi_cloud_cli.utils.auth import AuthConfig, write_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
-    identity = Identity()
+    identity = ctx.get_identity()
 
     if identity.is_logged_in():
         with get_rich_toolkit(minimal=True) as toolkit:

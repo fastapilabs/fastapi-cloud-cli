@@ -18,8 +18,7 @@ from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
-
-from .auth import Identity
+from fastapi_cloud_cli.context import ctx
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +192,7 @@ POLL_MAX_RETRIES = 5
 class APIClient(httpx.Client):
     def __init__(self) -> None:
         settings = Settings.get()
-        identity = Identity()
+        identity = ctx.get_identity()
 
         super().__init__(
             base_url=settings.base_api_url,

@@ -19,6 +19,7 @@ from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.login import login
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import (
     SUCCESSFUL_STATUSES,
     APIClient,
@@ -27,7 +28,6 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -652,7 +652,8 @@ def deploy(
         "Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, provided_app_id
     )
 
-    identity = Identity()
+    ctx.initialize(prefer_auth_mode="token")
+    identity = ctx.get_identity()
 
     with get_rich_toolkit() as toolkit:
         if not identity.is_logged_in():
