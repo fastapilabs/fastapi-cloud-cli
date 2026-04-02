@@ -688,6 +688,13 @@ def deploy(
                 _waitlist_form(toolkit)
                 raise typer.Exit(1)
 
+        if identity.auth_mode == "token":
+            toolkit.print(
+                "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
+                tag="info",
+            )
+            toolkit.print_line()
+
         toolkit.print_title("Starting deployment", tag="FastAPI")
         toolkit.print_line()
 
