@@ -111,19 +111,23 @@ def _is_jwt_expired(token: str) -> bool:
 class Identity:
     auth_mode: Literal["token", "user"]
 
-    def __init__(self) -> None:
+    def __init__(self, prefer_auth_mode: Literal["token", "user"] = "user") -> None:
         self.token = _get_auth_token()
         self.auth_mode = "user"
 
-        # users using `FASTAPI_CLOUD_TOKEN`
-        if env_token := self._get_token_from_env():
-            self.token = env_token
-            self.auth_mode = "token"
+        if prefer_auth_mode == "token":
+            # users using `FASTAPI_CLOUD_TOKEN`
+            if env_token := self._get_token_from_env():
+                self.token = env_token
+                self.auth_mode = "token"
 
     def _get_token_from_env(self) -> str | None:
         return os.environ.get("FASTAPI_CLOUD_TOKEN")
 
     def is_expired(self) -> bool:
+        if self.auth_mode != "user":  # pragma: no cover  # Should never happen
+            raise RuntimeError("Expiration check is only applicable for user tokens")
+
         if not self.token:
             return True
 
