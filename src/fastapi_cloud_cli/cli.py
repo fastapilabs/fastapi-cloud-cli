@@ -15,7 +15,7 @@ from .utils.sentry import init_sentry
 
 setup_logging()
 
-COMMANDS_USE_TOKEN = {"deploy", "whoami"}
+COMMANDS_USE_TOKEN = {"deploy"}
 
 app = typer.Typer(rich_markup_mode="rich")
 
