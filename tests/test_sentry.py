@@ -23,7 +23,6 @@ def test_init_sentry_when_logged_out(logged_out_cli: Path) -> None:
 
 
 def test_init_sentry_when_deployment_token(logged_out_cli: Path, monkeypatch) -> None:
-
     monkeypatch.setenv("FASTAPI_CLOUD_TOKEN", "deployment-token")
     with patch("fastapi_cloud_cli.utils.sentry.sentry_sdk.init") as mock_init:
         init_sentry()
