@@ -129,10 +129,10 @@ class Identity:
         if self._auth_mode != "user":  # pragma: no cover  # Should never happen
             raise RuntimeError("Expiration check is only applicable for user tokens")
 
-        if not self._user_token:
+        if not self.user_token:
             return True
 
-        return _is_jwt_expired(self._user_token)
+        return _is_jwt_expired(self.user_token)
 
     def is_logged_in(self) -> bool:
         if self.token is None:
@@ -153,8 +153,8 @@ class Identity:
     @property
     def token(self) -> str | None:
         if self._auth_mode == "token":
-            return self._deploy_token or self._user_token
-        return self._user_token
+            return self.deploy_token or self.user_token
+        return self.user_token
 
     @property
     def user_token(self) -> str | None:
