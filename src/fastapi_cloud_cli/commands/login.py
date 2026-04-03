@@ -77,6 +77,11 @@ def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
+
+    # Duplicate context initialization here to make `fastapi login` command work
+    # (callback doesn't take effect in this case)
+    ctx.initialize()
+
     identity = ctx.get_identity()
 
     if identity.is_logged_in():

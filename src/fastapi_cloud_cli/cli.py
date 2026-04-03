@@ -33,16 +33,6 @@ def cloud_callback(typer_ctx: typer.Context) -> None:
         ctx.initialize()
 
 
-@app.callback(invoke_without_command=True)
-def app_callback(typer_ctx: typer.Context) -> None:
-    if typer_ctx.invoked_subcommand == "cloud":
-        return
-    if typer_ctx.invoked_subcommand in COMMANDS_USE_TOKEN:
-        ctx.initialize(prefer_auth_mode="token")
-    else:
-        ctx.initialize()
-
-
 # TODO: use the app structure
 
 # Additional commands

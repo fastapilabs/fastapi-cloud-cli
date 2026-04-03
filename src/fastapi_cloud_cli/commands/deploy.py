@@ -652,6 +652,10 @@ def deploy(
         "Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, provided_app_id
     )
 
+    # Duplicate context initialization here to make `fastapi deploy` command work
+    # (callback doesn't take effect in this case)
+    ctx.initialize(prefer_auth_mode="token")
+
     identity = ctx.get_identity()
 
     with get_rich_toolkit() as toolkit:
