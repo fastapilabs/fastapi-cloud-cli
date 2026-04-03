@@ -5,9 +5,9 @@ from typing import Annotated, Any
 import typer
 from pydantic import BaseModel
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
@@ -70,7 +70,7 @@ def list(
     List the environment variables for the app.
     """
 
-    identity = Identity()
+    identity = ctx.get_identity()
 
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():
@@ -125,7 +125,7 @@ def delete(
     Delete an environment variable from the app.
     """
 
-    identity = Identity()
+    identity = ctx.get_identity()
 
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():
@@ -218,7 +218,7 @@ def set(
     Set an environment variable for the app.
     """
 
-    identity = Identity()
+    identity = ctx.get_identity()
 
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():

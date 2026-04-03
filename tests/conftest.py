@@ -90,3 +90,10 @@ def configured_app(tmp_path: Path) -> ConfiguredApp:
     config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
 
     return ConfiguredApp(app_id=app_id, team_id=team_id, path=tmp_path)
+
+
+@pytest.fixture(autouse=True)
+def unset_env_vars(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Fixture to unset environment variables that might interfere with tests."""
+    monkeypatch.delenv("FASTAPI_CLOUD_TOKEN", raising=False)
+    yield

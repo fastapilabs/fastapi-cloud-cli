@@ -78,6 +78,57 @@ def test_full_login(
 
 
 @pytest.mark.respx
+def test_full_login_with_deploy_token_set(
+    respx_mock: respx.MockRouter, temp_auth_config: Path, settings: Settings
+) -> None:
+    with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
+        respx_mock.post(
+            "/login/device/authorization", data={"client_id": settings.client_id}
+        ).mock(
+            return_value=Response(
+                200,
+                json={
+                    "verification_uri_complete": "http://test.com",
+                    "verification_uri": "http://test.com",
+                    "user_code": "1234",
+                    "device_code": "5678",
+                },
+            )
+        )
+        respx_mock.post(
+            "/login/device/token",
+            data={
+                "device_code": "5678",
+                "client_id": settings.client_id,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            },
+        ).mock(return_value=Response(200, json={"access_token": "test_token_1234"}))
+
+        # Verify no auth file exists before login
+        assert not temp_auth_config.exists()
+
+        result = runner.invoke(
+            app,
+            ["login"],
+            env={"FASTAPI_CLOUD_TOKEN": "test_deploy_token"},  # Should be ignored
+        )
+
+        assert result.exit_code == 0
+        assert mock_open.called
+        assert mock_open.call_args.args == ("http://test.com",)
+
+        # Verify the warning message is shown
+        assert "You have FASTAPI_CLOUD_TOKEN environment variable set." in result.output
+        assert "This token will take precedence over the user token" in result.output
+
+        assert "Now you are logged in!" in result.output
+
+        # Verify auth file was created with correct content
+        assert temp_auth_config.exists()
+        assert '"access_token":"test_token_1234"' in temp_auth_config.read_text()
+
+
+@pytest.mark.respx
 def test_fetch_access_token_success_immediately(
     respx_mock: respx.MockRouter, settings: Settings
 ) -> None:

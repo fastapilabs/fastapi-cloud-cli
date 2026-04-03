@@ -10,7 +10,9 @@ from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
 
-from .auth import Identity, delete_auth_config
+from fastapi_cloud_cli.context import ctx
+
+from .auth import delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +80,7 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
 def handle_unauthorized() -> str:
     message = "The specified token is not valid. "
 
-    identity = Identity()
+    identity = ctx.get_identity()
 
     if identity.auth_mode == "user":
         delete_auth_config()

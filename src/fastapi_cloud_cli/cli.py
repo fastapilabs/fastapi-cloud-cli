@@ -9,10 +9,13 @@ from .commands.logs import logs
 from .commands.setup_ci import setup_ci
 from .commands.unlink import unlink
 from .commands.whoami import whoami
+from .context import ctx
 from .logging import setup_logging
 from .utils.sentry import init_sentry
 
 setup_logging()
+
+COMMANDS_USE_TOKEN = {"deploy"}
 
 app = typer.Typer(rich_markup_mode="rich")
 
@@ -20,6 +23,15 @@ cloud_app = typer.Typer(
     rich_markup_mode="rich",
     help="Manage [bold]FastAPI[/bold] Cloud deployments. 🚀",
 )
+
+
+@cloud_app.callback(invoke_without_command=True)
+def cloud_callback(typer_ctx: typer.Context) -> None:
+    if typer_ctx.invoked_subcommand in COMMANDS_USE_TOKEN:
+        ctx.initialize(prefer_auth_mode="token")
+    else:
+        ctx.initialize()
+
 
 # TODO: use the app structure
 
