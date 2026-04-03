@@ -116,6 +116,11 @@ def test_full_login_with_deploy_token_set(
         assert result.exit_code == 0
         assert mock_open.called
         assert mock_open.call_args.args == ("http://test.com",)
+
+        # Verify the warning message is shown
+        assert "You have FASTAPI_CLOUD_TOKEN environment variable set." in result.output
+        assert "This token will take precedence over the user token" in result.output
+
         assert "Now you are logged in!" in result.output
 
         # Verify auth file was created with correct content
