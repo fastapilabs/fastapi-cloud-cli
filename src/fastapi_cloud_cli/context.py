@@ -16,7 +16,7 @@ class Context:
         self._is_initialized = True
 
     def get_identity(self) -> Identity:
-        if not self._is_initialized:  #pragma: no cover
+        if not self._is_initialized:  # pragma: no cover
             raise RuntimeError("Context must be initialized before use")
         return Identity(prefer_auth_mode=self.prefer_auth_mode)
 
