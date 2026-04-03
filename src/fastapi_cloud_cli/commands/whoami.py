@@ -27,7 +27,7 @@ def whoami() -> Any:
 
             print(f"⚡ [bold]{data['email']}[/bold]")
 
-    # Deplotment token status
+    # Deployment token status
     if identity.deploy_token is not None:
         print(
             "⚡ [bold]Using API token from environment variable for "

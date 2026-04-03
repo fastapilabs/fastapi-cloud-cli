@@ -1563,7 +1563,10 @@ def test_cancel_upload_swallows_exceptions(
 )
 @pytest.mark.respx
 def test_deploy_successfully_with_token(
-    logged_out_cli: None, command: str, tmp_path: Path, respx_mock: respx.MockRouter
+    logged_out_cli: None,
+    command: list[str],
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
 ) -> None:
     app_data = _get_random_app()
     team_data = _get_random_team()
