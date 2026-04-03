@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class Context:
-    def __init__(self):
+    def __init__(self) -> None:
         self._is_initialized = False
 
     def initialize(self, prefer_auth_mode: Literal["token", "user"] = "user") -> None:

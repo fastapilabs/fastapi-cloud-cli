@@ -1,6 +1,8 @@
 from pathlib import Path
 from unittest.mock import ANY, patch
 
+import pytest
+
 from fastapi_cloud_cli.utils.sentry import SENTRY_DSN, init_sentry
 
 
@@ -22,7 +24,9 @@ def test_init_sentry_when_logged_out(logged_out_cli: Path) -> None:
         mock_init.assert_not_called()
 
 
-def test_init_sentry_when_deployment_token(logged_out_cli: Path, monkeypatch) -> None:
+def test_init_sentry_when_deployment_token(
+    logged_out_cli: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("FASTAPI_CLOUD_TOKEN", "deployment-token")
     with patch("fastapi_cloud_cli.utils.sentry.sentry_sdk.init") as mock_init:
         init_sentry()

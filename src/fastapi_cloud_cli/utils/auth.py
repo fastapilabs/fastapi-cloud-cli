@@ -111,7 +111,7 @@ def _is_jwt_expired(token: str) -> bool:
 class Identity:
     def __init__(self, prefer_auth_mode: Literal["token", "user"] = "user") -> None:
         self._user_token = _get_auth_token()
-        self._auth_mode = "user"
+        self._auth_mode: Literal["token", "user"] = "user"
         self._deploy_token: str | None = None
 
         # users using `FASTAPI_CLOUD_TOKEN`
