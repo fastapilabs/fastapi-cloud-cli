@@ -2013,7 +2013,7 @@ def test_verification_failure_after_build_complete(
 
         assert result.exit_code == 1
         assert "Deployment failed" in result.output
-        assert "Verifying failed" in result.output
+        assert "Verification Failed" in result.output
         assert deployment_data["dashboard_url"] in result.output
 
 

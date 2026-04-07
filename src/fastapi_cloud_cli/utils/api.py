@@ -141,6 +141,7 @@ def attempts(
 
 class DeploymentStatus(str, Enum):
     waiting_upload = "waiting_upload"
+    upload_cancelled = "upload_cancelled"
     ready_for_build = "ready_for_build"
     building = "building"
     extracting = "extracting"
@@ -153,24 +154,27 @@ class DeploymentStatus(str, Enum):
     verifying_failed = "verifying_failed"
     verifying_skipped = "verifying_skipped"
     success = "success"
+    expired = "expired"
     failed = "failed"
 
     @classmethod
     def to_human_readable(cls, status: "DeploymentStatus") -> str:
         return {
-            cls.waiting_upload: "Waiting for upload",
-            cls.ready_for_build: "Ready for build",
+            cls.waiting_upload: "Awaiting Upload",
+            cls.upload_cancelled: "Upload Cancelled",
+            cls.ready_for_build: "Build Queued",
             cls.building: "Building",
-            cls.extracting: "Extracting",
-            cls.extracting_failed: "Extracting failed",
-            cls.building_image: "Building image",
-            cls.building_image_failed: "Build failed",
-            cls.deploying: "Deploying",
-            cls.deploying_failed: "Deploying failed",
-            cls.verifying: "Verifying",
-            cls.verifying_failed: "Verifying failed",
-            cls.verifying_skipped: "Verification skipped",
-            cls.success: "Success",
+            cls.extracting: "Extracting Upload",
+            cls.extracting_failed: "Extraction Failed",
+            cls.building_image: "Building Image",
+            cls.building_image_failed: "Build Failed",
+            cls.deploying: "Deploying Image",
+            cls.deploying_failed: "Deployment Failed",
+            cls.verifying: "Verifying Readiness",
+            cls.verifying_failed: "Verification Failed",
+            cls.verifying_skipped: "Verification Skipped",
+            cls.success: "Ready",
+            cls.expired: "Expired",
             cls.failed: "Failed",
         }[status]
 
