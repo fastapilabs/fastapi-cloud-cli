@@ -25,7 +25,7 @@ cloud_app = typer.Typer(
 )
 
 
-@cloud_app.callback(invoke_without_command=True)
+@cloud_app.callback()
 def cloud_callback(typer_ctx: typer.Context) -> None:
     if typer_ctx.invoked_subcommand in COMMANDS_USE_TOKEN:
         ctx.initialize(prefer_auth_mode="token")
