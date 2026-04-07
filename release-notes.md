@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Update deployment statuses. PR [#176](https://github.com/fastapilabs/fastapi-cloud-cli/pull/176) by [@DoctorJohn](https://github.com/DoctorJohn).
 * 💄 Show deployment upload progress. PR [#171](https://github.com/fastapilabs/fastapi-cloud-cli/pull/171) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ### Internal
