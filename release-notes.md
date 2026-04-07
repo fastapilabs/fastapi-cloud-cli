@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* 💄 Show deployment upload progress. PR [#171](https://github.com/fastapilabs/fastapi-cloud-cli/pull/171) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ### Internal
 
 * 🔒 Pin GitHub actions by commit SHA. PR [#172](https://github.com/fastapilabs/fastapi-cloud-cli/pull/172) by [@YuriiMotov](https://github.com/YuriiMotov).
