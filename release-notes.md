@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.16.0 (2026-04-07)
+
 ### Features
 
 * ✨ Update deployment statuses. PR [#176](https://github.com/fastapilabs/fastapi-cloud-cli/pull/176) by [@DoctorJohn](https://github.com/DoctorJohn).
