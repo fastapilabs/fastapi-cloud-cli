@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 🔒 Pin GitHub actions by commit SHA. PR [#172](https://github.com/fastapilabs/fastapi-cloud-cli/pull/172) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 🔨 Add pre-commit hook to ensure latest release header has date. PR [#173](https://github.com/fastapilabs/fastapi-cloud-cli/pull/173) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ## 0.15.1 (2026-03-26)
