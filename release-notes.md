@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Fix archive creation of Windows files inside WSL. PR [#178](https://github.com/fastapilabs/fastapi-cloud-cli/pull/178) by [@DoctorJohn](https://github.com/DoctorJohn).
+
 ## 0.16.0 (2026-04-07)
 
 ### Features
