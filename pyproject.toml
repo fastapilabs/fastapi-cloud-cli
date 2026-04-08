@@ -37,7 +37,7 @@ dependencies = [
     "pydantic[email] >= 2.8.0; python_version == '3.13'",
     "pydantic[email] >= 2.12.0; python_version >= '3.14'",
     "sentry-sdk >= 2.20.0",
-    "fastar >= 0.8.0",
+    "fastar >= 0.10.0",
 ]
 
 [project.optional-dependencies]
