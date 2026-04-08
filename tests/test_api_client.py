@@ -7,6 +7,7 @@ import respx
 from httpx import Response
 from time_machine import TimeMachineFixture
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import (
     STREAM_LOGS_MAX_RETRIES,
     APIClient,
@@ -32,6 +33,11 @@ def deployment_id() -> str:
 @pytest.fixture
 def logs_route(respx_mock: respx.MockRouter, deployment_id: str) -> respx.Route:
     return respx_mock.get(f"/deployments/{deployment_id}/build-logs")
+
+
+@pytest.fixture(autouse=True)
+def init_context() -> None:
+    ctx.initialize()  # Initialize context with defaults
 
 
 def test_stream_build_logs_successful(

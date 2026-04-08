@@ -20,6 +20,7 @@ from rich_toolkit.menu import Option
 from rich_toolkit.progress import Progress
 
 from fastapi_cloud_cli.commands.login import login
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import (
     SUCCESSFUL_STATUSES,
     APIClient,
@@ -28,7 +29,6 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
@@ -673,7 +673,11 @@ def deploy(
         "Deploy path: %s, skip_wait: %s, app_id: %s", path, skip_wait, provided_app_id
     )
 
-    identity = Identity()
+    # Duplicate context initialization here to make `fastapi deploy` command work
+    # (callback doesn't take effect in this case)
+    ctx.initialize(prefer_auth_mode="token")
+
+    identity = ctx.get_identity()
 
     with get_rich_toolkit() as toolkit:
         if not identity.is_logged_in():
@@ -708,6 +712,13 @@ def deploy(
             else:
                 _waitlist_form(toolkit)
                 raise typer.Exit(1)
+
+        if identity.auth_mode == "token":
+            toolkit.print(
+                "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
+                tag="info",
+            )
+            toolkit.print_line()
 
         toolkit.print_title("Starting deployment", tag="FastAPI")
         toolkit.print_line()

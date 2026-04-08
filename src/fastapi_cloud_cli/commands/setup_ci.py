@@ -7,9 +7,9 @@ from typing import Annotated
 
 import typer
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -198,7 +198,7 @@ def setup_ci(
         fastapi cloud setup-ci --file ci.yml        # Writes workflow to .github/workflows/ci.yml
     """
 
-    identity = Identity()
+    identity = ctx.get_identity()
 
     with get_rich_toolkit() as toolkit:
         if not identity.is_logged_in():

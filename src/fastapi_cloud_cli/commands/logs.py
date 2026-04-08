@@ -9,6 +9,7 @@ from httpx import HTTPError
 from rich.markup import escape
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import (
     APIClient,
     AppLogEntry,
@@ -16,7 +17,6 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_error
 
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ def logs(
         fastapi cloud logs --no-follow          # Fetch recent logs and exit
         fastapi cloud logs --tail 50 --since 1h # Last 50 logs from the past hour
     """
-    identity = Identity()
+    identity = ctx.get_identity()
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():
             toolkit.print(

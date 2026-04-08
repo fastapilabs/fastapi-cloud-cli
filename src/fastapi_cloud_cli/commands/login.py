@@ -7,8 +7,9 @@ import typer
 from pydantic import BaseModel
 
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
+from fastapi_cloud_cli.utils.auth import AuthConfig, write_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,12 @@ def login() -> Any:
     """
     Login to FastAPI Cloud. 🚀
     """
-    identity = Identity()
+
+    # Duplicate context initialization here to make `fastapi login` command work
+    # (callback doesn't take effect in this case)
+    ctx.initialize()
+
+    identity = ctx.get_identity()
 
     if identity.is_logged_in():
         with get_rich_toolkit(minimal=True) as toolkit:
@@ -86,6 +92,17 @@ def login() -> Any:
             )
 
         return
+
+    if identity.deploy_token is not None:
+        with get_rich_toolkit() as toolkit:
+            toolkit.print(
+                (
+                    "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
+                    + "This token will take precedence over the user token for "
+                    + "[blue]`fastapi deploy`[/] command."
+                ),
+                tag="Warning",
+            )
 
     with get_rich_toolkit() as toolkit, APIClient() as client:
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")

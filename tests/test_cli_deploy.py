@@ -1556,9 +1556,19 @@ def test_cancel_upload_swallows_exceptions(
         assert "HTTPStatusError" not in result.output
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["deploy"],
+        ["cloud", "deploy"],
+    ],
+)
 @pytest.mark.respx
 def test_deploy_successfully_with_token(
-    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+    logged_out_cli: None,
+    command: list[str],
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
 ) -> None:
     app_data = _get_random_app()
     team_data = _get_random_team()
@@ -1618,12 +1628,15 @@ def test_deploy_successfully_with_token(
     ).mock(return_value=Response(200, json={**deployment_data, "status": "success"}))
 
     with changing_dir(tmp_path):
-        result = runner.invoke(app, ["deploy"], env={"FASTAPI_CLOUD_TOKEN": "hello"})
+        result = runner.invoke(app, command, env={"FASTAPI_CLOUD_TOKEN": "hello"})
 
         assert result.exit_code == 0
 
         # check that logs are shown
         assert "All good!" in result.output
+        assert (
+            "Using token from FASTAPI_CLOUD_TOKEN environment variable" in result.output
+        )
 
         # check that the app URL is shown
         assert deployment_data["url"] in result.output

@@ -109,34 +109,57 @@ def _is_jwt_expired(token: str) -> bool:
 
 
 class Identity:
-    auth_mode: Literal["token", "user"]
-
-    def __init__(self) -> None:
-        self.token = _get_auth_token()
-        self.auth_mode = "user"
+    def __init__(self, prefer_auth_mode: Literal["token", "user"] = "user") -> None:
+        self._user_token = _get_auth_token()
+        self._auth_mode: Literal["token", "user"] = "user"
+        self._deploy_token: str | None = None
 
         # users using `FASTAPI_CLOUD_TOKEN`
         if env_token := self._get_token_from_env():
-            self.token = env_token
-            self.auth_mode = "token"
+            logger.debug("Reading token from FASTAPI_CLOUD_TOKEN environment variable")
+            self._deploy_token = env_token
+            if prefer_auth_mode == "token":
+                self._auth_mode = "token"
+                logger.debug("Using `token` auth mode")
 
     def _get_token_from_env(self) -> str | None:
         return os.environ.get("FASTAPI_CLOUD_TOKEN")
 
     def is_expired(self) -> bool:
-        if not self.token:
+        if self._auth_mode != "user":  # pragma: no cover  # Should never happen
+            raise RuntimeError("Expiration check is only applicable for user tokens")
+
+        if not self.user_token:
             return True
 
-        return _is_jwt_expired(self.token)
+        return _is_jwt_expired(self.user_token)
 
     def is_logged_in(self) -> bool:
         if self.token is None:
             logger.debug("Login status: False (no token)")
             return False
 
-        if self.auth_mode == "user" and self.is_expired():
+        if self._auth_mode == "user" and self.is_expired():
             logger.debug("Login status: False (token expired)")
             return False
 
         logger.debug("Login status: True")
         return True
+
+    @property
+    def auth_mode(self) -> Literal["token", "user"]:
+        return self._auth_mode
+
+    @property
+    def token(self) -> str | None:
+        if self._auth_mode == "token":
+            return self.deploy_token or self.user_token
+        return self.user_token
+
+    @property
+    def user_token(self) -> str | None:
+        return self._user_token
+
+    @property
+    def deploy_token(self) -> str | None:
+        return self._deploy_token

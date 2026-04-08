@@ -5,9 +5,9 @@ from typing import Any
 import typer
 from rich_toolkit.menu import Option
 
+from fastapi_cloud_cli.context import ctx
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def link() -> Any:
     """
     Link a local directory to an existing FastAPI Cloud app.
     """
-    identity = Identity()
+    identity = ctx.get_identity()
 
     with get_rich_toolkit() as toolkit:
         if not identity.is_logged_in():
