@@ -201,6 +201,7 @@ class APIClient(httpx.Client):
         settings = Settings.get()
         identity = Identity()
 
+        token: str | None
         if use_deploy_token and identity.deploy_token:
             token = identity.deploy_token
             self.auth_mode = "token"
