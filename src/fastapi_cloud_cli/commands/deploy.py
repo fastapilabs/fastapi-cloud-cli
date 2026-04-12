@@ -564,7 +564,7 @@ def _send_waitlist_form(
     toolkit: RichToolkit,
 ) -> None:
     with toolkit.progress("Sending your request...") as progress:
-        with APIClient(use_deploy_token=True) as client:
+        with APIClient() as client:
             with handle_http_errors(progress):
                 response = client.post("/users/waiting-list", json=result.model_dump())
 
