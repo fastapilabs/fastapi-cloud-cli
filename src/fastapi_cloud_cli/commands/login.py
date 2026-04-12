@@ -87,6 +87,15 @@ def login() -> Any:
 
         return
 
+    if identity.has_deploy_token():
+        with get_rich_toolkit(minimal=True) as toolkit:
+            toolkit.print(
+                "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
+                "This token will take precedence over the user token for "
+                "[blue]`fastapi deploy`[/] command.",
+                tag="Warning",
+            )
+
     with get_rich_toolkit() as toolkit, APIClient() as client:
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
 

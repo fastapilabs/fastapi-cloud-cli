@@ -19,7 +19,7 @@ from typing_extensions import ParamSpec
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
 
-from .auth import Identity
+from .auth import AuthMode, Identity
 
 logger = logging.getLogger(__name__)
 
@@ -195,15 +195,24 @@ POLL_MAX_RETRIES = 5
 
 
 class APIClient(httpx.Client):
-    def __init__(self) -> None:
+    auth_mode: AuthMode
+
+    def __init__(self, use_deploy_token: bool = False) -> None:
         settings = Settings.get()
         identity = Identity()
+
+        if use_deploy_token and identity.deploy_token:
+            token = identity.deploy_token
+            self.auth_mode = "token"
+        else:
+            token = identity.user_token
+            self.auth_mode = "user"
 
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
             headers={
-                "Authorization": f"Bearer {identity.token}",
+                "Authorization": f"Bearer {token}",
                 "User-Agent": f"fastapi-cloud-cli/{__version__}",
             },
         )

@@ -82,8 +82,23 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
     assert "No credentials found. Use `fastapi login` to login." in result.output
 
 
-def test_shows_logged_in_via_token(logged_out_cli: None) -> None:
+def test_shows_has_deploy_token(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
 
     assert result.exit_code == 0
+    assert "Using API token from environment variable" in result.output
+
+
+@pytest.mark.respx
+def test_shows_logged_in_and_has_deploy_token(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get("/users/me").mock(
+        return_value=Response(200, json={"email": "email@fastapi.com"})
+    )
+
+    result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
+
+    assert result.exit_code == 0
+    assert "email@fastapi.com" in result.output
     assert "Using API token from environment variable" in result.output

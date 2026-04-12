@@ -14,20 +14,21 @@ logger = logging.getLogger(__name__)
 def whoami() -> Any:
     identity = Identity()
 
-    if identity.auth_mode == "token":
-        print("⚡ [bold]Using API token from environment variable[/bold]")
-        return
-
     if not identity.is_logged_in():
         print("No credentials found. Use [blue]`fastapi login`[/] to login.")
-        return
+    else:
+        with APIClient() as client:
+            with Progress(title="⚡ Fetching profile", transient=True) as progress:
+                with handle_http_errors(progress, default_message=""):
+                    response = client.get("/users/me")
+                    response.raise_for_status()
 
-    with APIClient() as client:
-        with Progress(title="⚡ Fetching profile", transient=True) as progress:
-            with handle_http_errors(progress, default_message=""):
-                response = client.get("/users/me")
-                response.raise_for_status()
+            data = response.json()
 
-        data = response.json()
+            print(f"⚡ [bold]{data['email']}[/bold]")
 
-        print(f"⚡ [bold]{data['email']}[/bold]")
+    if identity.has_deploy_token():
+        print(
+            "⚡ [bold]Using API token from environment variable for "
+            "[blue]`fastapi deploy`[/blue] command.[/bold]"
+        )

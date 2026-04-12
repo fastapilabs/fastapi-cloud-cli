@@ -28,7 +28,7 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
-from fastapi_cloud_cli.utils.auth import Identity
+from fastapi_cloud_cli.utils.auth import AuthMode, Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
@@ -72,7 +72,7 @@ def _cancel_upload(deployment_id: str) -> None:
     logger.debug("Cancelling upload for deployment: %s", deployment_id)
 
     try:
-        with APIClient() as client:
+        with APIClient(use_deploy_token=True) as client:
             response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
             response.raise_for_status()
 
@@ -142,7 +142,7 @@ class Team(BaseModel):
 
 
 def _get_teams() -> list[Team]:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.get("/teams/")
         response.raise_for_status()
 
@@ -158,7 +158,7 @@ class AppResponse(BaseModel):
 
 
 def _update_app(app_id: str, directory: str | None) -> AppResponse:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.patch(
             f"/apps/{app_id}",
             json={"directory": directory},
@@ -170,7 +170,7 @@ def _update_app(app_id: str, directory: str | None) -> AppResponse:
 
 
 def _create_app(team_id: str, app_name: str, directory: str | None) -> AppResponse:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.post(
             "/apps/",
             json={"name": app_name, "team_id": team_id, "directory": directory},
@@ -191,7 +191,7 @@ class CreateDeploymentResponse(BaseModel):
 
 
 def _create_deployment(app_id: str) -> CreateDeploymentResponse:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.post(f"/apps/{app_id}/deployments/")
         response.raise_for_status()
 
@@ -230,7 +230,7 @@ def _upload_deployment(
             f"Uploading deployment ({_format_size(bytes_read)} of {archive_size_str})..."
         )
 
-    with APIClient() as fastapi_client, Client() as client:
+    with APIClient(use_deploy_token=True) as fastapi_client, Client() as client:
         # Get the upload URL
         logger.debug("Requesting upload URL from API")
         response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
@@ -264,7 +264,7 @@ def _upload_deployment(
 
 
 def _get_app(app_slug: str) -> AppResponse | None:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.get(f"/apps/{app_slug}")
 
         if response.status_code == 404:
@@ -278,7 +278,7 @@ def _get_app(app_slug: str) -> AppResponse | None:
 
 
 def _get_apps(team_id: str) -> list[AppResponse]:
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         response = client.get("/apps/", params={"team_id": team_id})
         response.raise_for_status()
 
@@ -308,14 +308,20 @@ LONG_WAIT_MESSAGES = [
 ]
 
 
-def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
+def _configure_app(
+    toolkit: RichToolkit,
+    path_to_deploy: Path,
+    auth_mode: AuthMode = "user",
+) -> AppConfig:
     toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
 
     toolkit.print_line()
 
     with toolkit.progress("Fetching teams...") as progress:
         with handle_http_errors(
-            progress, default_message="Error fetching teams. Please try again later."
+            progress,
+            default_message="Error fetching teams. Please try again later.",
+            auth_mode=auth_mode,
         ):
             teams = _get_teams()
 
@@ -341,7 +347,9 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
             with handle_http_errors(
-                progress, default_message="Error fetching apps. Please try again later."
+                progress,
+                default_message="Error fetching apps. Please try again later.",
+                auth_mode=auth_mode,
             ):
                 apps = _get_apps(team.id)
 
@@ -411,7 +419,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         if directory != selected_app.directory:
             with (
                 toolkit.progress(title="Updating app directory...") as progress,
-                handle_http_errors(progress),
+                handle_http_errors(progress, auth_mode=auth_mode),
             ):
                 app = _update_app(selected_app.id, directory=directory)
 
@@ -420,7 +428,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
             app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
-            with handle_http_errors(progress):
+            with handle_http_errors(progress, auth_mode=auth_mode):
                 app = _create_app(team.id, app_name, directory=directory)
 
             progress.log(f"App created successfully! App slug: {app.slug}")
@@ -485,7 +493,7 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with APIClient() as client:
+    with APIClient(use_deploy_token=True) as client:
         with (
             toolkit.progress(
                 next(messages),
@@ -556,7 +564,7 @@ def _send_waitlist_form(
     toolkit: RichToolkit,
 ) -> None:
     with toolkit.progress("Sending your request...") as progress:
-        with APIClient() as client:
+        with APIClient(use_deploy_token=True) as client:
             with handle_http_errors(progress):
                 response = client.post("/users/waiting-list", json=result.model_dump())
 
@@ -674,15 +682,18 @@ def deploy(
     )
 
     identity = Identity()
+    use_deploy = identity.has_deploy_token()
+    has_auth = use_deploy or identity.is_logged_in()
+    auth_mode: AuthMode = "token" if use_deploy else "user"
 
     with get_rich_toolkit() as toolkit:
-        if not identity.is_logged_in():
+        if not has_auth:
             logger.debug("User not logged in, prompting for login or waitlist")
 
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
             toolkit.print_line()
 
-            if identity.token and identity.is_expired():
+            if identity.user_token and identity.is_user_token_expired():
                 toolkit.print(
                     "Your session has expired. Please log in again.",
                     tag="info",
@@ -708,6 +719,13 @@ def deploy(
             else:
                 _waitlist_form(toolkit)
                 raise typer.Exit(1)
+
+        if use_deploy:
+            toolkit.print(
+                "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
+                tag="info",
+            )
+            toolkit.print_line()
 
         toolkit.print_title("Starting deployment", tag="FastAPI")
         toolkit.print_line()
@@ -738,7 +756,9 @@ def deploy(
         else:
             logger.debug("No app config found, configuring new app")
 
-            app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
+            app_config = _configure_app(
+                toolkit, path_to_deploy=path_to_deploy, auth_mode=auth_mode
+            )
             toolkit.print_line()
 
             target_app_id = app_config.app_id
@@ -751,7 +771,7 @@ def deploy(
         toolkit.print_line()
 
         with toolkit.progress("Checking app...", transient=True) as progress:
-            with handle_http_errors(progress):
+            with handle_http_errors(progress, auth_mode=auth_mode):
                 logger.debug("Checking app with ID: %s", target_app_id)
                 app = _get_app(target_app_id)
 
@@ -780,7 +800,7 @@ def deploy(
                 toolkit.progress(
                     title="Creating deployment", done_emoji="📦"
                 ) as progress,
-                handle_http_errors(progress),
+                handle_http_errors(progress, auth_mode=auth_mode),
             ):
                 logger.debug("Creating deployment for app: %s", app.id)
                 deployment = _create_deployment(app.id)

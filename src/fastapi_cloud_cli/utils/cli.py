@@ -10,7 +10,7 @@ from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
 
-from .auth import Identity, delete_auth_config
+from .auth import AuthMode, delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +75,10 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
     return RichToolkit(theme=theme)
 
 
-def handle_unauthorized() -> str:
+def handle_unauthorized(auth_mode: AuthMode = "user") -> str:
     message = "The specified token is not valid. "
 
-    identity = Identity()
-
-    if identity.auth_mode == "user":
+    if auth_mode == "user":
         delete_auth_config()
 
         message += "Use `fastapi login` to generate a new token."
@@ -90,7 +88,11 @@ def handle_unauthorized() -> str:
     return message
 
 
-def handle_http_error(error: HTTPError, default_message: str | None = None) -> str:
+def handle_http_error(
+    error: HTTPError,
+    default_message: str | None = None,
+    auth_mode: AuthMode = "user",
+) -> str:
     message: str | None = None
 
     if isinstance(error, HTTPStatusError):
@@ -101,7 +103,7 @@ def handle_http_error(error: HTTPError, default_message: str | None = None) -> s
             logger.debug(error.response.json())  # pragma: no cover
 
         elif status_code == 401:
-            message = handle_unauthorized()
+            message = handle_unauthorized(auth_mode=auth_mode)
 
         elif status_code == 403:
             message = "You don't have permissions for this resource"
@@ -119,6 +121,7 @@ def handle_http_error(error: HTTPError, default_message: str | None = None) -> s
 def handle_http_errors(
     progress: Progress,
     default_message: str | None = None,
+    auth_mode: AuthMode = "user",
 ) -> Generator[None, None, None]:
     try:
         yield
@@ -133,7 +136,7 @@ def handle_http_errors(
     except HTTPError as e:
         logger.debug(e)
 
-        message = handle_http_error(e, default_message)
+        message = handle_http_error(e, default_message, auth_mode=auth_mode)
 
         progress.set_error(message)
 
