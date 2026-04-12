@@ -88,7 +88,7 @@ def login() -> Any:
         return
 
     if identity.has_deploy_token():
-        with get_rich_toolkit(minimal=True) as toolkit:
+        with get_rich_toolkit() as toolkit:
             toolkit.print(
                 "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
                 "This token will take precedence over the user token for "
