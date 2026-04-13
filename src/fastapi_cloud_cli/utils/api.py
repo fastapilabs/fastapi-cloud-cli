@@ -209,13 +209,14 @@ class APIClient(httpx.Client):
             token = identity.user_token
             self.auth_mode = "user"
 
+        headers = {"User-Agent": f"fastapi-cloud-cli/{__version__}"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
-            headers={
-                "Authorization": f"Bearer {token}",
-                "User-Agent": f"fastapi-cloud-cli/{__version__}",
-            },
+            headers=headers,
         )
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
