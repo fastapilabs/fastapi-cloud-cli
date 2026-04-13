@@ -68,15 +68,14 @@ def validate_app_directory(v: str | None) -> str | None:
 AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
 
-def _cancel_upload(deployment_id: str) -> None:
+def _cancel_upload(client: APIClient, deployment_id: str) -> None:
     logger.debug("Cancelling upload for deployment: %s", deployment_id)
 
     try:
-        with APIClient(use_deploy_token=True) as client:
-            response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
-            response.raise_for_status()
+        response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
+        response.raise_for_status()
 
-            logger.debug("Upload cancellation notification sent successfully")
+        logger.debug("Upload cancellation notification sent successfully")
     except Exception as e:
         logger.debug("Failed to notify server about upload cancellation: %s", e)
 
@@ -211,7 +210,10 @@ def _format_size(size_in_bytes: int) -> str:
 
 
 def _upload_deployment(
-    deployment_id: str, archive_path: Path, progress: Progress
+    fastapi_client: APIClient,
+    deployment_id: str,
+    archive_path: Path,
+    progress: Progress,
 ) -> None:
     archive_size = archive_path.stat().st_size
     archive_size_str = _format_size(archive_size)
@@ -228,37 +230,37 @@ def _upload_deployment(
             f"Uploading deployment ({_format_size(bytes_read)} of {archive_size_str})..."
         )
 
-    with APIClient(use_deploy_token=True) as fastapi_client, Client() as client:
-        # Get the upload URL
-        logger.debug("Requesting upload URL from API")
-        response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
-        response.raise_for_status()
+    # Get the upload URL
+    logger.debug("Requesting upload URL from API")
+    response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
+    response.raise_for_status()
 
-        upload_data = RequestUploadResponse.model_validate(response.json())
-        logger.debug("Received upload URL: %s", upload_data.url)
+    upload_data = RequestUploadResponse.model_validate(response.json())
+    logger.debug("Received upload URL: %s", upload_data.url)
 
-        logger.debug("Starting file upload to S3")
+    logger.debug("Starting file upload to S3")
+    with Client() as s3_client:
         with open(archive_path, "rb") as archive_file:
             archive_file_with_progress = ProgressFile(
                 archive_file, progress_callback=progress_callback
             )
-            upload_response = client.post(
+            upload_response = s3_client.post(
                 upload_data.url,
                 data=upload_data.fields,
                 files={"file": cast(BinaryIO, archive_file_with_progress)},
             )
 
-        upload_response.raise_for_status()
-        logger.debug("File upload completed successfully")
+    upload_response.raise_for_status()
+    logger.debug("File upload completed successfully")
 
-        # Notify the server that the upload is complete
-        logger.debug("Notifying API that upload is complete")
-        notify_response = fastapi_client.post(
-            f"/deployments/{deployment_id}/upload-complete"
-        )
+    # Notify the server that the upload is complete
+    logger.debug("Notifying API that upload is complete")
+    notify_response = fastapi_client.post(
+        f"/deployments/{deployment_id}/upload-complete"
+    )
 
-        notify_response.raise_for_status()
-        logger.debug("Upload notification sent successfully")
+    notify_response.raise_for_status()
+    logger.debug("Upload notification sent successfully")
 
 
 def _get_app(client: APIClient, app_slug: str) -> AppResponse | None:
@@ -480,7 +482,10 @@ def _verify_deployment(
 
 
 def _wait_for_deployment(
-    toolkit: RichToolkit, app_id: str, deployment: CreateDeploymentResponse
+    toolkit: RichToolkit,
+    client: APIClient,
+    app_id: str,
+    deployment: CreateDeploymentResponse,
 ) -> None:
     messages = cycle(WAITING_MESSAGES)
 
@@ -496,59 +501,60 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with APIClient(use_deploy_token=True) as client:
-        with (
-            toolkit.progress(
-                next(messages),
-                inline_logs=True,
-                lines_to_show=20,
-                done_emoji="🚀",
-            ) as progress,
-        ):
-            build_complete = False
+    with (
+        toolkit.progress(
+            next(messages),
+            inline_logs=True,
+            lines_to_show=20,
+            done_emoji="🚀",
+        ) as progress,
+    ):
+        build_complete = False
 
-            try:
-                for log in client.stream_build_logs(deployment.id):
-                    time_elapsed = time.monotonic() - started_at
+        try:
+            for log in client.stream_build_logs(deployment.id):
+                time_elapsed = time.monotonic() - started_at
 
-                    if log.type == "message":
-                        progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
+                if log.type == "message":
+                    progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
 
-                    if log.type == "complete":
-                        build_complete = True
-                        progress.title = "Build complete!"
-                        break
+                if log.type == "complete":
+                    build_complete = True
+                    progress.title = "Build complete!"
+                    break
 
-                    if log.type == "failed":
-                        progress.log("")
-                        progress.log(
-                            f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                        )
-                        raise typer.Exit(1)
+                if log.type == "failed":
+                    progress.log("")
+                    progress.log(
+                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
+                    raise typer.Exit(1)
 
-                    if time_elapsed > 30:
-                        messages = cycle(LONG_WAIT_MESSAGES)
+                if time_elapsed > 30:
+                    messages = cycle(LONG_WAIT_MESSAGES)
 
-                    if (time.monotonic() - last_message_changed_at) > 2:
-                        progress.title = next(messages)
+                if (time.monotonic() - last_message_changed_at) > 2:
+                    progress.title = next(messages)
 
-                        last_message_changed_at = time.monotonic()
+                    last_message_changed_at = time.monotonic()
 
-            except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
-                progress.set_error(
-                    dedent(f"""
+        except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
+            progress.set_error(
+                dedent(f"""
                     [error]Build log streaming failed: {e}[/]
 
                     Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
                     """).strip()
-                )
+            )
 
-                raise typer.Exit(1) from None
+            raise typer.Exit(1) from None
 
-        if build_complete:
-            toolkit.print_line()
+    if build_complete:
+        toolkit.print_line()
 
-            _verify_deployment(toolkit, client, app_id, deployment)
+        _verify_deployment(
+            toolkit=toolkit, client=client, app_id=app_id, deployment=deployment
+        )
 
 
 class SignupToWaitingList(BaseModel):
@@ -814,18 +820,25 @@ def deploy(
                         f"Deployment created successfully! Deployment slug: {deployment.slug}"
                     )
 
-                    _upload_deployment(deployment.id, archive_path, progress=progress)
+                    _upload_deployment(
+                        fastapi_client=client,
+                        deployment_id=deployment.id,
+                        archive_path=archive_path,
+                        progress=progress,
+                    )
 
                     progress.log("Deployment uploaded successfully!")
                 except KeyboardInterrupt:
-                    _cancel_upload(deployment.id)
+                    _cancel_upload(client=client, deployment_id=deployment.id)
                     raise
 
         toolkit.print_line()
 
         if not skip_wait:
             logger.debug("Waiting for deployment to complete")
-            _wait_for_deployment(toolkit, app.id, deployment=deployment)
+            _wait_for_deployment(
+                toolkit=toolkit, client=client, app_id=app.id, deployment=deployment
+            )
         else:
             logger.debug("Skipping deployment wait as requested")
             toolkit.print(
