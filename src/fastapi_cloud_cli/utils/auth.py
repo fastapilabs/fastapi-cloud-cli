@@ -131,8 +131,24 @@ class Identity:
 
     def is_logged_in(self) -> bool:
         """Whether there is a valid user token"""
-        return self._user_token is not None and not self.is_user_token_expired()
+
+        if self._user_token is None:
+            logger.debug("Login status: False (no token)")
+            return False
+
+        if self.is_user_token_expired():
+            logger.debug("Login status: False (token expired)")
+            return False
+
+        logger.debug("Login status: True")
+        return True
 
     def has_deploy_token(self) -> bool:
         """Whether there is a deploy token"""
-        return self._deploy_token is not None
+
+        if self._deploy_token is None:
+            logger.debug("Deploy token is not provided")
+            return False
+
+        logger.debug("Deploy token found")
+        return True
