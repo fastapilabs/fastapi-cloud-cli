@@ -733,114 +733,116 @@ def deploy(
             )
             toolkit.print_line()
 
-        client = APIClient(use_deploy_token=use_deploy)
-
-        toolkit.print_title("Starting deployment", tag="FastAPI")
-        toolkit.print_line()
-
-        path_to_deploy = path or Path.cwd()
-        logger.debug("Deploying from path: %s", path_to_deploy)
-
-        app_config = get_app_config(path_to_deploy)
-
-        if app_config and provided_app_id and app_config.app_id != provided_app_id:
-            toolkit.print(
-                f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
-                f"config ({app_config.app_id}).[/]"
-            )
-            toolkit.print_line()
-            toolkit.print(
-                "Run [bold]fastapi cloud unlink[/] to remove the local config, "
-                "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
-                tag="tip",
-            )
-
-            raise typer.Exit(1) from None
-
-        if provided_app_id:
-            target_app_id = provided_app_id
-        elif app_config:
-            target_app_id = app_config.app_id
-        else:
-            logger.debug("No app config found, configuring new app")
-
-            app_config = _configure_app(
-                toolkit=toolkit,
-                client=client,
-                path_to_deploy=path_to_deploy,
-            )
+        with APIClient(use_deploy_token=use_deploy) as client:
+            toolkit.print_title("Starting deployment", tag="FastAPI")
             toolkit.print_line()
 
-            target_app_id = app_config.app_id
+            path_to_deploy = path or Path.cwd()
+            logger.debug("Deploying from path: %s", path_to_deploy)
 
-        if provided_app_id:
-            toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
-        else:
-            toolkit.print("Deploying app...")
+            app_config = get_app_config(path_to_deploy)
 
-        toolkit.print_line()
-
-        with toolkit.progress("Checking app...", transient=True) as progress:
-            with client.handle_http_errors(progress):
-                logger.debug("Checking app with ID: %s", target_app_id)
-                app = _get_app(client=client, app_slug=target_app_id)
-
-            if not app:
-                logger.debug("App not found in API")
-                progress.set_error(
-                    "App not found. Make sure you're logged in the correct account."
-                )
-
-        if not app:
-            toolkit.print_line()
-
-            if not provided_app_id:
+            if app_config and provided_app_id and app_config.app_id != provided_app_id:
                 toolkit.print(
-                    "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+                    f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
+                    f"config ({app_config.app_id}).[/]"
+                )
+                toolkit.print_line()
+                toolkit.print(
+                    "Run [bold]fastapi cloud unlink[/] to remove the local config, "
+                    "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
                     tag="tip",
                 )
-            raise typer.Exit(1)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger.debug("Creating archive for deployment")
-            archive_path = Path(temp_dir) / "archive.tar"
-            archive(path or Path.cwd(), archive_path)
+                raise typer.Exit(1) from None
 
-            with (
-                toolkit.progress(
-                    title="Creating deployment", done_emoji="📦"
-                ) as progress,
-                client.handle_http_errors(progress),
-            ):
-                logger.debug("Creating deployment for app: %s", app.id)
-                deployment = _create_deployment(client=client, app_id=app.id)
+            if provided_app_id:
+                target_app_id = provided_app_id
+            elif app_config:
+                target_app_id = app_config.app_id
+            else:
+                logger.debug("No app config found, configuring new app")
 
-                try:
-                    progress.log(
-                        f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                app_config = _configure_app(
+                    toolkit=toolkit,
+                    client=client,
+                    path_to_deploy=path_to_deploy,
+                )
+                toolkit.print_line()
+
+                target_app_id = app_config.app_id
+
+            if provided_app_id:
+                toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
+            else:
+                toolkit.print("Deploying app...")
+
+            toolkit.print_line()
+
+            with toolkit.progress("Checking app...", transient=True) as progress:
+                with client.handle_http_errors(progress):
+                    logger.debug("Checking app with ID: %s", target_app_id)
+                    app = _get_app(client=client, app_slug=target_app_id)
+
+                if not app:
+                    logger.debug("App not found in API")
+                    progress.set_error(
+                        "App not found. Make sure you're logged in the correct account."
                     )
 
-                    _upload_deployment(
-                        fastapi_client=client,
-                        deployment_id=deployment.id,
-                        archive_path=archive_path,
-                        progress=progress,
+            if not app:
+                toolkit.print_line()
+
+                if not provided_app_id:
+                    toolkit.print(
+                        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+                        tag="tip",
                     )
+                raise typer.Exit(1)
 
-                    progress.log("Deployment uploaded successfully!")
-                except KeyboardInterrupt:
-                    _cancel_upload(client=client, deployment_id=deployment.id)
-                    raise
+            with tempfile.TemporaryDirectory() as temp_dir:
+                logger.debug("Creating archive for deployment")
+                archive_path = Path(temp_dir) / "archive.tar"
+                archive(path or Path.cwd(), archive_path)
 
-        toolkit.print_line()
+                with (
+                    toolkit.progress(
+                        title="Creating deployment", done_emoji="📦"
+                    ) as progress,
+                    client.handle_http_errors(progress),
+                ):
+                    logger.debug("Creating deployment for app: %s", app.id)
+                    deployment = _create_deployment(client=client, app_id=app.id)
 
-        if not skip_wait:
-            logger.debug("Waiting for deployment to complete")
-            _wait_for_deployment(
-                toolkit=toolkit, client=client, app_id=app.id, deployment=deployment
-            )
-        else:
-            logger.debug("Skipping deployment wait as requested")
-            toolkit.print(
-                f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-            )
+                    try:
+                        progress.log(
+                            f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                        )
+
+                        _upload_deployment(
+                            fastapi_client=client,
+                            deployment_id=deployment.id,
+                            archive_path=archive_path,
+                            progress=progress,
+                        )
+
+                        progress.log("Deployment uploaded successfully!")
+                    except KeyboardInterrupt:
+                        _cancel_upload(client=client, deployment_id=deployment.id)
+                        raise
+
+            toolkit.print_line()
+
+            if not skip_wait:
+                logger.debug("Waiting for deployment to complete")
+                _wait_for_deployment(
+                    toolkit=toolkit,
+                    client=client,
+                    app_id=app.id,
+                    deployment=deployment,
+                )
+            else:
+                logger.debug("Skipping deployment wait as requested")
+                toolkit.print(
+                    f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                )

@@ -283,9 +283,8 @@ def setup_ci(
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
 
-        client = APIClient()
-
         with (
+            APIClient() as client,
             toolkit.progress(title="Generating deploy token...") as progress,
             client.handle_http_errors(
                 progress, default_message="Error creating deploy token."

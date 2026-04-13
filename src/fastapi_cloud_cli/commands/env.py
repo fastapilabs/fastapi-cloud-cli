@@ -90,15 +90,14 @@ def list(
             )
             raise typer.Exit(1)
 
-        client = APIClient()
-
-        with toolkit.progress(
-            "Fetching environment variables...", transient=True
-        ) as progress:
-            with client.handle_http_errors(progress):
-                environment_variables = _get_environment_variables(
-                    client=client, app_id=app_config.app_id
-                )
+        with APIClient() as client:
+            with toolkit.progress(
+                "Fetching environment variables...", transient=True
+            ) as progress:
+                with client.handle_http_errors(progress):
+                    environment_variables = _get_environment_variables(
+                        client=client, app_id=app_config.app_id
+                    )
 
         if not environment_variables.data:
             toolkit.print("No environment variables found.")
@@ -149,46 +148,45 @@ def delete(
             )
             raise typer.Exit(1)
 
-        client = APIClient()
+        with APIClient() as client:
+            if not name:
+                with toolkit.progress(
+                    "Fetching environment variables...", transient=True
+                ) as progress:
+                    with client.handle_http_errors(progress):
+                        environment_variables = _get_environment_variables(
+                            client=client, app_id=app_config.app_id
+                        )
 
-        if not name:
+                if not environment_variables.data:
+                    toolkit.print("No environment variables found.")
+                    return
+
+                name = toolkit.ask(
+                    "Select the environment variable to delete:",
+                    options=[
+                        {"name": env_var.name, "value": env_var.name}
+                        for env_var in environment_variables.data
+                    ],
+                )
+
+                assert name
+            else:
+                if not validate_environment_variable_name(name):
+                    toolkit.print(
+                        f"The environment variable name [bold]{name}[/] is invalid."
+                    )
+                    raise typer.Exit(1)
+
+                toolkit.print_line()
+
             with toolkit.progress(
-                "Fetching environment variables...", transient=True
+                "Deleting environment variable", transient=True
             ) as progress:
                 with client.handle_http_errors(progress):
-                    environment_variables = _get_environment_variables(
-                        client=client, app_id=app_config.app_id
+                    deleted = _delete_environment_variable(
+                        client=client, app_id=app_config.app_id, name=name
                     )
-
-            if not environment_variables.data:
-                toolkit.print("No environment variables found.")
-                return
-
-            name = toolkit.ask(
-                "Select the environment variable to delete:",
-                options=[
-                    {"name": env_var.name, "value": env_var.name}
-                    for env_var in environment_variables.data
-                ],
-            )
-
-            assert name
-        else:
-            if not validate_environment_variable_name(name):
-                toolkit.print(
-                    f"The environment variable name [bold]{name}[/] is invalid."
-                )
-                raise typer.Exit(1)
-
-            toolkit.print_line()
-
-        with toolkit.progress(
-            "Deleting environment variable", transient=True
-        ) as progress:
-            with client.handle_http_errors(progress):
-                deleted = _delete_environment_variable(
-                    client=client, app_id=app_config.app_id, name=name
-                )
 
         if not deleted:
             toolkit.print("Environment variable not found.")
@@ -260,22 +258,21 @@ def set(
             else:
                 value = toolkit.input("Enter the value of the environment variable:")
 
-        client = APIClient()
+        with APIClient() as client:
+            with toolkit.progress(
+                "Setting environment variable", transient=True
+            ) as progress:
+                assert name is not None
+                assert value is not None
 
-        with toolkit.progress(
-            "Setting environment variable", transient=True
-        ) as progress:
-            assert name is not None
-            assert value is not None
-
-            with client.handle_http_errors(progress):
-                _set_environment_variable(
-                    client=client,
-                    app_id=app_config.app_id,
-                    name=name,
-                    value=value,
-                    is_secret=secret,
-                )
+                with client.handle_http_errors(progress):
+                    _set_environment_variable(
+                        client=client,
+                        app_id=app_config.app_id,
+                        name=name,
+                        value=value,
+                        is_secret=secret,
+                    )
 
         if secret:
             toolkit.print(f"Secret environment variable [bold]{name}[/] set.")
