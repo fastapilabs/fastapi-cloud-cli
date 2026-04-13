@@ -1,16 +1,9 @@
-import contextlib
 import logging
-from collections.abc import Generator
 from typing import Any, Literal
 
-import typer
-from httpx import HTTPError, HTTPStatusError, ReadTimeout
 from rich.segment import Segment
 from rich_toolkit import RichToolkit, RichToolkitTheme
-from rich_toolkit.progress import Progress
 from rich_toolkit.styles import MinimalStyle, TaggedStyle
-
-from .auth import AuthMode, delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -73,71 +66,3 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
     )
 
     return RichToolkit(theme=theme)
-
-
-def handle_unauthorized(auth_mode: AuthMode = "user") -> str:
-    message = "The specified token is not valid. "
-
-    if auth_mode == "user":
-        delete_auth_config()
-
-        message += "Use `fastapi login` to generate a new token."
-    else:
-        message += "Make sure to use a valid token."
-
-    return message
-
-
-def handle_http_error(
-    error: HTTPError,
-    default_message: str | None = None,
-    auth_mode: AuthMode = "user",
-) -> str:
-    message: str | None = None
-
-    if isinstance(error, HTTPStatusError):
-        status_code = error.response.status_code
-
-        # Handle validation errors from Pydantic models, this should make it easier to debug :)
-        if status_code == 422:
-            logger.debug(error.response.json())  # pragma: no cover
-
-        elif status_code == 401:
-            message = handle_unauthorized(auth_mode=auth_mode)
-
-        elif status_code == 403:
-            message = "You don't have permissions for this resource"
-
-    if not message:
-        message = (
-            default_message
-            or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{error}"
-        )
-
-    return message
-
-
-@contextlib.contextmanager
-def handle_http_errors(
-    progress: Progress,
-    default_message: str | None = None,
-    auth_mode: AuthMode = "user",
-) -> Generator[None, None, None]:
-    try:
-        yield
-    except ReadTimeout as e:
-        logger.debug(e)
-
-        progress.set_error(
-            "The request to the FastAPI Cloud server timed out. Please try again later."
-        )
-
-        raise typer.Exit(1) from None
-    except HTTPError as e:
-        logger.debug(e)
-
-        message = handle_http_error(e, default_message, auth_mode=auth_mode)
-
-        progress.set_error(message)
-
-        raise typer.Exit(1) from None

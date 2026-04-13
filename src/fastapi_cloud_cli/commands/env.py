@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
 logger = logging.getLogger(__name__)
@@ -23,17 +23,17 @@ class EnvironmentVariableResponse(BaseModel):
     data: list[EnvironmentVariable]
 
 
-def _get_environment_variables(app_id: str) -> EnvironmentVariableResponse:
-    with APIClient() as client:
-        response = client.get(f"/apps/{app_id}/environment-variables/")
-        response.raise_for_status()
+def _get_environment_variables(
+    client: APIClient, app_id: str
+) -> EnvironmentVariableResponse:
+    response = client.get(f"/apps/{app_id}/environment-variables/")
+    response.raise_for_status()
 
-        return EnvironmentVariableResponse.model_validate(response.json())
+    return EnvironmentVariableResponse.model_validate(response.json())
 
 
-def _delete_environment_variable(app_id: str, name: str) -> bool:
-    with APIClient() as client:
-        response = client.delete(f"/apps/{app_id}/environment-variables/{name}")
+def _delete_environment_variable(client: APIClient, app_id: str, name: str) -> bool:
+    response = client.delete(f"/apps/{app_id}/environment-variables/{name}")
 
     if response.status_code == 404:
         return False
@@ -44,14 +44,13 @@ def _delete_environment_variable(app_id: str, name: str) -> bool:
 
 
 def _set_environment_variable(
-    app_id: str, name: str, value: str, is_secret: bool = False
+    client: APIClient, app_id: str, name: str, value: str, is_secret: bool = False
 ) -> None:
-    with APIClient() as client:
-        response = client.post(
-            f"/apps/{app_id}/environment-variables/",
-            json={"name": name, "value": value, "is_secret": is_secret},
-        )
-        response.raise_for_status()
+    response = client.post(
+        f"/apps/{app_id}/environment-variables/",
+        json={"name": name, "value": value, "is_secret": is_secret},
+    )
+    response.raise_for_status()
 
 
 env_app = typer.Typer()
@@ -91,11 +90,15 @@ def list(
             )
             raise typer.Exit(1)
 
+        client = APIClient()
+
         with toolkit.progress(
             "Fetching environment variables...", transient=True
         ) as progress:
-            with handle_http_errors(progress):
-                environment_variables = _get_environment_variables(app_config.app_id)
+            with client.handle_http_errors(progress):
+                environment_variables = _get_environment_variables(
+                    client=client, app_id=app_config.app_id
+                )
 
         if not environment_variables.data:
             toolkit.print("No environment variables found.")
@@ -146,13 +149,15 @@ def delete(
             )
             raise typer.Exit(1)
 
+        client = APIClient()
+
         if not name:
             with toolkit.progress(
                 "Fetching environment variables...", transient=True
             ) as progress:
-                with handle_http_errors(progress):
+                with client.handle_http_errors(progress):
                     environment_variables = _get_environment_variables(
-                        app_config.app_id
+                        client=client, app_id=app_config.app_id
                     )
 
             if not environment_variables.data:
@@ -180,8 +185,10 @@ def delete(
         with toolkit.progress(
             "Deleting environment variable", transient=True
         ) as progress:
-            with handle_http_errors(progress):
-                deleted = _delete_environment_variable(app_config.app_id, name)
+            with client.handle_http_errors(progress):
+                deleted = _delete_environment_variable(
+                    client=client, app_id=app_config.app_id, name=name
+                )
 
         if not deleted:
             toolkit.print("Environment variable not found.")
@@ -253,14 +260,22 @@ def set(
             else:
                 value = toolkit.input("Enter the value of the environment variable:")
 
+        client = APIClient()
+
         with toolkit.progress(
             "Setting environment variable", transient=True
         ) as progress:
             assert name is not None
             assert value is not None
 
-            with handle_http_errors(progress):
-                _set_environment_variable(app_config.app_id, name, value, secret)
+            with client.handle_http_errors(progress):
+                _set_environment_variable(
+                    client=client,
+                    app_id=app_config.app_id,
+                    name=name,
+                    value=value,
+                    is_secret=secret,
+                )
 
         if secret:
             toolkit.print(f"Secret environment variable [bold]{name}[/] set.")
