@@ -307,8 +307,8 @@ LONG_WAIT_MESSAGES = [
 
 
 def _configure_app(
-    client: APIClient,
     toolkit: RichToolkit,
+    client: APIClient,
     path_to_deploy: Path,
 ) -> AppConfig:
     toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
@@ -418,9 +418,7 @@ def _configure_app(
                 client.handle_http_errors(progress),
             ):
                 app = _update_app(
-                    client=client,
-                    app_id=selected_app.id,
-                    directory=directory
+                    client=client, app_id=selected_app.id, directory=directory
                 )
 
                 progress.log(f"App directory updated to '{directory or '.'}'")
@@ -433,7 +431,7 @@ def _configure_app(
                     client=client,
                     team_id=team.id,
                     app_name=app_name,
-                    directory=directory
+                    directory=directory,
                 )
 
             progress.log(f"App created successfully! App slug: {app.slug}")
@@ -767,7 +765,9 @@ def deploy(
             logger.debug("No app config found, configuring new app")
 
             app_config = _configure_app(
-                client=client, toolkit=toolkit, path_to_deploy=path_to_deploy,
+                toolkit=toolkit,
+                client=client,
+                path_to_deploy=path_to_deploy,
             )
             toolkit.print_line()
 
