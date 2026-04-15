@@ -130,7 +130,6 @@ class Identity:
         return _is_jwt_expired(self._user_token)
 
     def is_logged_in(self) -> bool:
-
         if self._user_token is None:
             logger.debug("Login status: False (no token)")
             return False
@@ -143,7 +142,6 @@ class Identity:
         return True
 
     def has_deploy_token(self) -> bool:
-
         if self._deploy_token is None:
             logger.debug("Deploy token is not provided")
             return False
