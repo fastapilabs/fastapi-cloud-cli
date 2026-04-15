@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add `--version` option. PR [#168](https://github.com/fastapilabs/fastapi-cloud-cli/pull/168) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ✨ Show help on `fastapi cloud` with no args. PR [#181](https://github.com/fastapilabs/fastapi-cloud-cli/pull/181) by [@buurro](https://github.com/buurro).
 
 ### Fixes
