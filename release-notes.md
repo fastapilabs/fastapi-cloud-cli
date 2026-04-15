@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.17.0 (2026-04-15)
+
 ### Features
 
 * ✨ Add `--version` option. PR [#168](https://github.com/fastapilabs/fastapi-cloud-cli/pull/168) by [@YuriiMotov](https://github.com/YuriiMotov).
