@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Show help on `fastapi cloud` with no args. PR [#181](https://github.com/fastapilabs/fastapi-cloud-cli/pull/181) by [@buurro](https://github.com/buurro).
+
 ## 0.16.1 (2026-04-08)
 
 ### Fixes

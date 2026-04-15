@@ -19,6 +19,7 @@ app = typer.Typer(rich_markup_mode="rich")
 cloud_app = typer.Typer(
     rich_markup_mode="rich",
     help="Manage [bold]FastAPI[/bold] Cloud deployments. 🚀",
+    no_args_is_help=True,
 )
 
 # TODO: use the app structure
