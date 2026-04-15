@@ -689,8 +689,8 @@ def deploy(
     )
 
     identity = Identity()
-    use_deploy = identity.has_deploy_token()
-    has_auth = use_deploy or identity.is_logged_in()
+    use_deploy_token = identity.has_deploy_token()
+    has_auth = use_deploy_token or identity.is_logged_in()
 
     with get_rich_toolkit() as toolkit:
         if not has_auth:
@@ -726,14 +726,14 @@ def deploy(
                 _waitlist_form(toolkit)
                 raise typer.Exit(1)
 
-        if use_deploy:
+        if use_deploy_token:
             toolkit.print(
                 "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
                 tag="info",
             )
             toolkit.print_line()
 
-        with APIClient(use_deploy_token=use_deploy) as client:
+        with APIClient(use_deploy_token=use_deploy_token) as client:
             toolkit.print_title("Starting deployment", tag="FastAPI")
             toolkit.print_line()
 
