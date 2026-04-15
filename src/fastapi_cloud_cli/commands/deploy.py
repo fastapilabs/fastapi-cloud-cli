@@ -691,7 +691,7 @@ def deploy(
     identity = Identity()
     use_deploy_token = identity.has_deploy_token()
     has_auth = use_deploy_token or identity.is_logged_in()
-    
+
     logger.debug(
         "Authentication mode: %s", "deploy token" if use_deploy_token else "user token"
     )
