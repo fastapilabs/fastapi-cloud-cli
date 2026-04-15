@@ -1624,6 +1624,9 @@ def test_deploy_successfully_with_token(
 
         # check that logs are shown
         assert "All good!" in result.output
+        assert (
+            "Using token from FASTAPI_CLOUD_TOKEN environment variable" in result.output
+        )
 
         # check that the app URL is shown
         assert deployment_data["url"] in result.output

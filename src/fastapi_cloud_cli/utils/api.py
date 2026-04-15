@@ -13,13 +13,15 @@ from typing import (
 )
 
 import httpx
+import typer
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from rich_toolkit.progress import Progress
 from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
 
-from .auth import Identity
+from .auth import AuthMode, Identity, delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -194,19 +196,98 @@ POLL_TIMEOUT = timedelta(seconds=120)
 POLL_MAX_RETRIES = 5
 
 
+def _handle_unauthorized(auth_mode: AuthMode) -> str:
+    message = "The specified token is not valid. "
+
+    if auth_mode == "user":
+        delete_auth_config()
+
+        message += "Use `fastapi login` to generate a new token."
+    else:
+        message += "Make sure to use a valid token."
+
+    return message
+
+
+def handle_http_error(
+    error: httpx.HTTPError,
+    default_message: str | None = None,
+    auth_mode: AuthMode = "user",
+) -> str:
+    message: str | None = None
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+
+        # Handle validation errors from Pydantic models, this should make it easier to debug :)
+        if status_code == 422:
+            logger.debug(error.response.json())  # pragma: no cover
+
+        elif status_code == 401:
+            message = _handle_unauthorized(auth_mode=auth_mode)
+
+        elif status_code == 403:
+            message = "You don't have permissions for this resource"
+
+    if not message:
+        message = (
+            default_message
+            or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{error}"
+        )
+
+    return message
+
+
 class APIClient(httpx.Client):
-    def __init__(self) -> None:
+    auth_mode: AuthMode
+
+    def __init__(self, use_deploy_token: bool = False) -> None:
         settings = Settings.get()
         identity = Identity()
+
+        token: str | None
+        if use_deploy_token and identity.deploy_token:
+            token = identity.deploy_token
+            self.auth_mode = "token"
+        else:
+            token = identity.user_token
+            self.auth_mode = "user"
+
+        headers = {"User-Agent": f"fastapi-cloud-cli/{__version__}"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
-            headers={
-                "Authorization": f"Bearer {identity.token}",
-                "User-Agent": f"fastapi-cloud-cli/{__version__}",
-            },
+            headers=headers,
         )
+
+    @contextmanager
+    def handle_http_errors(
+        self,
+        progress: Progress,
+        default_message: str | None = None,
+    ) -> Generator[None, None, None]:
+        try:
+            yield
+        except httpx.ReadTimeout as e:
+            logger.debug(e)
+
+            progress.set_error(
+                "The request to the FastAPI Cloud server timed out."
+                " Please try again later."
+            )
+
+            raise typer.Exit(1) from None
+        except httpx.HTTPError as e:
+            logger.debug(e)
+
+            message = handle_http_error(e, default_message, auth_mode=self.auth_mode)
+
+            progress.set_error(message)
+
+            raise typer.Exit(1) from None
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(

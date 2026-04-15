@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
 
@@ -87,13 +87,22 @@ def login() -> Any:
 
         return
 
+    if identity.has_deploy_token():
+        with get_rich_toolkit() as toolkit:
+            toolkit.print(
+                "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
+                "This token will take precedence over the user token for "
+                "[blue]`fastapi deploy`[/] command.",
+                tag="Warning",
+            )
+
     with get_rich_toolkit() as toolkit, APIClient() as client:
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
 
         toolkit.print_line()
 
         with toolkit.progress("Starting authorization") as progress:
-            with handle_http_errors(progress):
+            with client.handle_http_errors(progress):
                 authorization_data = _start_device_authorization(client)
 
             url = authorization_data.verification_uri_complete
@@ -105,7 +114,7 @@ def login() -> Any:
         with toolkit.progress("Waiting for user to authorize...") as progress:
             typer.launch(url)
 
-            with handle_http_errors(progress):
+            with client.handle_http_errors(progress):
                 access_token = _fetch_access_token(
                     client, authorization_data.device_code, authorization_data.interval
                 )

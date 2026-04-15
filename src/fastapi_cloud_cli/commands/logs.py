@@ -14,10 +14,11 @@ from fastapi_cloud_cli.utils.api import (
     AppLogEntry,
     StreamLogError,
     TooManyRetriesError,
+    handle_http_error,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_error
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
 
