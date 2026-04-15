@@ -15,6 +15,13 @@ from .utils import create_jwt_token
 
 
 @pytest.fixture(autouse=True)
+def unset_env_vars(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Fixture to unset environment variables that might interfere with tests."""
+    monkeypatch.delenv("FASTAPI_CLOUD_TOKEN", raising=False)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def isolated_config_path() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as tmpdir:
         os.environ["FASTAPI_CLOUD_CLI_CONFIG_DIR"] = tmpdir

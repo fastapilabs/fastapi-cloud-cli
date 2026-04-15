@@ -12,6 +12,8 @@ from .config import get_auth_path
 
 logger = logging.getLogger("fastapi_cli")
 
+AuthMode = Literal["token", "user"]
+
 
 class AuthConfig(BaseModel):
     access_token: str
@@ -109,34 +111,40 @@ def _is_jwt_expired(token: str) -> bool:
 
 
 class Identity:
-    auth_mode: Literal["token", "user"]
-
     def __init__(self) -> None:
-        self.token = _get_auth_token()
-        self.auth_mode = "user"
+        self._user_token = _get_auth_token()
+        self._deploy_token: str | None = os.environ.get("FASTAPI_CLOUD_TOKEN")
 
-        # users using `FASTAPI_CLOUD_TOKEN`
-        if env_token := self._get_token_from_env():
-            self.token = env_token
-            self.auth_mode = "token"
+    @property
+    def user_token(self) -> str | None:
+        return self._user_token
 
-    def _get_token_from_env(self) -> str | None:
-        return os.environ.get("FASTAPI_CLOUD_TOKEN")
+    @property
+    def deploy_token(self) -> str | None:
+        return self._deploy_token
 
-    def is_expired(self) -> bool:
-        if not self.token:
+    def is_user_token_expired(self) -> bool:
+        if not self._user_token:
             return True
 
-        return _is_jwt_expired(self.token)
+        return _is_jwt_expired(self._user_token)
 
     def is_logged_in(self) -> bool:
-        if self.token is None:
+        if self._user_token is None:
             logger.debug("Login status: False (no token)")
             return False
 
-        if self.auth_mode == "user" and self.is_expired():
+        if self.is_user_token_expired():
             logger.debug("Login status: False (token expired)")
             return False
 
         logger.debug("Login status: True")
+        return True
+
+    def has_deploy_token(self) -> bool:
+        if self._deploy_token is None:
+            logger.debug("Deploy token is not provided")
+            return False
+
+        logger.debug("Deploy token found")
         return True

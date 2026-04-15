@@ -7,7 +7,7 @@ import time
 from itertools import cycle
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
-from typing import Annotated, Any
+from typing import Annotated, Any, BinaryIO, cast
 
 import fastar
 import rignore
@@ -17,6 +17,7 @@ from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, Validatio
 from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
+from rich_toolkit.progress import Progress
 
 from fastapi_cloud_cli.commands.login import login
 from fastapi_cloud_cli.utils.api import (
@@ -28,7 +29,8 @@ from fastapi_cloud_cli.utils.api import (
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
 logger = logging.getLogger(__name__)
 
@@ -66,15 +68,14 @@ def validate_app_directory(v: str | None) -> str | None:
 AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
 
-def _cancel_upload(deployment_id: str) -> None:
+def _cancel_upload(client: APIClient, deployment_id: str) -> None:
     logger.debug("Cancelling upload for deployment: %s", deployment_id)
 
     try:
-        with APIClient() as client:
-            response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
-            response.raise_for_status()
+        response = client.post(f"/deployments/{deployment_id}/upload-cancelled")
+        response.raise_for_status()
 
-            logger.debug("Upload cancellation notification sent successfully")
+        logger.debug("Upload cancellation notification sent successfully")
     except Exception as e:
         logger.debug("Failed to notify server about upload cancellation: %s", e)
 
@@ -119,7 +120,7 @@ def archive(path: Path, tar_path: Path) -> Path:
     logger.debug("Archive will be created at: %s", tar_path)
 
     file_count = 0
-    with fastar.open(tar_path, "w:zst") as tar:
+    with fastar.open(tar_path, "w:zst", sparse=False) as tar:
         for filename in files:
             if filename.is_dir():
                 continue
@@ -139,12 +140,11 @@ class Team(BaseModel):
     name: str
 
 
-def _get_teams() -> list[Team]:
-    with APIClient() as client:
-        response = client.get("/teams/")
-        response.raise_for_status()
+def _get_teams(client: APIClient) -> list[Team]:
+    response = client.get("/teams/")
+    response.raise_for_status()
 
-        data = response.json()["data"]
+    data = response.json()["data"]
 
     return [Team.model_validate(team) for team in data]
 
@@ -155,28 +155,28 @@ class AppResponse(BaseModel):
     directory: str | None
 
 
-def _update_app(app_id: str, directory: str | None) -> AppResponse:
-    with APIClient() as client:
-        response = client.patch(
-            f"/apps/{app_id}",
-            json={"directory": directory},
-        )
+def _update_app(client: APIClient, app_id: str, directory: str | None) -> AppResponse:
+    response = client.patch(
+        f"/apps/{app_id}",
+        json={"directory": directory},
+    )
 
-        response.raise_for_status()
+    response.raise_for_status()
 
-        return AppResponse.model_validate(response.json())
+    return AppResponse.model_validate(response.json())
 
 
-def _create_app(team_id: str, app_name: str, directory: str | None) -> AppResponse:
-    with APIClient() as client:
-        response = client.post(
-            "/apps/",
-            json={"name": app_name, "team_id": team_id, "directory": directory},
-        )
+def _create_app(
+    client: APIClient, team_id: str, app_name: str, directory: str | None
+) -> AppResponse:
+    response = client.post(
+        "/apps/",
+        json={"name": app_name, "team_id": team_id, "directory": directory},
+    )
 
-        response.raise_for_status()
+    response.raise_for_status()
 
-        return AppResponse.model_validate(response.json())
+    return AppResponse.model_validate(response.json())
 
 
 class CreateDeploymentResponse(BaseModel):
@@ -188,12 +188,11 @@ class CreateDeploymentResponse(BaseModel):
     url: str
 
 
-def _create_deployment(app_id: str) -> CreateDeploymentResponse:
-    with APIClient() as client:
-        response = client.post(f"/apps/{app_id}/deployments/")
-        response.raise_for_status()
+def _create_deployment(client: APIClient, app_id: str) -> CreateDeploymentResponse:
+    response = client.post(f"/apps/{app_id}/deployments/")
+    response.raise_for_status()
 
-        return CreateDeploymentResponse.model_validate(response.json())
+    return CreateDeploymentResponse.model_validate(response.json())
 
 
 class RequestUploadResponse(BaseModel):
@@ -201,67 +200,87 @@ class RequestUploadResponse(BaseModel):
     fields: dict[str, str]
 
 
-def _upload_deployment(deployment_id: str, archive_path: Path) -> None:
+def _format_size(size_in_bytes: int) -> str:
+    if size_in_bytes >= 1024 * 1024:
+        return f"{size_in_bytes / (1024 * 1024):.2f} MB"
+    elif size_in_bytes >= 1024:
+        return f"{size_in_bytes / 1024:.2f} KB"
+    else:
+        return f"{size_in_bytes} bytes"
+
+
+def _upload_deployment(
+    fastapi_client: APIClient,
+    deployment_id: str,
+    archive_path: Path,
+    progress: Progress,
+) -> None:
+    archive_size = archive_path.stat().st_size
+    archive_size_str = _format_size(archive_size)
+
+    progress.log(f"Uploading deployment ({archive_size_str})...")
     logger.debug(
         "Starting deployment upload for deployment: %s",
         deployment_id,
     )
-    logger.debug(
-        "Archive path: %s, size: %s bytes",
-        archive_path,
-        archive_path.stat().st_size,
-    )
+    logger.debug("Archive path: %s, size: %s bytes", archive_path, archive_size)
 
-    with APIClient() as fastapi_client, Client() as client:
-        # Get the upload URL
-        logger.debug("Requesting upload URL from API")
-        response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
-        response.raise_for_status()
-
-        upload_data = RequestUploadResponse.model_validate(response.json())
-        logger.debug("Received upload URL: %s", upload_data.url)
-
-        logger.debug("Starting file upload to S3")
-        with open(archive_path, "rb") as archive_file:
-            upload_response = client.post(
-                upload_data.url,
-                data=upload_data.fields,
-                files={"file": archive_file},
-            )
-
-        upload_response.raise_for_status()
-        logger.debug("File upload completed successfully")
-
-        # Notify the server that the upload is complete
-        logger.debug("Notifying API that upload is complete")
-        notify_response = fastapi_client.post(
-            f"/deployments/{deployment_id}/upload-complete"
+    def progress_callback(bytes_read: int) -> None:
+        progress.log(
+            f"Uploading deployment ({_format_size(bytes_read)} of {archive_size_str})..."
         )
 
-        notify_response.raise_for_status()
-        logger.debug("Upload notification sent successfully")
+    # Get the upload URL
+    logger.debug("Requesting upload URL from API")
+    response = fastapi_client.post(f"/deployments/{deployment_id}/upload")
+    response.raise_for_status()
+
+    upload_data = RequestUploadResponse.model_validate(response.json())
+    logger.debug("Received upload URL: %s", upload_data.url)
+
+    logger.debug("Starting file upload to S3")
+    with Client() as s3_client:
+        with open(archive_path, "rb") as archive_file:
+            archive_file_with_progress = ProgressFile(
+                archive_file, progress_callback=progress_callback
+            )
+            upload_response = s3_client.post(
+                upload_data.url,
+                data=upload_data.fields,
+                files={"file": cast(BinaryIO, archive_file_with_progress)},
+            )
+
+    upload_response.raise_for_status()
+    logger.debug("File upload completed successfully")
+
+    # Notify the server that the upload is complete
+    logger.debug("Notifying API that upload is complete")
+    notify_response = fastapi_client.post(
+        f"/deployments/{deployment_id}/upload-complete"
+    )
+
+    notify_response.raise_for_status()
+    logger.debug("Upload notification sent successfully")
 
 
-def _get_app(app_slug: str) -> AppResponse | None:
-    with APIClient() as client:
-        response = client.get(f"/apps/{app_slug}")
+def _get_app(client: APIClient, app_slug: str) -> AppResponse | None:
+    response = client.get(f"/apps/{app_slug}")
 
-        if response.status_code == 404:
-            return None
+    if response.status_code == 404:
+        return None
 
-        response.raise_for_status()
+    response.raise_for_status()
 
-        data = response.json()
+    data = response.json()
 
     return AppResponse.model_validate(data)
 
 
-def _get_apps(team_id: str) -> list[AppResponse]:
-    with APIClient() as client:
-        response = client.get("/apps/", params={"team_id": team_id})
-        response.raise_for_status()
+def _get_apps(client: APIClient, team_id: str) -> list[AppResponse]:
+    response = client.get("/apps/", params={"team_id": team_id})
+    response.raise_for_status()
 
-        data = response.json()["data"]
+    data = response.json()["data"]
 
     return [AppResponse.model_validate(app) for app in data]
 
@@ -287,16 +306,21 @@ LONG_WAIT_MESSAGES = [
 ]
 
 
-def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
+def _configure_app(
+    toolkit: RichToolkit,
+    client: APIClient,
+    path_to_deploy: Path,
+) -> AppConfig:
     toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
 
     toolkit.print_line()
 
     with toolkit.progress("Fetching teams...") as progress:
-        with handle_http_errors(
-            progress, default_message="Error fetching teams. Please try again later."
+        with client.handle_http_errors(
+            progress,
+            default_message="Error fetching teams. Please try again later.",
         ):
-            teams = _get_teams()
+            teams = _get_teams(client)
 
     toolkit.print_line()
 
@@ -304,6 +328,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         "Select the team you want to deploy to:",
         tag="team",
         options=[Option({"name": team.name, "value": team}) for team in teams],
+        allow_filtering=True,
     )
 
     toolkit.print_line()
@@ -318,10 +343,11 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
 
     if not create_new_app:
         with toolkit.progress("Fetching apps...") as progress:
-            with handle_http_errors(
-                progress, default_message="Error fetching apps. Please try again later."
+            with client.handle_http_errors(
+                progress,
+                default_message="Error fetching apps. Please try again later.",
             ):
-                apps = _get_apps(team.id)
+                apps = _get_apps(client=client, team_id=team.id)
 
         toolkit.print_line()
 
@@ -335,6 +361,7 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
             options=[Option({"name": app.slug, "value": app}) for app in apps],
+            allow_filtering=True,
         )
 
     app_name = (
@@ -388,17 +415,24 @@ def _configure_app(toolkit: RichToolkit, path_to_deploy: Path) -> AppConfig:
         if directory != selected_app.directory:
             with (
                 toolkit.progress(title="Updating app directory...") as progress,
-                handle_http_errors(progress),
+                client.handle_http_errors(progress),
             ):
-                app = _update_app(selected_app.id, directory=directory)
+                app = _update_app(
+                    client=client, app_id=selected_app.id, directory=directory
+                )
 
                 progress.log(f"App directory updated to '{directory or '.'}'")
         else:
             app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
-            with handle_http_errors(progress):
-                app = _create_app(team.id, app_name, directory=directory)
+            with client.handle_http_errors(progress):
+                app = _create_app(
+                    client=client,
+                    team_id=team.id,
+                    app_name=app_name,
+                    directory=directory,
+                )
 
             progress.log(f"App created successfully! App slug: {app.slug}")
 
@@ -446,7 +480,10 @@ def _verify_deployment(
 
 
 def _wait_for_deployment(
-    toolkit: RichToolkit, app_id: str, deployment: CreateDeploymentResponse
+    toolkit: RichToolkit,
+    client: APIClient,
+    app_id: str,
+    deployment: CreateDeploymentResponse,
 ) -> None:
     messages = cycle(WAITING_MESSAGES)
 
@@ -462,59 +499,60 @@ def _wait_for_deployment(
 
     last_message_changed_at = time.monotonic()
 
-    with APIClient() as client:
-        with (
-            toolkit.progress(
-                next(messages),
-                inline_logs=True,
-                lines_to_show=20,
-                done_emoji="🚀",
-            ) as progress,
-        ):
-            build_complete = False
+    with (
+        toolkit.progress(
+            next(messages),
+            inline_logs=True,
+            lines_to_show=20,
+            done_emoji="🚀",
+        ) as progress,
+    ):
+        build_complete = False
 
-            try:
-                for log in client.stream_build_logs(deployment.id):
-                    time_elapsed = time.monotonic() - started_at
+        try:
+            for log in client.stream_build_logs(deployment.id):
+                time_elapsed = time.monotonic() - started_at
 
-                    if log.type == "message":
-                        progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
+                if log.type == "message":
+                    progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
 
-                    if log.type == "complete":
-                        build_complete = True
-                        progress.title = "Build complete!"
-                        break
+                if log.type == "complete":
+                    build_complete = True
+                    progress.title = "Build complete!"
+                    break
 
-                    if log.type == "failed":
-                        progress.log("")
-                        progress.log(
-                            f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                        )
-                        raise typer.Exit(1)
+                if log.type == "failed":
+                    progress.log("")
+                    progress.log(
+                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                    )
+                    raise typer.Exit(1)
 
-                    if time_elapsed > 30:
-                        messages = cycle(LONG_WAIT_MESSAGES)
+                if time_elapsed > 30:
+                    messages = cycle(LONG_WAIT_MESSAGES)
 
-                    if (time.monotonic() - last_message_changed_at) > 2:
-                        progress.title = next(messages)
+                if (time.monotonic() - last_message_changed_at) > 2:
+                    progress.title = next(messages)
 
-                        last_message_changed_at = time.monotonic()
+                    last_message_changed_at = time.monotonic()
 
-            except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
-                progress.set_error(
-                    dedent(f"""
+        except (StreamLogError, TooManyRetriesError, TimeoutError) as e:
+            progress.set_error(
+                dedent(f"""
                     [error]Build log streaming failed: {e}[/]
 
                     Unable to stream build logs. Check the dashboard for status: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]
                     """).strip()
-                )
+            )
 
-                raise typer.Exit(1) from None
+            raise typer.Exit(1) from None
 
-        if build_complete:
-            toolkit.print_line()
+    if build_complete:
+        toolkit.print_line()
 
-            _verify_deployment(toolkit, client, app_id, deployment)
+        _verify_deployment(
+            toolkit=toolkit, client=client, app_id=app_id, deployment=deployment
+        )
 
 
 class SignupToWaitingList(BaseModel):
@@ -534,7 +572,7 @@ def _send_waitlist_form(
 ) -> None:
     with toolkit.progress("Sending your request...") as progress:
         with APIClient() as client:
-            with handle_http_errors(progress):
+            with client.handle_http_errors(progress):
                 response = client.post("/users/waiting-list", json=result.model_dump())
 
                 response.raise_for_status()
@@ -651,15 +689,21 @@ def deploy(
     )
 
     identity = Identity()
+    use_deploy_token = identity.has_deploy_token()
+    has_auth = use_deploy_token or identity.is_logged_in()
+
+    logger.debug(
+        "Authentication mode: %s", "deploy token" if use_deploy_token else "user token"
+    )
 
     with get_rich_toolkit() as toolkit:
-        if not identity.is_logged_in():
+        if not has_auth:
             logger.debug("User not logged in, prompting for login or waitlist")
 
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
             toolkit.print_line()
 
-            if identity.token and identity.is_expired():
+            if identity.user_token and identity.is_user_token_expired():
                 toolkit.print(
                     "Your session has expired. Please log in again.",
                     tag="info",
@@ -686,103 +730,123 @@ def deploy(
                 _waitlist_form(toolkit)
                 raise typer.Exit(1)
 
-        toolkit.print_title("Starting deployment", tag="FastAPI")
-        toolkit.print_line()
-
-        path_to_deploy = path or Path.cwd()
-        logger.debug("Deploying from path: %s", path_to_deploy)
-
-        app_config = get_app_config(path_to_deploy)
-
-        if app_config and provided_app_id and app_config.app_id != provided_app_id:
+        if use_deploy_token:
             toolkit.print(
-                f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
-                f"config ({app_config.app_id}).[/]"
+                "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
+                tag="info",
             )
             toolkit.print_line()
-            toolkit.print(
-                "Run [bold]fastapi cloud unlink[/] to remove the local config, "
-                "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
-                tag="tip",
-            )
 
-            raise typer.Exit(1) from None
-
-        if provided_app_id:
-            target_app_id = provided_app_id
-        elif app_config:
-            target_app_id = app_config.app_id
-        else:
-            logger.debug("No app config found, configuring new app")
-
-            app_config = _configure_app(toolkit, path_to_deploy=path_to_deploy)
+        with APIClient(use_deploy_token=use_deploy_token) as client:
+            toolkit.print_title("Starting deployment", tag="FastAPI")
             toolkit.print_line()
 
-            target_app_id = app_config.app_id
+            path_to_deploy = path or Path.cwd()
+            logger.debug("Deploying from path: %s", path_to_deploy)
 
-        if provided_app_id:
-            toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
-        else:
-            toolkit.print("Deploying app...")
+            app_config = get_app_config(path_to_deploy)
 
-        toolkit.print_line()
-
-        with toolkit.progress("Checking app...", transient=True) as progress:
-            with handle_http_errors(progress):
-                logger.debug("Checking app with ID: %s", target_app_id)
-                app = _get_app(target_app_id)
-
-            if not app:
-                logger.debug("App not found in API")
-                progress.set_error(
-                    "App not found. Make sure you're logged in the correct account."
-                )
-
-        if not app:
-            toolkit.print_line()
-
-            if not provided_app_id:
+            if app_config and provided_app_id and app_config.app_id != provided_app_id:
                 toolkit.print(
-                    "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+                    f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
+                    f"config ({app_config.app_id}).[/]"
+                )
+                toolkit.print_line()
+                toolkit.print(
+                    "Run [bold]fastapi cloud unlink[/] to remove the local config, "
+                    "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
                     tag="tip",
                 )
-            raise typer.Exit(1)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger.debug("Creating archive for deployment")
-            archive_path = Path(temp_dir) / "archive.tar"
-            archive(path or Path.cwd(), archive_path)
+                raise typer.Exit(1) from None
 
-            with (
-                toolkit.progress(
-                    title="Creating deployment", done_emoji="📦"
-                ) as progress,
-                handle_http_errors(progress),
-            ):
-                logger.debug("Creating deployment for app: %s", app.id)
-                deployment = _create_deployment(app.id)
+            if provided_app_id:
+                target_app_id = provided_app_id
+            elif app_config:
+                target_app_id = app_config.app_id
+            else:
+                logger.debug("No app config found, configuring new app")
 
-                try:
-                    progress.log(
-                        f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                app_config = _configure_app(
+                    toolkit=toolkit,
+                    client=client,
+                    path_to_deploy=path_to_deploy,
+                )
+                toolkit.print_line()
+
+                target_app_id = app_config.app_id
+
+            if provided_app_id:
+                toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
+            else:
+                toolkit.print("Deploying app...")
+
+            toolkit.print_line()
+
+            with toolkit.progress("Checking app...", transient=True) as progress:
+                with client.handle_http_errors(progress):
+                    logger.debug("Checking app with ID: %s", target_app_id)
+                    app = _get_app(client=client, app_slug=target_app_id)
+
+                if not app:
+                    logger.debug("App not found in API")
+                    progress.set_error(
+                        "App not found. Make sure you're logged in the correct account."
                     )
 
-                    progress.log("Uploading deployment...")
+            if not app:
+                toolkit.print_line()
 
-                    _upload_deployment(deployment.id, archive_path)
+                if not provided_app_id:
+                    toolkit.print(
+                        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+                        tag="tip",
+                    )
+                raise typer.Exit(1)
 
-                    progress.log("Deployment uploaded successfully!")
-                except KeyboardInterrupt:
-                    _cancel_upload(deployment.id)
-                    raise
+            with tempfile.TemporaryDirectory() as temp_dir:
+                logger.debug("Creating archive for deployment")
+                archive_path = Path(temp_dir) / "archive.tar"
+                archive(path or Path.cwd(), archive_path)
 
-        toolkit.print_line()
+                with (
+                    toolkit.progress(
+                        title="Creating deployment", done_emoji="📦"
+                    ) as progress,
+                    client.handle_http_errors(progress),
+                ):
+                    logger.debug("Creating deployment for app: %s", app.id)
+                    deployment = _create_deployment(client=client, app_id=app.id)
 
-        if not skip_wait:
-            logger.debug("Waiting for deployment to complete")
-            _wait_for_deployment(toolkit, app.id, deployment=deployment)
-        else:
-            logger.debug("Skipping deployment wait as requested")
-            toolkit.print(
-                f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-            )
+                    try:
+                        progress.log(
+                            f"Deployment created successfully! Deployment slug: {deployment.slug}"
+                        )
+
+                        _upload_deployment(
+                            fastapi_client=client,
+                            deployment_id=deployment.id,
+                            archive_path=archive_path,
+                            progress=progress,
+                        )
+
+                        progress.log("Deployment uploaded successfully!")
+                    except KeyboardInterrupt:
+                        _cancel_upload(client=client, deployment_id=deployment.id)
+                        raise
+
+            toolkit.print_line()
+
+            if not skip_wait:
+                logger.debug("Waiting for deployment to complete")
+                _wait_for_deployment(
+                    toolkit=toolkit,
+                    client=client,
+                    app_id=app.id,
+                    deployment=deployment,
+                )
+            else:
+                logger.debug("Skipping deployment wait as requested")
+                toolkit.print(
+                    f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
+                )

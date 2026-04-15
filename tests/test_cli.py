@@ -3,9 +3,23 @@ import sys
 
 from typer.testing import CliRunner
 
-from fastapi_cloud_cli.cli import cloud_app as app
+from fastapi_cloud_cli.cli import app
 
 runner = CliRunner()
+
+
+def test_shows_help() -> None:
+    result = runner.invoke(app, ["cloud", "--help"])
+
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+
+
+def test_shows_help_without_args() -> None:
+    result = runner.invoke(app, ["cloud"])
+
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
 
 
 def test_script() -> None:
@@ -18,6 +32,6 @@ def test_script() -> None:
 
 
 def test_version() -> None:
-    result = runner.invoke(app, ["--version"])
+    result = runner.invoke(app, ["cloud", "--version"])
     assert result.exit_code == 0, result.output
     assert "FastAPI Cloud CLI version:" in result.output

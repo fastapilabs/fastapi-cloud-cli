@@ -8,7 +8,7 @@ from rich_toolkit.menu import Option
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
 logger = logging.getLogger(__name__)
 
@@ -47,40 +47,42 @@ def link() -> Any:
         toolkit.print_title("Link to FastAPI Cloud", tag="FastAPI")
         toolkit.print_line()
 
-        with toolkit.progress("Fetching teams...") as progress:
-            with handle_http_errors(
-                progress,
-                default_message="Error fetching teams. Please try again later.",
-            ):
-                with APIClient() as client:
+        with APIClient() as client:
+            with toolkit.progress("Fetching teams...") as progress:
+                with client.handle_http_errors(
+                    progress,
+                    default_message="Error fetching teams. Please try again later.",
+                ):
                     response = client.get("/teams/")
                     response.raise_for_status()
                     teams_data = response.json()["data"]
 
-        if not teams_data:
-            toolkit.print(
-                "[error]No teams found. Please create a team first.[/]",
+            if not teams_data:
+                toolkit.print(
+                    "[error]No teams found. Please create a team first.[/]",
+                )
+                raise typer.Exit(1)
+
+            toolkit.print_line()
+
+            team = toolkit.ask(
+                "Select the team:",
+                tag="team",
+                options=[
+                    Option(
+                        {"name": t["name"], "value": {"id": t["id"], "name": t["name"]}}
+                    )
+                    for t in teams_data
+                ],
             )
-            raise typer.Exit(1)
 
-        toolkit.print_line()
+            toolkit.print_line()
 
-        team = toolkit.ask(
-            "Select the team:",
-            tag="team",
-            options=[
-                Option({"name": t["name"], "value": {"id": t["id"], "name": t["name"]}})
-                for t in teams_data
-            ],
-        )
-
-        toolkit.print_line()
-
-        with toolkit.progress("Fetching apps...") as progress:
-            with handle_http_errors(
-                progress, default_message="Error fetching apps. Please try again later."
-            ):
-                with APIClient() as client:
+            with toolkit.progress("Fetching apps...") as progress:
+                with client.handle_http_errors(
+                    progress,
+                    default_message="Error fetching apps. Please try again later.",
+                ):
                     response = client.get("/apps/", params={"team_id": team["id"]})
                     response.raise_for_status()
                     apps_data = response.json()["data"]

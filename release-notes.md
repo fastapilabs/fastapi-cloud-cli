@@ -2,6 +2,42 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Show help on `fastapi cloud` with no args. PR [#181](https://github.com/fastapilabs/fastapi-cloud-cli/pull/181) by [@buurro](https://github.com/buurro).
+
+### Fixes
+
+* 🐛 Fix `FASTAPI_CLOUD_TOKEN` always overrides user token. PR [#180](https://github.com/fastapilabs/fastapi-cloud-cli/pull/180) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+## 0.16.1 (2026-04-08)
+
+### Fixes
+
+* 🐛 Fix archive creation of Windows files inside WSL. PR [#178](https://github.com/fastapilabs/fastapi-cloud-cli/pull/178) by [@DoctorJohn](https://github.com/DoctorJohn).
+
+## 0.16.0 (2026-04-07)
+
+### Features
+
+* ✨ Update deployment statuses. PR [#176](https://github.com/fastapilabs/fastapi-cloud-cli/pull/176) by [@DoctorJohn](https://github.com/DoctorJohn).
+* 💄 Show deployment upload progress. PR [#171](https://github.com/fastapilabs/fastapi-cloud-cli/pull/171) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+### Internal
+
+* 🔒 Pin GitHub actions by commit SHA. PR [#172](https://github.com/fastapilabs/fastapi-cloud-cli/pull/172) by [@YuriiMotov](https://github.com/YuriiMotov).
+* 🔨 Add pre-commit hook to ensure latest release header has date. PR [#173](https://github.com/fastapilabs/fastapi-cloud-cli/pull/173) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+## 0.15.1 (2026-03-26)
+
+### Features
+
+* 💄 Allow filtering for teams and apps. PR [#169](https://github.com/fastapilabs/fastapi-cloud-cli/pull/169) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+### Internal
+
+* 🔥 Remove unused `tests/assets`. PR [#170](https://github.com/fastapilabs/fastapi-cloud-cli/pull/170) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.15.0 (2026-03-11)
 
 ### Features

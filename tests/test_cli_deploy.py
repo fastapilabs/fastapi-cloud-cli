@@ -1,4 +1,5 @@
 import random
+import re
 import string
 from datetime import timedelta
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 import respx
 from click.testing import Result
 from httpx import Response
+from rich_toolkit.progress import Progress
 from time_machine import TimeMachineFixture
 from typer.testing import CliRunner
 
@@ -24,8 +26,8 @@ runner = CliRunner()
 assets_path = Path(__file__).parent / "assets"
 
 
-def _get_random_team() -> dict[str, str]:
-    name = "".join(random.choices(string.ascii_lowercase, k=10))
+def _get_random_team(name: str | None = None) -> dict[str, str]:
+    name = name or "".join(random.choices(string.ascii_lowercase, k=10))
     slug = "".join(random.choices(string.ascii_lowercase, k=10))
     id = "".join(random.choices(string.digits, k=10))
 
@@ -324,6 +326,42 @@ def test_shows_teams(
 
 
 @pytest.mark.respx
+def test_filter_teams(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [*"al", Keys.ENTER, Keys.CTRL_C]
+
+    team_1 = _get_random_team(name="Alpha Team")
+    team_2 = _get_random_team(name="Beta Team")
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team_1, team_2]},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "Filter: al" in result.output
+
+        # Truncate part of the output before "Filter: al"
+        filer_pos = result.output.rfind("Filter: al")
+        last_output = result.output[filer_pos:]
+
+        assert team_1["name"] in last_output
+        assert team_2["name"] not in last_output
+
+
+@pytest.mark.respx
 def test_asks_for_app_name_after_team(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -347,6 +385,48 @@ def test_asks_for_app_name_after_team(
         assert result.exit_code == 1
 
         assert "What's your app name?" in result.output
+
+
+@pytest.mark.respx
+def test_filter_apps(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [Keys.ENTER, Keys.RIGHT_ARROW, Keys.ENTER, *"an", Keys.ENTER, Keys.CTRL_C]
+
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={"data": [team]},
+        )
+    )
+
+    app_1 = _get_random_app(team_id=team["id"], slug="My App")
+    app_2 = _get_random_app(team_id=team["id"], slug="Another App")
+
+    respx_mock.get("/apps/", params={"team_id": team["id"]}).mock(
+        return_value=Response(200, json={"data": [app_1, app_2]})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+        assert result.exit_code == 1
+
+        assert "Filter: an" in result.output
+
+        # Truncate part of the output before "Filter: an"
+        filer_pos = result.output.rfind("Filter: an")
+        last_output = result.output[filer_pos:]
+
+        assert app_1["slug"] not in last_output
+        assert app_2["slug"] in last_output
 
 
 @pytest.mark.respx
@@ -1544,6 +1624,9 @@ def test_deploy_successfully_with_token(
 
         # check that logs are shown
         assert "All good!" in result.output
+        assert (
+            "Using token from FASTAPI_CLOUD_TOKEN environment variable" in result.output
+        )
 
         # check that the app URL is shown
         assert deployment_data["url"] in result.output
@@ -1575,6 +1658,101 @@ def test_deploy_with_token_fails(
         assert (
             "The specified token is not valid. Make sure to use a valid token."
             in result.output
+        )
+
+
+@pytest.mark.parametrize(
+    ("size", "expected_msgs"),
+    [
+        (
+            100,
+            [
+                r"\(\d+ bytes\)",  # e.g. "(123 bytes)"
+                r"\(\d+ bytes of \d+ bytes\)",  # e.g. "(123 bytes of 456 bytes)"
+            ],
+        ),
+        (
+            10 * 1024,
+            [
+                r"\(\d+\.\d+ KB\)",  # e.g. "(1.23 KB)"
+                r"\(\d+\.\d+ KB of \d+\.\d+ KB\)",  # e.g. "(1.23 KB of 4.56 KB)"
+            ],
+        ),
+        (
+            10 * 1024 * 1024,
+            [
+                r"\(\d+\.\d+ MB\)",  # e.g. "(1.23 MB)"
+                r"\(\d+\.\d+ KB of \d+\.\d+ MB\)",  # e.g. "(1.23 KB of 4.56 MB)"
+                r"\(\d+\.\d+ MB of \d+\.\d+ MB\)",  # e.g. "(1.23 MB of 4.56 MB)"
+            ],
+        ),
+    ],
+)
+@pytest.mark.respx
+def test_upload_deployment_progress(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    size: int,
+    expected_msgs: list[str],
+) -> None:
+    app_data = _get_random_app()
+    team_data = _get_random_team()
+    app_id = app_data["id"]
+    team_id = team_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+    deployment_id = deployment_data["id"]
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    (tmp_path / "file.bin").write_bytes(random.randbytes(size))
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_id}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_id}/upload-complete").mock(
+        return_value=Response(200)
+    )
+    respx_mock.get(f"/deployments/{deployment_id}/build-logs").mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Building...", "id": "1"},
+                {"type": "complete"},
+            ),
+        )
+    )
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_id}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch.object(Progress, "log") as mock_progress,
+    ):
+        result = runner.invoke(app, ["deploy"])
+        assert result.exit_code == 0
+
+    call_args = [
+        c.args[0] for c in mock_progress.call_args_list if isinstance(c.args[0], str)
+    ]
+
+    for expected_msg in expected_msgs:
+        pattern = re.compile(f"Uploading deployment {expected_msg}\\.\\.\\.")
+        assert any(pattern.match(arg) for arg in call_args), (
+            f"Expected message '{pattern.pattern}' not found in {call_args}"
         )
 
 
@@ -1838,7 +2016,7 @@ def test_verification_failure_after_build_complete(
 
         assert result.exit_code == 1
         assert "Deployment failed" in result.output
-        assert "Verifying failed" in result.output
+        assert "Verification Failed" in result.output
         assert deployment_data["dashboard_url"] in result.output
 
 
