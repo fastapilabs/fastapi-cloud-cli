@@ -29,3 +29,9 @@ def test_script() -> None:
         encoding="utf-8",
     )
     assert "Usage" in result.stdout
+
+
+def test_version() -> None:
+    result = runner.invoke(app, ["cloud", "--version"])
+    assert result.exit_code == 0, result.output
+    assert "FastAPI Cloud CLI version:" in result.output
