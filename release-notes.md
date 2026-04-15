@@ -6,6 +6,10 @@
 
 * ✨ Show help on `fastapi cloud` with no args. PR [#181](https://github.com/fastapilabs/fastapi-cloud-cli/pull/181) by [@buurro](https://github.com/buurro).
 
+### Fixes
+
+* 🐛 Fix `FASTAPI_CLOUD_TOKEN` always overrides user token. PR [#180](https://github.com/fastapilabs/fastapi-cloud-cli/pull/180) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.16.1 (2026-04-08)
 
 ### Fixes
