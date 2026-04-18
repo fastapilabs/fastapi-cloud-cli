@@ -53,6 +53,7 @@ dev = [
     "respx==0.22.0",
     "time-machine==2.15.0",
     "ty>=0.0.9",
+    "zizmor>=1.24.1",
 ]
 
 [project.urls]
