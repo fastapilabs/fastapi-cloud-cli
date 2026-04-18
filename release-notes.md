@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* ⬆ Bump astral-sh/setup-uv from 7.6.0 to 8.1.0. PR [#182](https://github.com/fastapilabs/fastapi-cloud-cli/pull/182) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.17.0 (2026-04-15)
 
 ### Features
