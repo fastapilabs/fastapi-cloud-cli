@@ -209,6 +209,22 @@ def _handle_unauthorized(auth_mode: AuthMode) -> str:
     return message
 
 
+def _get_response_error_message(response: httpx.Response) -> str | None:
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, httpx.ResponseNotRead):
+        return None
+
+    if not isinstance(data, dict):
+        return None  # pragma: no cover
+
+    detail = data.get("detail")
+    if not isinstance(detail, str):
+        return None  # pragma: no cover
+
+    return detail
+
+
 def handle_http_error(
     error: httpx.HTTPError,
     default_message: str | None = None,
@@ -227,7 +243,10 @@ def handle_http_error(
             message = _handle_unauthorized(auth_mode=auth_mode)
 
         elif status_code == 403:
-            message = "You don't have permissions for this resource"
+            message = (
+                _get_response_error_message(error.response)
+                or "You don't have permissions for this resource"
+            )
 
     if not message:
         message = (

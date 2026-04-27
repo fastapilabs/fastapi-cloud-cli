@@ -462,6 +462,35 @@ def test_creates_app_on_backend(
 
 
 @pytest.mark.respx
+def test_shows_api_message_when_create_app_is_forbidden(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    steps = [Keys.ENTER, Keys.ENTER, *"demo", Keys.ENTER, Keys.ENTER, Keys.ENTER]
+    team = _get_random_team()
+
+    respx_mock.get("/teams/").mock(return_value=Response(200, json={"data": [team]}))
+    respx_mock.post(
+        "/apps/", json={"name": "demo", "team_id": team["id"], "directory": None}
+    ).mock(
+        return_value=Response(
+            403,
+            json={"detail": "App limit reached"},
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "App limit reached" in result.output
+
+
+@pytest.mark.respx
 def test_creates_app_with_directory(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
