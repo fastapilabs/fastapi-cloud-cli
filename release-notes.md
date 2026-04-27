@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Improve error message when receiving a 403. PR [#189](https://github.com/fastapilabs/fastapi-cloud-cli/pull/189) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * ⬆ Bump astral-sh/setup-uv from 7.6.0 to 8.1.0. PR [#182](https://github.com/fastapilabs/fastapi-cloud-cli/pull/182) by [@dependabot[bot]](https://github.com/apps/dependabot).
