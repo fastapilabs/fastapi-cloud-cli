@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.17.1 (2026-04-27)
+
 ### Fixes
 
 * 🐛 Improve error message when receiving a 403. PR [#189](https://github.com/fastapilabs/fastapi-cloud-cli/pull/189) by [@patrick91](https://github.com/patrick91).
