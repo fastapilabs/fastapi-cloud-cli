@@ -170,9 +170,7 @@ def test_get_large_files_returns_files_at_or_above_threshold(tmp_path: Path) -> 
 def test_get_large_files_excludes_default_exclusions(tmp_path: Path) -> None:
     """Should not count files in excluded directories like .venv or __pycache__."""
     _create_file(tmp_path / ".venv" / "lib" / "huge.so", 5 * 1024 * 1024)
-    _create_file(
-        tmp_path / "__pycache__" / "module.cpython-311.pyc", 5 * 1024 * 1024
-    )
+    _create_file(tmp_path / "__pycache__" / "module.cpython-311.pyc", 5 * 1024 * 1024)
     _create_file(tmp_path / "main.py", 5 * 1024 * 1024)
 
     assert _get_large_files(tmp_path, threshold_mb=1) == [

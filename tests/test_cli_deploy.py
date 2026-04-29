@@ -2214,9 +2214,7 @@ def test_large_file_threshold_warning(
     team_id = "some-team-id"
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    _setup_deployment_mocks(
-        respx_mock, app_id, team_id, deployment_data, tmp_path
-    )
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
     respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
@@ -2244,9 +2242,7 @@ def test_large_file_threshold_only_top_three_files_with_more_indicator(
     team_id = "some-team-id"
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    _setup_deployment_mocks(
-        respx_mock, app_id, team_id, deployment_data, tmp_path
-    )
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
     respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
@@ -2278,9 +2274,7 @@ def test_large_file_threshold_does_not_warn_when_no_large_files(
     team_id = "some-team-id"
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    _setup_deployment_mocks(
-        respx_mock, app_id, team_id, deployment_data, tmp_path
-    )
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
     respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
@@ -2303,9 +2297,7 @@ def test_large_file_threshold_custom_threshold(
     team_id = "some-team-id"
     deployment_data = _get_random_deployment(app_id=app_id)
 
-    _setup_deployment_mocks(
-        respx_mock, app_id, team_id, deployment_data, tmp_path
-    )
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
     respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
