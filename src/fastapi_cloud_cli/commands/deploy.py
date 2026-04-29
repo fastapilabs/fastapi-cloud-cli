@@ -108,14 +108,18 @@ def _should_exclude_entry(path: Path) -> bool:
     return False
 
 
-def archive(path: Path, tar_path: Path) -> Path:
-    logger.debug("Starting archive creation for path: %s", path)
-    files = rignore.walk(
+def _rignore_walk(path: Path) -> rignore.Walker:
+    return rignore.walk(
         path,
         should_exclude_entry=_should_exclude_entry,
         additional_ignore_paths=[".fastapicloudignore"],
         ignore_hidden=False,
     )
+
+
+def archive(path: Path, tar_path: Path) -> Path:
+    logger.debug("Starting archive creation for path: %s", path)
+    files = _rignore_walk(path)
 
     logger.debug("Archive will be created at: %s", tar_path)
 
@@ -132,6 +136,19 @@ def archive(path: Path, tar_path: Path) -> Path:
 
     logger.debug("Archive created successfully with %s files", file_count)
     return tar_path
+
+
+def _get_large_files(path: Path, threshold: int) -> list[tuple[Path, int]]:
+    large_files = []
+    files = _rignore_walk(path)
+    for filename in files:
+        if filename.is_dir():
+            continue
+        file_size = filename.stat().st_size
+        if file_size >= threshold:
+            large_files.append((filename.relative_to(path), file_size))
+
+    return large_files
 
 
 class Team(BaseModel):
@@ -804,10 +821,35 @@ def deploy(
                     )
                 raise typer.Exit(1)
 
+            large_file_threshold = 10 * 1024 * 1024  # 10 MB
+            app_path = path or Path.cwd()
+
+            large_files = _get_large_files(app_path, threshold=large_file_threshold)
+            if large_files:
+                threshold_mb = large_file_threshold // (1024 * 1024)
+                toolkit.print(
+                    f"⚠️  Some uploaded files are larger than {threshold_mb} MB ⚖️ :",
+                    tag="warning",
+                )
+                top_3 = sorted(large_files, key=lambda x: x[1], reverse=True)[:3]
+                for fname, fsize in top_3:
+                    fsize_mb = fsize // (1024 * 1024)
+                    toolkit.print(f" • {fname} [yellow]({fsize_mb} MB)[/yellow]")
+                is_more = len(large_files) > 3
+                if is_more:
+                    toolkit.print(f" [dim]...and {len(large_files) - 3} more[/dim]")
+
+                large_files_docs_url = "https://fastapicloud.com/docs/deployment#control-what-is-uploaded"
+                toolkit.print(
+                    f"Read more: [link={large_files_docs_url}]{large_files_docs_url}[/link]",
+                    tag="tip",
+                )
+                toolkit.print_line()
+
             with tempfile.TemporaryDirectory() as temp_dir:
                 logger.debug("Creating archive for deployment")
                 archive_path = Path(temp_dir) / "archive.tar"
-                archive(path or Path.cwd(), archive_path)
+                archive(app_path, archive_path)
 
                 with (
                     toolkit.progress(
