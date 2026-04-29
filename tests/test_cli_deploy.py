@@ -2220,7 +2220,7 @@ def test_large_file_threshold_warning(
     )
 
     _create_file(tmp_path / "model.bin", 12 * 1024 * 1024)  # 12 MB
-    _create_file(tmp_path / "data.csv", 11 * 1024 * 1024)  # 11 MB
+    _create_file(tmp_path / "data.csv", 10 * 1024 * 1024 + 1)  # 10+ MB
 
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy"])
@@ -2230,7 +2230,7 @@ def test_large_file_threshold_warning(
     assert "model.bin" in result.output
     assert "12 MB" in result.output
     assert "data.csv" in result.output
-    assert "11 MB" in result.output
+    assert "10 MB" in result.output
 
 
 @pytest.mark.respx
@@ -2279,8 +2279,9 @@ def test_large_file_threshold_does_not_warn_when_no_large_files(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
-    # 5 MB file: below the default 10 MB threshold
+    # Files are less or equal to 10 MB (default threshold), so no warning should be shown
     _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
+    _create_file(tmp_path / "data.bin", 10 * 1024 * 1024)
 
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy"])

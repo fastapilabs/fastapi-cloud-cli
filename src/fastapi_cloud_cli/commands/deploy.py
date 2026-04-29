@@ -146,7 +146,7 @@ def _get_large_files(path: Path, threshold_mb: int) -> list[tuple[Path, int]]:
         if filename.is_dir():
             continue
         file_size = filename.stat().st_size
-        if file_size >= threshold_bytes:
+        if file_size > threshold_bytes:
             large_files.append((filename.relative_to(path), file_size))
 
     return sorted(large_files, key=lambda x: x[1], reverse=True)
