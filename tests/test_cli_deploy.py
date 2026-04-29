@@ -2314,3 +2314,14 @@ def test_large_file_threshold_custom_threshold(
     assert result.exit_code == 0
     assert "Some uploaded files are larger than 1 MB" in result.output
     assert "data.bin" in result.output
+
+
+@pytest.mark.respx
+def test_invalid_large_file_threshold(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--large-file-threshold", "0"])
+
+    assert result.exit_code == 2
+    assert "Invalid value for '--large-file-threshold'" in result.output

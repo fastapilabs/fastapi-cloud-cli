@@ -699,7 +699,10 @@ def deploy(
     ] = None,
     large_file_threshold: Annotated[
         int,
-        typer.Option(help="File size threshold in MB for warning about large files"),
+        typer.Option(
+            help="File size threshold in MB for warning about large files",
+            min=1,
+        ),
     ] = 10,  # 10 MB
 ) -> Any:
     """
