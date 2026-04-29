@@ -3,10 +3,19 @@ from pathlib import Path
 import pytest
 
 from fastapi_cloud_cli.commands.deploy import (
+    _get_large_files,
     _should_exclude_entry,
     validate_app_directory,
 )
 from fastapi_cloud_cli.utils.api import DeploymentStatus
+
+
+def _create_file(path: Path, size_bytes: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "wb") as f:
+        if size_bytes > 0:
+            f.seek(size_bytes - 1)
+            f.write(b"\0")
 
 
 @pytest.mark.parametrize(
@@ -135,3 +144,48 @@ def test_validate_app_directory_invalid(value: str, expected_message: str) -> No
         validate_app_directory(value)
 
     assert str(exc_info.value) == expected_message
+
+
+def test_get_large_files_no_files_above_threshold(tmp_path: Path) -> None:
+    """Should not return files smaller than the threshold."""
+    _create_file(tmp_path / "small.bin", 512 * 1024)  # 0.5 MB
+
+    assert _get_large_files(tmp_path, threshold_mb=1) == []
+
+
+def test_get_large_files_returns_files_at_or_above_threshold(tmp_path: Path) -> None:
+    """Should return files at or above the threshold with sizes and relative paths."""
+    _create_file(tmp_path / "big.bin", 2 * 1024 * 1024)  # 2 MB
+    _create_file(tmp_path / "subdir" / "huge.bin", 5 * 1024 * 1024)  # 5 MB
+    _create_file(tmp_path / "small.bin", 100 * 1024)  # 0.1 MB
+
+    result = _get_large_files(tmp_path, threshold_mb=1)
+
+    assert sorted(result, key=lambda x: x[1]) == [
+        (Path("big.bin"), 2 * 1024 * 1024),
+        (Path("subdir") / "huge.bin", 5 * 1024 * 1024),
+    ]
+
+
+def test_get_large_files_excludes_default_exclusions(tmp_path: Path) -> None:
+    """Should not count files in excluded directories like .venv or __pycache__."""
+    _create_file(tmp_path / ".venv" / "lib" / "huge.so", 5 * 1024 * 1024)
+    _create_file(
+        tmp_path / "__pycache__" / "module.cpython-311.pyc", 5 * 1024 * 1024
+    )
+    _create_file(tmp_path / "main.py", 5 * 1024 * 1024)
+
+    assert _get_large_files(tmp_path, threshold_mb=1) == [
+        (Path("main.py"), 5 * 1024 * 1024)
+    ]
+
+
+def test_get_large_files_respects_fastapicloudignore(tmp_path: Path) -> None:
+    """Should not count files matching .fastapicloudignore patterns."""
+    _create_file(tmp_path / "data" / "huge.bin", 5 * 1024 * 1024)
+    _create_file(tmp_path / "main.bin", 5 * 1024 * 1024)
+    (tmp_path / ".fastapicloudignore").write_text("data/\n")
+
+    assert _get_large_files(tmp_path, threshold_mb=1) == [
+        (Path("main.bin"), 5 * 1024 * 1024)
+    ]
