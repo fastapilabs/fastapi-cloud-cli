@@ -149,7 +149,7 @@ def _get_large_files(path: Path, threshold_mb: int) -> list[tuple[Path, int]]:
         if file_size >= threshold_bytes:
             large_files.append((filename.relative_to(path), file_size))
 
-    return large_files
+    return sorted(large_files, key=lambda x: x[1], reverse=True)
 
 
 class Team(BaseModel):
@@ -834,8 +834,7 @@ def deploy(
                     f"⚠️  Some uploaded files are larger than {large_file_threshold} MB ⚖️ :",
                     tag="warning",
                 )
-                top_3 = sorted(large_files, key=lambda x: x[1], reverse=True)[:3]
-                for fname, fsize in top_3:
+                for fname, fsize in large_files[:3]:
                     fsize_mb = fsize // (1024 * 1024)
                     toolkit.print(f" • {fname} [yellow]({fsize_mb} MB)[/yellow]")
                 is_more = len(large_files) > 3

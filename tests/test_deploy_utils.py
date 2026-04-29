@@ -161,9 +161,9 @@ def test_get_large_files_returns_files_at_or_above_threshold(tmp_path: Path) -> 
 
     result = _get_large_files(tmp_path, threshold_mb=1)
 
-    assert sorted(result, key=lambda x: x[1]) == [
-        (Path("big.bin"), 2 * 1024 * 1024),
+    assert result == [
         (Path("subdir") / "huge.bin", 5 * 1024 * 1024),
+        (Path("big.bin"), 2 * 1024 * 1024),
     ]
 
 
