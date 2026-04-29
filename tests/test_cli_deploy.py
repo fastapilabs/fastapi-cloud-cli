@@ -2279,13 +2279,15 @@ def test_large_file_threshold_does_not_warn_when_no_large_files(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
-    (tmp_path / "main.py").write_text("print('hello')")
+    # 5 MB file: below the default 10 MB threshold
+    _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
 
     with changing_dir(tmp_path):
         result = runner.invoke(app, ["deploy"])
 
     assert result.exit_code == 0
     assert "Some uploaded files are larger than" not in result.output
+    assert "data.bin" not in result.output
 
 
 @pytest.mark.respx
