@@ -826,9 +826,9 @@ def deploy(
                     )
                 raise typer.Exit(1)
 
-            app_path = path or Path.cwd()
-
-            large_files = _get_large_files(app_path, threshold_mb=large_file_threshold)
+            large_files = _get_large_files(
+                path_to_deploy, threshold_mb=large_file_threshold
+            )
             if large_files:
                 toolkit.print(
                     f"⚠️  Some uploaded files are larger than {large_file_threshold} MB ⚖️ :",
@@ -853,7 +853,7 @@ def deploy(
             with tempfile.TemporaryDirectory() as temp_dir:
                 logger.debug("Creating archive for deployment")
                 archive_path = Path(temp_dir) / "archive.tar"
-                archive(app_path, archive_path)
+                archive(path_to_deploy, archive_path)
 
                 with (
                     toolkit.progress(
