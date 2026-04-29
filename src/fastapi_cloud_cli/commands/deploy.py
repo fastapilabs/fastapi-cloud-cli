@@ -138,14 +138,15 @@ def archive(path: Path, tar_path: Path) -> Path:
     return tar_path
 
 
-def _get_large_files(path: Path, threshold: int) -> list[tuple[Path, int]]:
+def _get_large_files(path: Path, threshold_mb: int) -> list[tuple[Path, int]]:
+    threshold_bytes = threshold_mb * 1024 * 1024
     large_files = []
     files = _rignore_walk(path)
     for filename in files:
         if filename.is_dir():
             continue
         file_size = filename.stat().st_size
-        if file_size >= threshold:
+        if file_size >= threshold_bytes:
             large_files.append((filename.relative_to(path), file_size))
 
     return large_files
@@ -696,6 +697,10 @@ def deploy(
             envvar="FASTAPI_CLOUD_APP_ID",
         ),
     ] = None,
+    large_file_threshold: Annotated[
+        int,
+        typer.Option(help="File size threshold in MB for warning about large files"),
+    ] = 10,  # 10 MB
 ) -> Any:
     """
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
@@ -821,14 +826,12 @@ def deploy(
                     )
                 raise typer.Exit(1)
 
-            large_file_threshold = 10 * 1024 * 1024  # 10 MB
             app_path = path or Path.cwd()
 
-            large_files = _get_large_files(app_path, threshold=large_file_threshold)
+            large_files = _get_large_files(app_path, threshold_mb=large_file_threshold)
             if large_files:
-                threshold_mb = large_file_threshold // (1024 * 1024)
                 toolkit.print(
-                    f"⚠️  Some uploaded files are larger than {threshold_mb} MB ⚖️ :",
+                    f"⚠️  Some uploaded files are larger than {large_file_threshold} MB ⚖️ :",
                     tag="warning",
                 )
                 top_3 = sorted(large_files, key=lambda x: x[1], reverse=True)[:3]
@@ -839,7 +842,9 @@ def deploy(
                 if is_more:
                     toolkit.print(f" [dim]...and {len(large_files) - 3} more[/dim]")
 
-                large_files_docs_url = "https://fastapicloud.com/docs/deployment#control-what-is-uploaded"
+                large_files_docs_url = (
+                    "https://fastapicloud.com/docs/deployment#control-what-is-uploaded"
+                )
                 toolkit.print(
                     f"Read more: [link={large_files_docs_url}]{large_files_docs_url}[/link]",
                     tag="tip",
