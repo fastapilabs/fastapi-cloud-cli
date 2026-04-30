@@ -378,10 +378,14 @@ def _configure_app(
     initial_directory = selected_app.directory if selected_app else ""
 
     directory_input = toolkit.input(
-        title="Path to the directory containing your app (e.g. src, backend):",
+        title=(
+            "Directory where your app's pyproject.toml file lives (e.g. src, backend):"
+        ),
         tag="dir",
         value=initial_directory or "",
-        placeholder="[italic]Leave empty if it's the current directory[/italic]",
+        placeholder=(
+            "[italic]Leave empty if pyproject.toml is in the current directory[/italic]"
+        ),
         validator=TypeAdapter(AppDirectory),
     )
 
@@ -665,7 +669,10 @@ def deploy(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="A path to the folder containing the app you want to deploy"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
     skip_wait: Annotated[

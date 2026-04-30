@@ -528,6 +528,7 @@ def test_creates_app_with_directory(
         assert result.exit_code == 1
 
         assert "App created successfully" in result.output
+        assert "Directory where your app's pyproject.toml file lives" in result.output
         assert "Directory: src" in result.output
 
 
