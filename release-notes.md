@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Improve message around application directory. PR [#191](https://github.com/fastapilabs/fastapi-cloud-cli/pull/191) by [@patrick91](https://github.com/patrick91).
+
 ## 0.17.1 (2026-04-27)
 
 ### Fixes
