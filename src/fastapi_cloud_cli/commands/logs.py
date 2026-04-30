@@ -113,7 +113,10 @@ def logs(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="Path to the folder containing the app (defaults to current directory)"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
     tail: int = typer.Option(
