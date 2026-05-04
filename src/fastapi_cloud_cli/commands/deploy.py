@@ -845,9 +845,7 @@ def deploy(
                 if is_more:
                     toolkit.print(f" [dim]...and {len(large_files) - 3} more[/dim]")
 
-                large_files_docs_url = (
-                    "https://fastapicloud.com/docs/fastapi-cloud-cli/deploy/#large-files-warning"
-                )
+                large_files_docs_url = "https://fastapicloud.com/docs/fastapi-cloud-cli/deploy/#large-files-warning"
                 toolkit.print(
                     f"Read more: [link={large_files_docs_url}]{large_files_docs_url}[/link]",
                     tag="tip",
