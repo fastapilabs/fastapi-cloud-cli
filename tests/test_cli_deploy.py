@@ -2317,6 +2317,33 @@ def test_large_file_threshold_custom_threshold(
 
 
 @pytest.mark.respx
+def test_large_file_threshold_custom_threshold_envvar(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    # 5 MB file: above a 1 MB threshold, below the default 10 MB threshold
+    _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(
+            app, ["deploy"], env={"FASTAPI_CLOUD_LARGE_FILE_THRESHOLD": "1"}
+        )
+
+    assert result.exit_code == 0
+    assert "Some uploaded files are larger than 1 MB" in result.output
+    assert "data.bin" in result.output
+
+
+@pytest.mark.respx
 def test_invalid_large_file_threshold(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:

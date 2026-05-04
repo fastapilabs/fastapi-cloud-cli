@@ -702,6 +702,7 @@ def deploy(
         typer.Option(
             help="File size threshold in MB for warning about large files",
             min=1,
+            envvar="FASTAPI_CLOUD_LARGE_FILE_THRESHOLD",
         ),
     ] = 10,  # 10 MB
 ) -> Any:
