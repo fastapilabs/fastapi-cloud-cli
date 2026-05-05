@@ -4,6 +4,7 @@
 
 ### Refactors
 
+* ♻️ Rename `app_slug` parameter of `_get_app` to `app_id`. PR [#192](https://github.com/fastapilabs/fastapi-cloud-cli/pull/192) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ♻️ Improve message around application directory. PR [#191](https://github.com/fastapilabs/fastapi-cloud-cli/pull/191) by [@patrick91](https://github.com/patrick91).
 
 ## 0.17.1 (2026-04-27)
