@@ -263,8 +263,8 @@ def _upload_deployment(
     logger.debug("Upload notification sent successfully")
 
 
-def _get_app(client: APIClient, app_slug: str) -> AppResponse | None:
-    response = client.get(f"/apps/{app_slug}")
+def _get_app(client: APIClient, app_id: str) -> AppResponse | None:
+    response = client.get(f"/apps/{app_id}")
 
     if response.status_code == 404:
         return None
@@ -793,7 +793,7 @@ def deploy(
             with toolkit.progress("Checking app...", transient=True) as progress:
                 with client.handle_http_errors(progress):
                     logger.debug("Checking app with ID: %s", target_app_id)
-                    app = _get_app(client=client, app_slug=target_app_id)
+                    app = _get_app(client=client, app_id=target_app_id)
 
                 if not app:
                     logger.debug("App not found in API")
