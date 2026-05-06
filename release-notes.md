@@ -7,6 +7,10 @@
 * ♻️ Rename `app_slug` parameter of `_get_app` to `app_id`. PR [#192](https://github.com/fastapilabs/fastapi-cloud-cli/pull/192) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ♻️ Improve message around application directory. PR [#191](https://github.com/fastapilabs/fastapi-cloud-cli/pull/191) by [@patrick91](https://github.com/patrick91).
 
+### Internal
+
+* ⬆ Bump actions/labeler from 6.0.1 to 6.1.0. PR [#193](https://github.com/fastapilabs/fastapi-cloud-cli/pull/193) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.17.1 (2026-04-27)
 
 ### Fixes
