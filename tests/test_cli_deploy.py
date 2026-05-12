@@ -2195,3 +2195,161 @@ def test_ctrl_c_during_build_streaming_shows_cancelled(
 
         assert "🟡" in result.output
         assert "Cancelled." in result.output
+
+
+def _create_file(path: Path, size_bytes: int) -> None:
+    """Create a file of the given size."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "wb") as f:
+        if size_bytes > 0:
+            f.seek(size_bytes - 1)
+            f.write(b"\0")
+
+
+@pytest.mark.respx
+def test_large_file_threshold_warning(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    _create_file(tmp_path / "model.bin", 12 * 1024 * 1024)  # 12 MB
+    _create_file(tmp_path / "data.csv", 10 * 1024 * 1024 + 1)  # 10+ MB
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 0
+    assert "Some uploaded files are larger than 10 MB" in result.output
+    assert "model.bin" in result.output
+    assert "12 MB" in result.output
+    assert "data.csv" in result.output
+    assert "10 MB" in result.output
+
+
+@pytest.mark.respx
+def test_large_file_threshold_only_top_three_files_with_more_indicator(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    _create_file(tmp_path / "huge.bin", 50 * 1024 * 1024)
+    _create_file(tmp_path / "big.bin", 40 * 1024 * 1024)
+    _create_file(tmp_path / "medium.bin", 30 * 1024 * 1024)
+    _create_file(tmp_path / "smaller.bin", 20 * 1024 * 1024)
+    _create_file(tmp_path / "smallest.bin", 15 * 1024 * 1024)
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 0
+    assert "huge.bin" in result.output
+    assert "big.bin" in result.output
+    assert "medium.bin" in result.output
+    assert "smaller.bin" not in result.output
+    assert "smallest.bin" not in result.output
+    assert "...and 2 more" in result.output
+
+
+@pytest.mark.respx
+def test_large_file_threshold_does_not_warn_when_no_large_files(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    # Files are less or equal to 10 MB (default threshold), so no warning should be shown
+    _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
+    _create_file(tmp_path / "data.bin", 10 * 1024 * 1024)
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 0
+    assert "Some uploaded files are larger than" not in result.output
+    assert "data.bin" not in result.output
+
+
+@pytest.mark.respx
+def test_large_file_threshold_custom_threshold(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    # 5 MB file: above a 1 MB threshold, below the default 10 MB threshold
+    _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--large-file-threshold", "1"])
+
+    assert result.exit_code == 0
+    assert "Some uploaded files are larger than 1 MB" in result.output
+    assert "data.bin" in result.output
+
+
+@pytest.mark.respx
+def test_large_file_threshold_custom_threshold_envvar(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
+    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "success"})
+    )
+
+    # 5 MB file: above a 1 MB threshold, below the default 10 MB threshold
+    _create_file(tmp_path / "data.bin", 5 * 1024 * 1024)
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(
+            app, ["deploy"], env={"FASTAPI_CLOUD_LARGE_FILE_THRESHOLD": "1"}
+        )
+
+    assert result.exit_code == 0
+    assert "Some uploaded files are larger than 1 MB" in result.output
+    assert "data.bin" in result.output
+
+
+@pytest.mark.respx
+def test_invalid_large_file_threshold(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--large-file-threshold", "0"])
+
+    assert result.exit_code == 2
+    assert "Invalid value for '--large-file-threshold'" in result.output
