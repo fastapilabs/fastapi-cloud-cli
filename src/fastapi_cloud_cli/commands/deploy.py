@@ -14,7 +14,6 @@ import rignore
 import typer
 from httpx import Client
 from pydantic import AfterValidator, BaseModel, EmailStr, TypeAdapter, ValidationError
-from rich.text import Text
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 from rich_toolkit.progress import Progress
@@ -31,6 +30,7 @@ from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_co
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
+from fastapi_cloud_cli.utils.rich_ansi import text_from_ansi
 
 logger = logging.getLogger(__name__)
 
@@ -518,7 +518,7 @@ def _wait_for_deployment(
                 time_elapsed = time.monotonic() - started_at
 
                 if log.type == "message":
-                    progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
+                    progress.log(text_from_ansi(log.message))  # ty: ignore[unresolved-attribute]
 
                 if log.type == "complete":
                     build_complete = True
