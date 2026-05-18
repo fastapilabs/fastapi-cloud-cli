@@ -9,6 +9,7 @@
 
 ### Internal
 
+* ⬆ Bump urllib3 from 2.6.3 to 2.7.0. PR [#194](https://github.com/fastapilabs/fastapi-cloud-cli/pull/194) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump fastar from 0.10.0 to 0.11.0. PR [#188](https://github.com/fastapilabs/fastapi-cloud-cli/pull/188) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 🔒️ Add zizmor and fix audit findings. PR [#183](https://github.com/fastapilabs/fastapi-cloud-cli/pull/183) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆️ Bump `ty` from 0.0.21 to 0.0.35 and error on warnings. PR [#195](https://github.com/fastapilabs/fastapi-cloud-cli/pull/195) by [@svlandeg](https://github.com/svlandeg).
