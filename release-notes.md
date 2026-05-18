@@ -2,6 +2,22 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Rename `app_slug` parameter of `_get_app` to `app_id`. PR [#192](https://github.com/fastapilabs/fastapi-cloud-cli/pull/192) by [@YuriiMotov](https://github.com/YuriiMotov).
+* ♻️ Improve message around application directory. PR [#191](https://github.com/fastapilabs/fastapi-cloud-cli/pull/191) by [@patrick91](https://github.com/patrick91).
+
+### Internal
+
+* ⬆️ Bump `ty` from 0.0.21 to 0.0.35 and error on warnings. PR [#195](https://github.com/fastapilabs/fastapi-cloud-cli/pull/195) by [@svlandeg](https://github.com/svlandeg).
+* ⬆ Bump actions/labeler from 6.0.1 to 6.1.0. PR [#193](https://github.com/fastapilabs/fastapi-cloud-cli/pull/193) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
+## 0.17.1 (2026-04-27)
+
+### Fixes
+
+* 🐛 Improve error message when receiving a 403. PR [#189](https://github.com/fastapilabs/fastapi-cloud-cli/pull/189) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * ⬆ Bump astral-sh/setup-uv from 7.6.0 to 8.1.0. PR [#182](https://github.com/fastapilabs/fastapi-cloud-cli/pull/182) by [@dependabot[bot]](https://github.com/apps/dependabot).
