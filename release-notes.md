@@ -9,6 +9,7 @@
 
 ### Internal
 
+* 🔒️ Add zizmor and fix audit findings. PR [#183](https://github.com/fastapilabs/fastapi-cloud-cli/pull/183) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆️ Bump `ty` from 0.0.21 to 0.0.35 and error on warnings. PR [#195](https://github.com/fastapilabs/fastapi-cloud-cli/pull/195) by [@svlandeg](https://github.com/svlandeg).
 * ⬆ Bump actions/labeler from 6.0.1 to 6.1.0. PR [#193](https://github.com/fastapilabs/fastapi-cloud-cli/pull/193) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
