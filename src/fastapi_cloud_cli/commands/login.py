@@ -77,18 +77,18 @@ def login() -> Any:
     Login to FastAPI Cloud. 🚀
     """
     identity = Identity()
+    is_logged_in = identity.is_logged_in()
 
-    if identity.is_logged_in():
-        with get_rich_toolkit(minimal=True) as toolkit:
+    with get_rich_toolkit(minimal=is_logged_in) as toolkit:
+        if is_logged_in:
             toolkit.print("You are already logged in.")
             toolkit.print(
                 "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
             )
 
-        return
+            return
 
-    if identity.has_deploy_token():
-        with get_rich_toolkit() as toolkit:
+        if identity.has_deploy_token():
             toolkit.print(
                 "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
                 "This token will take precedence over the user token for "
@@ -96,29 +96,31 @@ def login() -> Any:
                 tag="Warning",
             )
 
-    with get_rich_toolkit() as toolkit, APIClient() as client:
-        toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
+        with APIClient() as client:
+            toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
 
-        toolkit.print_line()
+            toolkit.print_line()
 
-        with toolkit.progress("Starting authorization") as progress:
-            with client.handle_http_errors(progress):
-                authorization_data = _start_device_authorization(client)
+            with toolkit.progress("Starting authorization") as progress:
+                with client.handle_http_errors(progress):
+                    authorization_data = _start_device_authorization(client)
 
-            url = authorization_data.verification_uri_complete
+                url = authorization_data.verification_uri_complete
 
-            progress.log(f"Opening [link={url}]{url}[/link]")
+                progress.log(f"Opening [link={url}]{url}[/link]")
 
-        toolkit.print_line()
+            toolkit.print_line()
 
-        with toolkit.progress("Waiting for user to authorize...") as progress:
-            typer.launch(url)
+            with toolkit.progress("Waiting for user to authorize...") as progress:
+                typer.launch(url)
 
-            with client.handle_http_errors(progress):
-                access_token = _fetch_access_token(
-                    client, authorization_data.device_code, authorization_data.interval
-                )
+                with client.handle_http_errors(progress):
+                    access_token = _fetch_access_token(
+                        client,
+                        authorization_data.device_code,
+                        authorization_data.interval,
+                    )
 
-            write_auth_config(AuthConfig(access_token=access_token))
+                write_auth_config(AuthConfig(access_token=access_token))
 
-            progress.log("Now you are logged in! 🚀")
+                progress.log("Now you are logged in! 🚀")

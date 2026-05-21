@@ -1,9 +1,19 @@
 import subprocess
 import sys
+from datetime import datetime, timezone
 
+import pytest
+import typer
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.utils.cli import (
+    FastAPIRichToolkit,
+    FastAPIStyle,
+    get_rich_toolkit,
+)
+from fastapi_cloud_cli.utils.config import get_version_check_cache_path
+from fastapi_cloud_cli.utils.version_check import write_latest_version_cache
 
 runner = CliRunner()
 
@@ -35,3 +45,40 @@ def test_version() -> None:
     result = runner.invoke(app, ["cloud", "--version"])
     assert result.exit_code == 0, result.output
     assert "FastAPI Cloud CLI version:" in result.output
+
+
+def test_tag_style_metadata_uses_dedicated_color() -> None:
+    toolkit = get_rich_toolkit()
+    assert isinstance(toolkit, FastAPIRichToolkit)
+    assert isinstance(toolkit.style, FastAPIStyle)
+
+    segments, _ = toolkit.style._get_tag_segments(
+        {"tag": "notice", "tag_style": "tag.update"}
+    )
+
+    assert segments[0].style == toolkit.style.console.get_style("tag.update")
+    assert segments[0].style != toolkit.style.console.get_style("tag")
+
+
+def test_embedded_fastapi_cli_prints_forced_update_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent_app = typer.Typer()
+    parent_app.add_typer(app)
+    monkeypatch.setattr(sys, "argv", ["fastapi", "cloud", "whoami"])
+    write_latest_version_cache(
+        get_version_check_cache_path(),
+        latest_version="999.0.0",
+        now=datetime.now(timezone.utc),
+    )
+
+    result = runner.invoke(
+        parent_app,
+        ["cloud", "whoami"],
+        env={"FASTAPI_CLOUD_DISABLE_VERSION_CHECK": ""},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "No credentials found" in result.output
+    assert "A newer FastAPI Cloud CLI version is available" in result.output
+    assert "0.17.1 → 999.0.0" in result.output

@@ -18,6 +18,7 @@ from .utils import create_jwt_token
 def unset_env_vars(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """Fixture to unset environment variables that might interfere with tests."""
     monkeypatch.delenv("FASTAPI_CLOUD_TOKEN", raising=False)
+    monkeypatch.setenv("FASTAPI_CLOUD_DISABLE_VERSION_CHECK", "1")
     yield
 
 
