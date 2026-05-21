@@ -13,7 +13,9 @@ def whoami() -> Any:
 
     with get_rich_toolkit(minimal=True) as toolkit:
         if not identity.is_logged_in():
-            toolkit.print("No credentials found. Use [blue]`fastapi login`[/] to login.")
+            toolkit.print(
+                "No credentials found. Use [blue]`fastapi login`[/] to login."
+            )
         else:
             with APIClient() as client:
                 with toolkit.progress(

@@ -1,8 +1,6 @@
-import os
 import subprocess
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 import typer
@@ -14,10 +12,8 @@ from fastapi_cloud_cli.utils.cli import (
     FastAPIStyle,
     get_rich_toolkit,
 )
-from fastapi_cloud_cli.utils.version_check import (
-    VERSION_CHECK_CACHE_FILENAME,
-    write_latest_version_cache,
-)
+from fastapi_cloud_cli.utils.config import get_version_check_cache_path
+from fastapi_cloud_cli.utils.version_check import write_latest_version_cache
 
 runner = CliRunner()
 
@@ -71,7 +67,7 @@ def test_embedded_fastapi_cli_prints_forced_update_message(
     parent_app.add_typer(app)
     monkeypatch.setattr(sys, "argv", ["fastapi", "cloud", "whoami"])
     write_latest_version_cache(
-        Path(os.environ["FASTAPI_CLOUD_CLI_CONFIG_DIR"]) / VERSION_CHECK_CACHE_FILENAME,
+        get_version_check_cache_path(),
         latest_version="999.0.0",
         now=datetime.now(timezone.utc),
     )
