@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Show if there's a new fastapi-cloud-cli version available. PR [#201](https://github.com/fastapilabs/fastapi-cloud-cli/pull/201) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Rename `app_slug` parameter of `_get_app` to `app_id`. PR [#192](https://github.com/fastapilabs/fastapi-cloud-cli/pull/192) by [@YuriiMotov](https://github.com/YuriiMotov).
