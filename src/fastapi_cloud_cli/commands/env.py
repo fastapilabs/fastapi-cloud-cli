@@ -4,19 +4,27 @@ from typing import Annotated, Any
 
 import typer
 from pydantic import BaseModel
+from rich import box
+from rich.table import Table
+from rich.text import Text
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.dates import format_last_updated
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 
 logger = logging.getLogger(__name__)
+
+ENV_VAR_VALUE_MAX_LENGTH = 40
 
 
 class EnvironmentVariable(BaseModel):
     name: str
     value: str | None = None
+    is_secret: bool = False
+    updated_at: str | None = None
 
 
 class EnvironmentVariableResponse(BaseModel):
@@ -53,11 +61,47 @@ def _set_environment_variable(
     response.raise_for_status()
 
 
+def _format_env_var_value(env_var: EnvironmentVariable) -> Text:
+    if env_var.value is None:
+        placeholder = "[secret]" if env_var.is_secret else "-"
+
+        return Text(placeholder, style="dim")
+
+    value = env_var.value.replace("\r", "\\r").replace("\n", "\\n")
+
+    if len(value) > ENV_VAR_VALUE_MAX_LENGTH:
+        value = f"{value[: ENV_VAR_VALUE_MAX_LENGTH - 3]}..."
+
+    return Text(value)
+
+
+def _get_environment_variables_table(
+    environment_variables: list[EnvironmentVariable],
+) -> Table:
+    table = Table(
+        box=box.SIMPLE_HEAD,
+        pad_edge=False,
+        show_edge=False,
+    )
+    table.add_column("Key", no_wrap=True)
+    table.add_column("Value", overflow="ellipsis", max_width=ENV_VAR_VALUE_MAX_LENGTH)
+    table.add_column("Last updated", style="dim", no_wrap=True)
+
+    for env_var in environment_variables:
+        table.add_row(
+            Text(env_var.name),
+            _format_env_var_value(env_var),
+            Text(format_last_updated(env_var.updated_at)),
+        )
+
+    return table
+
+
 env_app = typer.Typer()
 
 
-@env_app.command()
-def list(
+@env_app.command("list")
+def list_variables(
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -106,11 +150,7 @@ def list(
             toolkit.print("No environment variables found.")
             return
 
-        toolkit.print("Environment variables:")
-        toolkit.print_line()
-
-        for env_var in environment_variables.data:
-            toolkit.print(f"[bold]{env_var.name}[/]")
+        toolkit.print(_get_environment_variables_table(environment_variables.data))
 
 
 @env_app.command()
