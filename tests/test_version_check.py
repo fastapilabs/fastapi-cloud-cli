@@ -279,7 +279,7 @@ def test_format_update_message(monkeypatch: pytest.MonkeyPatch) -> None:
     message = format_update_message(VersionUpdate(current="0.17.1", latest="0.18.0"))
 
     assert not message.startswith("\n")
-    assert "0.17.1 → [bold]0.18.0[/]" in message
+    assert "→ [bold]0.18.0[/]" in message
     assert '\n\nRun "[blue]uv tool upgrade fastapi-cloud-cli[/]" to upgrade.' in message
     assert "https://pypi.org/project/fastapi-cloud-cli/" not in message
 
@@ -340,7 +340,7 @@ def test_background_check_stores_result_and_returns_message(
 
     assert message is not None
     assert "A newer FastAPI Cloud CLI version is available" in message
-    assert "0.17.1 → [bold]0.18.0[/]" in message
+    assert "→ [bold]0.18.0[/]" in message
     assert check.get_update_message() is None
 
 

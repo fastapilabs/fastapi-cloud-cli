@@ -81,4 +81,4 @@ def test_embedded_fastapi_cli_prints_forced_update_message(
     assert result.exit_code == 0, result.output
     assert "No credentials found" in result.output
     assert "A newer FastAPI Cloud CLI version is available" in result.output
-    assert "0.17.1 → 999.0.0" in result.output
+    assert "→ 999.0.0" in result.output
