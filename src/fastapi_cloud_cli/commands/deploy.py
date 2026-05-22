@@ -281,8 +281,8 @@ def _upload_deployment(
     logger.debug("Upload notification sent successfully")
 
 
-def _get_app(client: APIClient, app_slug: str) -> AppResponse | None:
-    response = client.get(f"/apps/{app_slug}")
+def _get_app(client: APIClient, app_id: str) -> AppResponse | None:
+    response = client.get(f"/apps/{app_id}")
 
     if response.status_code == 404:
         return None
@@ -396,10 +396,14 @@ def _configure_app(
     initial_directory = selected_app.directory if selected_app else ""
 
     directory_input = toolkit.input(
-        title="Path to the directory containing your app (e.g. src, backend):",
+        title=(
+            "Directory where your app's pyproject.toml file lives (e.g. src, backend):"
+        ),
         tag="dir",
         value=initial_directory or "",
-        placeholder="[italic]Leave empty if it's the current directory[/italic]",
+        placeholder=(
+            "[italic]Leave empty if pyproject.toml is in the current directory[/italic]"
+        ),
         validator=TypeAdapter(AppDirectory),
     )
 
@@ -683,7 +687,10 @@ def deploy(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="A path to the folder containing the app you want to deploy"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
     skip_wait: Annotated[
@@ -812,7 +819,7 @@ def deploy(
             with toolkit.progress("Checking app...", transient=True) as progress:
                 with client.handle_http_errors(progress):
                     logger.debug("Checking app with ID: %s", target_app_id)
-                    app = _get_app(client=client, app_slug=target_app_id)
+                    app = _get_app(client=client, app_id=target_app_id)
 
                 if not app:
                     logger.debug("App not found in API")

@@ -2,6 +2,24 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Show if there's a new fastapi-cloud-cli version available. PR [#201](https://github.com/fastapilabs/fastapi-cloud-cli/pull/201) by [@patrick91](https://github.com/patrick91).
+
+### Refactors
+
+* ♻️ Rename `app_slug` parameter of `_get_app` to `app_id`. PR [#192](https://github.com/fastapilabs/fastapi-cloud-cli/pull/192) by [@YuriiMotov](https://github.com/YuriiMotov).
+* ♻️ Improve message around application directory. PR [#191](https://github.com/fastapilabs/fastapi-cloud-cli/pull/191) by [@patrick91](https://github.com/patrick91).
+
+### Internal
+
+* 🔒️ Only allow team members to modify dependencies. PR [#197](https://github.com/fastapilabs/fastapi-cloud-cli/pull/197) by [@svlandeg](https://github.com/svlandeg).
+* ⬆ Bump urllib3 from 2.6.3 to 2.7.0. PR [#194](https://github.com/fastapilabs/fastapi-cloud-cli/pull/194) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump fastar from 0.10.0 to 0.11.0. PR [#188](https://github.com/fastapilabs/fastapi-cloud-cli/pull/188) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* 🔒️ Add zizmor and fix audit findings. PR [#183](https://github.com/fastapilabs/fastapi-cloud-cli/pull/183) by [@YuriiMotov](https://github.com/YuriiMotov).
+* ⬆️ Bump `ty` from 0.0.21 to 0.0.35 and error on warnings. PR [#195](https://github.com/fastapilabs/fastapi-cloud-cli/pull/195) by [@svlandeg](https://github.com/svlandeg).
+* ⬆ Bump actions/labeler from 6.0.1 to 6.1.0. PR [#193](https://github.com/fastapilabs/fastapi-cloud-cli/pull/193) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.17.1 (2026-04-27)
 
 ### Fixes

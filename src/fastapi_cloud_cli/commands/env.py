@@ -61,7 +61,10 @@ def list(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="A path to the folder containing the app you want to deploy"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
 ) -> Any:
@@ -119,7 +122,10 @@ def delete(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="A path to the folder containing the app you want to deploy"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
 ) -> Any:
@@ -208,7 +214,10 @@ def set(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="A path to the folder containing the app you want to deploy"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
     secret: Annotated[
