@@ -4,6 +4,7 @@
 
 ### Features
 
+* 🚸 Show Top-3 files larger than threshold on `deploy` command. PR [#190](https://github.com/fastapilabs/fastapi-cloud-cli/pull/190) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ✨ Show if there's a new fastapi-cloud-cli version available. PR [#201](https://github.com/fastapilabs/fastapi-cloud-cli/pull/201) by [@patrick91](https://github.com/patrick91).
 
 ### Refactors
