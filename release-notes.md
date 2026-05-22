@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.18.0 (2026-05-22)
+
 ### Features
 
 * 🚸 Show Top-3 files larger than threshold on `deploy` command. PR [#190](https://github.com/fastapilabs/fastapi-cloud-cli/pull/190) by [@YuriiMotov](https://github.com/YuriiMotov).
