@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Configure Dependabot to group updates and update weekly. PR [#199](https://github.com/fastapilabs/fastapi-cloud-cli/pull/199) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.18.0 (2026-05-22)
 
 ### Features
