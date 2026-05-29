@@ -24,11 +24,16 @@ jobs:
             const author = pr.user.login;
             const assoc = pr.author_association;
 
+            // Is PR branch in the same repo (not a fork)?
+            const sameRepo =
+              pr.head.repo != null && pr.head.repo.id === pr.base.repo.id;
+
             const botAllowlist = new Set(['dependabot[bot]']);
             const orgAuthorAssociations = new Set(['MEMBER', 'OWNER']);
 
             const allowed =
               botAllowlist.has(author) ||
+              sameRepo ||
               (assoc != null && orgAuthorAssociations.has(assoc));
 
             if (!allowed) {
@@ -48,5 +53,5 @@ jobs:
 
               core.setFailed('Dependency changes are restricted to organization members.');
             } else {
-              console.log(`Author ${author} (author_association=${assoc}) is allowed to make dependency changes.`);
+              console.log(`Author ${author} (author_association=${assoc}, sameRepo=${sameRepo}) is allowed to make dependency changes.`);
             }
