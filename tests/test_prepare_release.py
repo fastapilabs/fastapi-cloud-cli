@@ -19,9 +19,9 @@ runner = CliRunner()
 @pytest.mark.parametrize(
     ("current_version", "bump", "new_version"),
     [
-        ("0.18.0", "major", "1.0.0"),
-        ("0.18.0", "minor", "0.19.0"),
-        ("0.18.0", "patch", "0.18.1"),
+        ("0.18.0", BumpType.major, "1.0.0"),
+        ("0.18.0", BumpType.minor, "0.19.0"),
+        ("0.18.0", BumpType.patch, "0.18.1"),
     ],
 )
 def test_bump_version(current_version: str, bump: BumpType, new_version: str) -> None:
