@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Automate release preparation. PR [#210](https://github.com/fastapilabs/fastapi-cloud-cli/pull/210) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump the github-actions group with 2 updates. PR [#204](https://github.com/fastapilabs/fastapi-cloud-cli/pull/204) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 👷 Configure Dependabot to group updates and update weekly. PR [#199](https://github.com/fastapilabs/fastapi-cloud-cli/pull/199) by [@YuriiMotov](https://github.com/YuriiMotov).
 
