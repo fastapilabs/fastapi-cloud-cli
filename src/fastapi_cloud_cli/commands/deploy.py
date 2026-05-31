@@ -397,7 +397,7 @@ def _configure_app(
 
     directory_input = toolkit.input(
         title=(
-            "Directory where your app's pyproject.toml file lives (e.g. src, backend):"
+            "Directory where your app's pyproject.toml file lives (e.g. backend):"
         ),
         tag="dir",
         value=initial_directory or "",
