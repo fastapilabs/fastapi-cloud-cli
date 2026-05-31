@@ -34,6 +34,7 @@ def _start_device_authorization(
     response = client.post(
         "/login/device/authorization", data={"client_id": settings.client_id}
     )
+    logger.debug(f"Device authorization response status code: {response.status_code}")
 
     response.raise_for_status()
 
@@ -43,6 +44,7 @@ def _start_device_authorization(
 def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
     settings = Settings.get()
 
+    logger.debug("Starting to poll for access token")
     while True:
         response = client.post(
             "/login/device/token",
@@ -52,22 +54,27 @@ def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             },
         )
+        logger.debug(f"Token response status code: {response.status_code}")
 
         if response.status_code not in (200, 400):
             response.raise_for_status()
 
         if response.status_code == 400:
             data = response.json()
+            error = data.get("error")
+            logger.debug(f"Token response error: {error}")
 
-            if data.get("error") != "authorization_pending":
+            if error != "authorization_pending":
                 response.raise_for_status()
 
         if response.status_code == 200:
             break
 
+        logger.debug(f"Sleeping for {interval} seconds before retrying...")
         time.sleep(interval)
 
     response_data = TokenResponse.model_validate_json(response.text)
+    logger.debug("Access token received successfully.")
 
     return response_data.access_token
 
@@ -112,7 +119,8 @@ def login() -> Any:
             toolkit.print_line()
 
             with toolkit.progress("Waiting for user to authorize...") as progress:
-                typer.launch(url)
+                launch_cmd_res = typer.launch(url)
+                logger.debug(f"Launch command result: {launch_cmd_res}")
 
                 with client.handle_http_errors(progress):
                     access_token = _fetch_access_token(
