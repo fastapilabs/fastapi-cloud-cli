@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* 🔊 Add debug logging in `fastapi login` command. PR [#207](https://github.com/fastapilabs/fastapi-cloud-cli/pull/207) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ### Internal
 
 * 👷 Automate release preparation. PR [#210](https://github.com/fastapilabs/fastapi-cloud-cli/pull/210) by [@tiangolo](https://github.com/tiangolo).
