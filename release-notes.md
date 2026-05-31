@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Improve `env list` output. PR [#203](https://github.com/fastapilabs/fastapi-cloud-cli/pull/203) by [@patrick91](https://github.com/patrick91).
 * 🔊 Add debug logging in `fastapi login` command. PR [#207](https://github.com/fastapilabs/fastapi-cloud-cli/pull/207) by [@YuriiMotov](https://github.com/YuriiMotov).
 
 ### Internal
