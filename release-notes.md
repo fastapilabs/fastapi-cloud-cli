@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.19.0 (2026-06-01)
+
 ### Features
 
 * ✨ Improve `env list` output. PR [#203](https://github.com/fastapilabs/fastapi-cloud-cli/pull/203) by [@patrick91](https://github.com/patrick91).
