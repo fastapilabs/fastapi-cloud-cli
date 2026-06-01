@@ -7,6 +7,10 @@
 * ✨ Improve `env list` output. PR [#203](https://github.com/fastapilabs/fastapi-cloud-cli/pull/203) by [@patrick91](https://github.com/patrick91).
 * 🔊 Add debug logging in `fastapi login` command. PR [#207](https://github.com/fastapilabs/fastapi-cloud-cli/pull/207) by [@YuriiMotov](https://github.com/YuriiMotov).
 
+### Refactors
+
+* ♻️ Do not suggest `src` as a directory that could contain a `pyproject.toml`. PR [#211](https://github.com/fastapilabs/fastapi-cloud-cli/pull/211) by [@tiangolo](https://github.com/tiangolo).
+
 ### Internal
 
 * 👷 Automate release preparation. PR [#210](https://github.com/fastapilabs/fastapi-cloud-cli/pull/210) by [@tiangolo](https://github.com/tiangolo).
