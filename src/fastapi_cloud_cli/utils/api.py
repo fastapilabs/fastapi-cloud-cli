@@ -9,6 +9,7 @@ from functools import wraps
 from typing import (
     Annotated,
     Literal,
+    NoReturn,
     TypeVar,
 )
 
@@ -20,6 +21,7 @@ from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.errors import ErrorCode, ErrorToolkit
 
 from .auth import AuthMode, Identity, delete_auth_config
 
@@ -257,6 +259,50 @@ def handle_http_error(
     return message
 
 
+def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
+    if isinstance(error, httpx.TimeoutException | httpx.NetworkError):
+        return "network_error"
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+
+        if status_code == 401:
+            return "invalid_token"
+
+        if status_code == 403:
+            return "permission_denied"
+
+    return "api_error"
+
+
+def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str | None:
+    if code == "invalid_token":
+        if auth_mode == "user":
+            return "Run `fastapi cloud login` to generate a new token."
+
+        return "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
+
+    return None
+
+
+def _fail_with_toolkit(
+    toolkit: ErrorToolkit | None,
+    code: ErrorCode,
+    message: str,
+    *,
+    hint: str | None = None,
+) -> NoReturn:
+    if toolkit is not None:
+        toolkit.fail(code, message, hint=hint)
+
+    from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+
+    with get_rich_toolkit(minimal=True, json_output=True) as fallback_toolkit:
+        fallback_toolkit.fail(code, message, hint=hint)
+
+    raise RuntimeError("unreachable")  # pragma: no cover
+
+
 class APIClient(httpx.Client):
     auth_mode: AuthMode
 
@@ -285,26 +331,49 @@ class APIClient(httpx.Client):
     @contextmanager
     def handle_http_errors(
         self,
-        progress: Progress,
+        progress: Progress | None,
         default_message: str | None = None,
+        toolkit: ErrorToolkit | None = None,
+        json_output: bool = False,
     ) -> Generator[None, None, None]:
         try:
             yield
         except httpx.ReadTimeout as e:
             logger.debug(e)
 
-            progress.set_error(
+            message = (
                 "The request to the FastAPI Cloud server timed out."
                 " Please try again later."
             )
+
+            if json_output:
+                _fail_with_toolkit(
+                    toolkit,
+                    "network_error",
+                    message,
+                    hint="Please try again later.",
+                )
+
+            if progress is not None:
+                progress.set_error(message)
 
             raise typer.Exit(1) from None
         except httpx.HTTPError as e:
             logger.debug(e)
 
             message = handle_http_error(e, default_message, auth_mode=self.auth_mode)
+            code = get_http_error_code(e)
 
-            progress.set_error(message)
+            if json_output:
+                _fail_with_toolkit(
+                    toolkit,
+                    code,
+                    message,
+                    hint=get_http_error_hint(code, auth_mode=self.auth_mode),
+                )
+
+            if progress is not None:
+                progress.set_error(message)
 
             raise typer.Exit(1) from None
 

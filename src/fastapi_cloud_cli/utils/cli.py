@@ -1,20 +1,31 @@
 import logging
 import os
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn, TypeVar, overload
 
+import typer
+from rich.console import RenderableType
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
 from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.styles import BaseStyle, MinimalStyle, TaggedStyle
 
+from fastapi_cloud_cli.utils.errors import ErrorCode
+from fastapi_cloud_cli.utils.execution import is_json_enabled
 from fastapi_cloud_cli.utils.version_check import (
     DISABLE_VERSION_CHECK_ENV,
     BackgroundVersionCheck,
 )
 
 logger = logging.getLogger(__name__)
+
+OutputT = TypeVar("OutputT")
+OutputRenderer = (
+    Callable[[OutputT], RenderableType | None]
+    | Callable[[OutputT, RichToolkit], RenderableType | None]
+)
 
 
 class FastAPIStyle(TaggedStyle):
@@ -71,8 +82,9 @@ class FastAPIRichToolkit(RichToolkit):
         self,
         style: BaseStyle | None = None,
         theme: RichToolkitTheme | None = None,
+        mode: Literal["human", "json"] = "human",
     ) -> None:
-        super().__init__(style=style, theme=theme)
+        super().__init__(style=style, theme=theme, mode=mode)
         self._version_check = self._get_version_check()
 
     def __exit__(
@@ -105,8 +117,98 @@ class FastAPIRichToolkit(RichToolkit):
         if message := self._version_check.get_update_message():
             self.print(Text.from_markup(message), tag="update", tag_style="tag.update")
 
+    @overload
+    def success(
+        self,
+        data: OutputT,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: None = None,
+    ) -> None: ...
 
-def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
+    @overload
+    def success(
+        self,
+        data: OutputT,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: OutputRenderer[OutputT],
+    ) -> None: ...
+
+    @overload
+    def success(
+        self,
+        data: Any,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: RenderableType,
+    ) -> None: ...
+
+    def success(
+        self,
+        data: Any,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: RenderableType | OutputRenderer[Any] | None = None,
+    ) -> None:
+        if self.mode != "json":
+            self.output(data, render_output=render_output)
+            return
+
+        output: dict[str, Any] = {"data": data}
+
+        if warnings:
+            output["warnings"] = warnings
+
+        if hint is not None:
+            output["hint"] = hint
+
+        self.output(output)
+
+    def error(
+        self,
+        code: ErrorCode,
+        message: str,
+        *,
+        hint: str | None = None,
+    ) -> None:
+        if self.mode == "json":
+            self.output(
+                {
+                    "error": {
+                        "code": code,
+                        "message": message,
+                        "hint": hint,
+                    }
+                }
+            )
+            return
+
+        self.print(f"[error]{message}[/]")
+        if hint:
+            self.print(hint, tag="tip")
+
+    def fail(
+        self,
+        code: ErrorCode,
+        message: str,
+        *,
+        hint: str | None = None,
+        exit_code: int = 1,
+    ) -> NoReturn:
+        self.error(code, message, hint=hint)
+        raise typer.Exit(exit_code)
+
+
+def get_rich_toolkit(
+    minimal: bool = False,
+    *,
+    json_output: bool | None = None,
+) -> FastAPIRichToolkit:
     style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
 
     theme = RichToolkitTheme(
@@ -125,4 +227,9 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
         },
     )
 
-    return FastAPIRichToolkit(theme=theme)
+    if json_output is None:
+        json_output = is_json_enabled()
+
+    mode: Literal["human", "json"] = "json" if json_output else "human"
+
+    return FastAPIRichToolkit(theme=theme, mode=mode)
