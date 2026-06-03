@@ -1,11 +1,9 @@
-import json
 from datetime import timedelta
 from unittest.mock import patch
 
 import httpx
 import pytest
 import respx
-import typer
 from httpx import Response
 from time_machine import TimeMachineFixture
 
@@ -16,7 +14,6 @@ from fastapi_cloud_cli.utils.api import (
     DeploymentStatus,
     StreamLogError,
     TooManyRetriesError,
-    _fail_with_toolkit,
     get_http_error_code,
     get_http_error_hint,
 )
@@ -69,36 +66,15 @@ def test_stream_build_logs_successful(
 
 
 def test_get_http_error_code_returns_network_error() -> None:
-    assert get_http_error_code(httpx.NetworkError("Connection failed")) == "network_error"
+    assert (
+        get_http_error_code(httpx.NetworkError("Connection failed")) == "network_error"
+    )
 
 
 def test_get_http_error_hint_for_invalid_deploy_token() -> None:
     assert get_http_error_hint("invalid_token", auth_mode="token") == (
         "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
     )
-
-
-def test_fail_with_toolkit_uses_json_fallback_toolkit(
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("FASTAPI_CLOUD_DISABLE_VERSION_CHECK", "1")
-
-    with pytest.raises(typer.Exit):
-        _fail_with_toolkit(
-            None,
-            "api_error",
-            "A value is required.",
-            hint="Pass --value.",
-        )
-
-    assert json.loads(capsys.readouterr().out) == {
-        "error": {
-            "code": "api_error",
-            "message": "A value is required.",
-            "hint": "Pass --value.",
-        }
-    }
 
 
 def test_stream_build_logs_failed(

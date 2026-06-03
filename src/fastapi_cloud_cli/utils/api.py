@@ -9,7 +9,6 @@ from functools import wraps
 from typing import (
     Annotated,
     Literal,
-    NoReturn,
     TypeVar,
 )
 
@@ -285,24 +284,6 @@ def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str
     return None
 
 
-def _fail_with_toolkit(
-    toolkit: ErrorToolkit | None,
-    code: ErrorCode,
-    message: str,
-    *,
-    hint: str | None = None,
-) -> NoReturn:
-    if toolkit is not None:
-        toolkit.fail(code, message, hint=hint)
-
-    from fastapi_cloud_cli.utils.cli import get_rich_toolkit
-
-    with get_rich_toolkit(minimal=True, json_output=True) as fallback_toolkit:
-        fallback_toolkit.fail(code, message, hint=hint)
-
-    raise RuntimeError("unreachable")  # pragma: no cover
-
-
 class APIClient(httpx.Client):
     auth_mode: AuthMode
 
@@ -331,11 +312,16 @@ class APIClient(httpx.Client):
     @contextmanager
     def handle_http_errors(
         self,
-        progress: Progress | None,
+        progress: Progress,
         default_message: str | None = None,
+        *,
         toolkit: ErrorToolkit | None = None,
-        json_output: bool = False,
     ) -> Generator[None, None, None]:
+        # TODO: Once every command supports JSON output, require toolkit here
+        # and let it be the single human/JSON error rendering boundary.
+
+        mode = toolkit.mode if toolkit else "human"
+
         try:
             yield
         except httpx.ReadTimeout as e:
@@ -346,33 +332,29 @@ class APIClient(httpx.Client):
                 " Please try again later."
             )
 
-            if json_output:
-                _fail_with_toolkit(
-                    toolkit,
+            if mode == "json" and toolkit:
+                toolkit.fail(
                     "network_error",
                     message,
                     hint="Please try again later.",
                 )
 
-            if progress is not None:
-                progress.set_error(message)
+            progress.set_error(message)
 
-            raise typer.Exit(1) from None
+            raise typer.Exit(1) from None  # pragma: no cover
         except httpx.HTTPError as e:
             logger.debug(e)
 
             message = handle_http_error(e, default_message, auth_mode=self.auth_mode)
             code = get_http_error_code(e)
 
-            if json_output:
-                _fail_with_toolkit(
-                    toolkit,
+            if mode == "json" and toolkit:
+                toolkit.fail(
                     code,
                     message,
                     hint=get_http_error_hint(code, auth_mode=self.auth_mode),
                 )
-
-            if progress is not None:
+            else:
                 progress.set_error(message)
 
             raise typer.Exit(1) from None

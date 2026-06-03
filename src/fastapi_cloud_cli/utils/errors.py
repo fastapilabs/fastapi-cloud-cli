@@ -10,6 +10,8 @@ ErrorCode = Literal[
 
 
 class ErrorToolkit(Protocol):
+    mode: Literal["json", "human"]
+
     def fail(
         self,
         code: ErrorCode,

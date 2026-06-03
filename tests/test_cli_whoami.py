@@ -94,7 +94,6 @@ def test_uses_toolkit_output_renderer_for_logged_in_user(
     output_data, render_output = output_calls[0]
     assert isinstance(output_data, WhoAmIOutput)
     assert output_data.model_dump(mode="json") == {
-        "authenticated": True,
         "email": "email@fastapi.com",
         "has_deploy_token": False,
     }
@@ -114,7 +113,6 @@ def test_prints_json_when_json_env_is_enabled(
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {
         "data": {
-            "authenticated": True,
             "email": "email@fastapi.com",
             "has_deploy_token": False,
         }
@@ -156,7 +154,7 @@ def test_prints_json_error_when_json_env_is_enabled_and_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN.",
         }
     }
     assert result.stderr == ""
@@ -258,15 +256,21 @@ def test_handles_read_timeout(
 def test_prints_not_logged_in(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["whoami"])
 
-    assert result.exit_code == 0
-    assert "No credentials found. Use `fastapi login` to login." in result.output
+    assert result.exit_code == 1
+    assert (
+        "No credentials found. Run `fastapi login` or set FASTAPI_CLOUD_TOKEN."
+        in result.output
+    )
 
 
-def test_shows_has_deploy_token(logged_out_cli: None) -> None:
+def test_prints_not_logged_in_with_deploy_token(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
 
-    assert result.exit_code == 0
-    assert "Using API token from environment variable" in result.output
+    assert result.exit_code == 1
+    assert (
+        "No credentials found. Run `fastapi login` or set FASTAPI_CLOUD_TOKEN."
+        in result.output
+    )
 
 
 @pytest.mark.respx
