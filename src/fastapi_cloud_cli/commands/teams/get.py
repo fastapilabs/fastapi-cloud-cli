@@ -20,32 +20,21 @@ class Team(BaseModel):
     name: str
 
 
-class TeamOutput(Team):
-    dashboard_url: str
-
-
 class TeamGetOutput(BaseModel):
-    team: TeamOutput
+    team: Team
 
 
-def build_team_output(team: Team, settings: Settings) -> TeamOutput:
-    return TeamOutput(
-        id=team.id,
-        slug=team.slug,
-        name=team.name,
-        dashboard_url=f"{settings.dashboard_base_url}/{team.slug}/apps",
-    )
+def _get_team_dashboard_url(team: Team, *, settings: Settings) -> str:
+    return f"{settings.dashboard_base_url}/{team.slug}/apps"
 
 
 def _get_team(client: APIClient, team_id: str) -> TeamGetOutput:
-    settings = Settings.get()
-
     response = client.get(f"/teams/{team_id}")
     response.raise_for_status()
 
     team = Team.model_validate(response.json())
 
-    return TeamGetOutput(team=build_team_output(team, settings))
+    return TeamGetOutput(team=team)
 
 
 def _render_team_get_output(data: TeamGetOutput, toolkit: RichToolkit) -> None:
@@ -53,7 +42,11 @@ def _render_team_get_output(data: TeamGetOutput, toolkit: RichToolkit) -> None:
     toolkit.print_line()
     toolkit.print(data.team.id, tag="id", tag_style="text")
     toolkit.print(data.team.slug, tag="slug", tag_style="text")
-    toolkit.print(data.team.dashboard_url, tag="url", tag_style="text")
+    toolkit.print(
+        _get_team_dashboard_url(data.team, settings=Settings.get()),
+        tag="url",
+        tag_style="text",
+    )
 
 
 def get_team(

@@ -68,18 +68,15 @@ def test_displays_logs(
 def test_passes_default_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true", "tail": "100", "since": "5m"},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
         result = runner.invoke(app, ["logs"])
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert "follow=true" in url
-    assert "tail=100" in url
-    assert "since=5m" in url
     assert "Streaming logs" in result.output
     assert configured_app.app_id in result.output
 
@@ -88,8 +85,9 @@ def test_passes_default_params(
 def test_passes_custom_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"tail": "50", "since": "1h", "follow": "false"},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
@@ -98,10 +96,6 @@ def test_passes_custom_params(
         )
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert "tail=50" in url
-    assert "since=1h" in url
-    assert "follow=false" in url
 
 
 @pytest.mark.respx
@@ -379,13 +373,12 @@ def test_accepts_valid_since_format(
     configured_app: ConfiguredApp,
     valid_since: str,
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"since": valid_since},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
         result = runner.invoke(app, ["logs", "--no-follow", "--since", valid_since])
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert f"since={valid_since}" in url

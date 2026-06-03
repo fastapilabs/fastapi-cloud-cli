@@ -3,6 +3,7 @@ from typing import Literal, NoReturn, Protocol
 ErrorCode = Literal[
     "api_error",
     "invalid_token",
+    "missing_required_input",
     "network_error",
     "not_found",
     "not_logged_in",
