@@ -131,6 +131,7 @@ class FastAPIRichToolkit(RichToolkit):
             return
 
         if message := self._version_check.get_update_message():
+            self.print_line()
             self.print(Text.from_markup(message), tag="update", tag_style="tag.update")
 
     def success(
