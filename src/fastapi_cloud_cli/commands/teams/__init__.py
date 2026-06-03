@@ -7,6 +7,12 @@ from rich.markup import escape
 from rich.table import Table
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.commands.teams.get import (
+    Team,
+    TeamOutput,
+    build_team_output,
+    get_team,
+)
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
@@ -17,16 +23,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 100
 DEFAULT_OFFSET = 0
-
-
-class Team(BaseModel):
-    id: str
-    slug: str
-    name: str
-
-
-class TeamOutput(Team):
-    dashboard_url: str
 
 
 class TeamsListAPIResponse(BaseModel):
@@ -56,15 +52,7 @@ def _get_teams(client: APIClient, *, limit: int, offset: int) -> TeamsListOutput
     data = TeamsListAPIResponse.model_validate(response.json())
 
     return TeamsListOutput(
-        teams=[
-            TeamOutput(
-                id=team.id,
-                slug=team.slug,
-                name=team.name,
-                dashboard_url=f"{settings.dashboard_base_url}/{team.slug}/apps",
-            )
-            for team in data.data
-        ],
+        teams=[build_team_output(team, settings) for team in data.data],
         total_count=data.count,
         limit=limit,
         offset=offset,
@@ -140,3 +128,6 @@ def list_teams(
                     result = _get_teams(client, limit=limit, offset=offset)
 
         toolkit.success(result, render_output=_render_teams_list_output)
+
+
+teams_app.command("get")(get_team)

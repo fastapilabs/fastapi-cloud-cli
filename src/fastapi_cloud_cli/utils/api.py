@@ -229,6 +229,7 @@ def _get_response_error_message(response: httpx.Response) -> str | None:
 def handle_http_error(
     error: httpx.HTTPError,
     default_message: str | None = None,
+    not_found_message: str | None = None,
     auth_mode: AuthMode = "user",
 ) -> str:
     message: str | None = None
@@ -247,6 +248,13 @@ def handle_http_error(
             message = (
                 _get_response_error_message(error.response)
                 or "You don't have permissions for this resource"
+            )
+
+        elif status_code == 404:
+            message = (
+                _get_response_error_message(error.response)
+                or not_found_message
+                or "Resource not found."
             )
 
     if not message:
@@ -270,6 +278,9 @@ def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
 
         if status_code == 403:
             return "permission_denied"
+
+        if status_code == 404:
+            return "not_found"
 
     return "api_error"
 
@@ -315,6 +326,7 @@ class APIClient(httpx.Client):
         progress: Progress,
         default_message: str | None = None,
         *,
+        not_found_message: str | None = None,
         toolkit: ErrorToolkit | None = None,
     ) -> Generator[None, None, None]:
         # TODO: Once every command supports JSON output, require toolkit here
@@ -345,7 +357,12 @@ class APIClient(httpx.Client):
         except httpx.HTTPError as e:
             logger.debug(e)
 
-            message = handle_http_error(e, default_message, auth_mode=self.auth_mode)
+            message = handle_http_error(
+                e,
+                default_message,
+                not_found_message=not_found_message,
+                auth_mode=self.auth_mode,
+            )
             code = get_http_error_code(e)
 
             if mode == "json" and toolkit:
