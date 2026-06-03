@@ -11,6 +11,7 @@ from .commands.login import login
 from .commands.logout import logout
 from .commands.logs import logs
 from .commands.setup_ci import setup_ci
+from .commands.teams import teams_app
 from .commands.unlink import unlink
 from .commands.whoami import whoami
 from .logging import setup_logging
@@ -63,6 +64,7 @@ cloud_app.command()(unlink)
 cloud_app.command()(setup_ci)
 
 cloud_app.add_typer(env_app, name="env")
+cloud_app.add_typer(teams_app, name="teams")
 
 # fastapi [command]
 app.command()(deploy)
