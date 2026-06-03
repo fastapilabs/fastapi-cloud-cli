@@ -3,7 +3,7 @@ from pathlib import Path
 import fastar
 import pytest
 
-from fastapi_cloud_cli.commands.deploy import archive
+from fastapi_cloud_cli.commands.deploy.archive import archive
 
 
 @pytest.fixture
