@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add app list command. PR [#219](https://github.com/fastapilabs/fastapi-cloud-cli/pull/219) by [@patrick91](https://github.com/patrick91).
 * ✨ Add get team command. PR [#218](https://github.com/fastapilabs/fastapi-cloud-cli/pull/218) by [@patrick91](https://github.com/patrick91).
 * ✨ Add teams list command. PR [#217](https://github.com/fastapilabs/fastapi-cloud-cli/pull/217) by [@patrick91](https://github.com/patrick91).
 * ✨ Add support for --json for whoami command. PR [#213](https://github.com/fastapilabs/fastapi-cloud-cli/pull/213) by [@patrick91](https://github.com/patrick91).
