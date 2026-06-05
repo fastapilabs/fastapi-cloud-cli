@@ -14,6 +14,8 @@ from fastapi_cloud_cli.utils.api import (
     DeploymentStatus,
     StreamLogError,
     TooManyRetriesError,
+    get_http_error_code,
+    get_http_error_hint,
 )
 from tests.utils import build_logs_response
 
@@ -61,6 +63,18 @@ def test_stream_build_logs_successful(
     assert logs[1].message == "Done!"  # ty: ignore[unresolved-attribute]
 
     assert logs[2].type == "complete"
+
+
+def test_get_http_error_code_returns_network_error() -> None:
+    assert (
+        get_http_error_code(httpx.NetworkError("Connection failed")) == "network_error"
+    )
+
+
+def test_get_http_error_hint_for_invalid_deploy_token() -> None:
+    assert get_http_error_hint("invalid_token", auth_mode="token") == (
+        "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
+    )
 
 
 def test_stream_build_logs_failed(

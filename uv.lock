@@ -274,7 +274,7 @@ requires-dist = [
     { name = "pydantic", extras = ["email"], marker = "python_full_version < '3.13'", specifier = ">=2.7.4" },
     { name = "pydantic", extras = ["email"], marker = "python_full_version == '3.13.*'", specifier = ">=2.8.0" },
     { name = "pydantic", extras = ["email"], marker = "python_full_version >= '3.14'", specifier = ">=2.12.0" },
-    { name = "rich-toolkit", specifier = ">=0.19.7" },
+    { name = "rich-toolkit", specifier = ">=0.20.1" },
     { name = "rignore", specifier = ">=0.5.1" },
     { name = "sentry-sdk", specifier = ">=2.20.0" },
     { name = "typer", specifier = ">=0.16.0" },
@@ -898,16 +898,16 @@ wheels = [
 
 [[package]]
 name = "rich-toolkit"
-version = "0.19.7"
+version = "0.20.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/ba/dae9e3096651042754da419a4042bc1c75e07d615f9b15066d738838e4df/rich_toolkit-0.19.7.tar.gz", hash = "sha256:133c0915872da91d4c25d85342d5ec1dfacc69b63448af1a08a0d4b4f23ef46e", size = 195877, upload-time = "2026-02-24T16:06:20.555Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/63/3e427c62f1992945c997d4ec31e2fcb37d26aadbe5aa44ae5b29f7f64d26/rich_toolkit-0.20.1.tar.gz", hash = "sha256:c7336ae281f435c785acecaedc4b71d4b663dc73d9c8079fea96372527e822a4", size = 203473, upload-time = "2026-06-05T08:56:57.679Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/3c/c923619f6d2f5fafcc96fec0aaf9550a46cd5b6481f06e0c6b66a2a4fed0/rich_toolkit-0.19.7-py3-none-any.whl", hash = "sha256:0288e9203728c47c5a4eb60fd2f0692d9df7455a65901ab6f898437a2ba5989d", size = 32963, upload-time = "2026-02-24T16:06:22.066Z" },
+    { url = "https://files.pythonhosted.org/packages/00/88/309f07d08155da2ba1d5ceb42d270fb42fbe34a807684543e3ffc10fe713/rich_toolkit-0.20.1-py3-none-any.whl", hash = "sha256:2a6d5f8e15759b9eba5a9ee63da10b275359ead20e5a0fc92bd5b4dbae8ce4bf", size = 35525, upload-time = "2026-06-05T08:56:58.586Z" },
 ]
 
 [[package]]

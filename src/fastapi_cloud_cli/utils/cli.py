@@ -1,20 +1,45 @@
 import logging
 import os
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn, Protocol, TypeVar
 
+import typer
+from pydantic import BaseModel
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
 from rich_toolkit import RichToolkit, RichToolkitTheme
 from rich_toolkit.styles import BaseStyle, MinimalStyle, TaggedStyle
 
+from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.version_check import (
     DISABLE_VERSION_CHECK_ENV,
     BackgroundVersionCheck,
 )
 
 logger = logging.getLogger(__name__)
+
+OutputT = TypeVar("OutputT", bound=BaseModel)
+OutputRenderer = Callable[[OutputT, RichToolkit], None]
+
+
+class ErrorRenderer(Protocol):
+    def __call__(
+        self,
+        toolkit: RichToolkit,
+        *,
+        code: ErrorCode,
+        message: str,
+        hint: str,
+    ) -> None: ...
+
+
+def _strip_rich_markup(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    return Text.from_markup(value).plain
 
 
 class FastAPIStyle(TaggedStyle):
@@ -67,12 +92,15 @@ class FastAPIStyle(TaggedStyle):
 
 
 class FastAPIRichToolkit(RichToolkit):
+    mode: Literal["human", "json"]
+
     def __init__(
         self,
         style: BaseStyle | None = None,
         theme: RichToolkitTheme | None = None,
+        mode: Literal["human", "json"] = "human",
     ) -> None:
-        super().__init__(style=style, theme=theme)
+        super().__init__(style=style, theme=theme, mode=mode)
         self._version_check = self._get_version_check()
 
     def __exit__(
@@ -105,8 +133,63 @@ class FastAPIRichToolkit(RichToolkit):
         if message := self._version_check.get_update_message():
             self.print(Text.from_markup(message), tag="update", tag_style="tag.update")
 
+    def success(
+        self,
+        data: OutputT,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: OutputRenderer[OutputT] | None = None,
+    ) -> None:
+        if self.mode != "json":
+            self.output(data, render_output=render_output)
+            return
 
-def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
+        output: dict[str, Any] = {"data": data}
+
+        if warnings:
+            output["warnings"] = warnings
+
+        if hint is not None:
+            output["hint"] = hint
+
+        self.output(output)
+
+    def fail(
+        self,
+        code: ErrorCode,
+        message: str,
+        *,
+        render_output: ErrorRenderer | None = None,
+        hint: str | None = None,
+        exit_code: int = 1,
+    ) -> NoReturn:
+        if self.mode == "json":
+            self.output(
+                {
+                    "error": {
+                        "code": code,
+                        "message": _strip_rich_markup(message),
+                        "hint": _strip_rich_markup(hint),
+                    }
+                }
+            )
+        elif render_output is not None:
+            render_output(self, code=code, message=message, hint=hint or "")
+        else:  # pragma: no cover
+            self.print(f"[error]{message}[/]")
+
+            if hint:
+                self.print(hint, tag="tip")
+
+        raise typer.Exit(exit_code)
+
+
+def get_rich_toolkit(
+    minimal: bool = False,
+    *,
+    json_output: bool | None = None,
+) -> FastAPIRichToolkit:
     style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
 
     theme = RichToolkitTheme(
@@ -125,4 +208,6 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
         },
     )
 
-    return FastAPIRichToolkit(theme=theme)
+    mode: Literal["human", "json"] = "json" if json_output else "human"
+
+    return FastAPIRichToolkit(theme=theme, mode=mode)
