@@ -17,6 +17,7 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.execution import is_ci_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,16 @@ def deploy(
     with get_rich_toolkit() as toolkit:
         if not has_auth:
             logger.debug("User not logged in, prompting for login or waitlist")
+
+            if is_ci_enabled():
+                toolkit.fail(
+                    "not_logged_in",
+                    "FASTAPI_CLOUD_TOKEN is required to deploy from CI.",
+                    hint=(
+                        "Run `fastapi cloud setup-ci` to configure a deploy token, "
+                        "or set FASTAPI_CLOUD_TOKEN in your CI secrets."
+                    ),
+                )
 
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
             toolkit.print_line()

@@ -253,6 +253,19 @@ def test_shows_login_prompt_when_token_is_expired(
     assert "What would you like to do?" in result.output
 
 
+def test_fails_with_clear_error_when_running_on_ci_without_token(
+    logged_out_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"CI": "true"})
+
+    assert result.exit_code == 1
+    assert result.exception is not None
+    assert not isinstance(result.exception, OSError)
+    assert "FASTAPI_CLOUD_TOKEN is required to deploy from CI." in result.output
+    assert "fastapi cloud setup-ci" in result.output
+
+
 @pytest.mark.respx
 def test_shows_error_when_trying_to_get_teams(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
