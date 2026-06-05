@@ -6,6 +6,10 @@
 
 * ✨ Add support for --json for whoami command. PR [#213](https://github.com/fastapilabs/fastapi-cloud-cli/pull/213) by [@patrick91](https://github.com/patrick91).
 
+### Fixes
+
+* 🐛 Show a proper error when running on CI and auth is missing. PR [#215](https://github.com/fastapilabs/fastapi-cloud-cli/pull/215) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Refactor deploy command into multiple files. PR [#214](https://github.com/fastapilabs/fastapi-cloud-cli/pull/214) by [@patrick91](https://github.com/patrick91).
