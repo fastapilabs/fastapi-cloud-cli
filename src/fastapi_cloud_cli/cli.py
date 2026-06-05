@@ -4,6 +4,7 @@ import typer
 from rich import print
 
 from . import __version__
+from .commands.apps import apps_app
 from .commands.deploy import deploy
 from .commands.env import env_app
 from .commands.link import link
@@ -64,6 +65,7 @@ cloud_app.command()(unlink)
 cloud_app.command()(setup_ci)
 
 cloud_app.add_typer(env_app, name="env")
+cloud_app.add_typer(apps_app, name="apps")
 cloud_app.add_typer(teams_app, name="teams")
 
 # fastapi [command]

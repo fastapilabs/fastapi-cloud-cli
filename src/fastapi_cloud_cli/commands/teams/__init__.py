@@ -9,8 +9,7 @@ from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.commands.teams.get import (
     Team,
-    TeamOutput,
-    build_team_output,
+    _get_team_dashboard_url,
     get_team,
 )
 from fastapi_cloud_cli.config import Settings
@@ -31,15 +30,13 @@ class TeamsListAPIResponse(BaseModel):
 
 
 class TeamsListOutput(BaseModel):
-    teams: list[TeamOutput]
+    teams: list[Team]
     total_count: int
     limit: int
     offset: int
 
 
 def _get_teams(client: APIClient, *, limit: int, offset: int) -> TeamsListOutput:
-    settings = Settings.get()
-
     response = client.get(
         "/teams/",
         params={
@@ -52,7 +49,7 @@ def _get_teams(client: APIClient, *, limit: int, offset: int) -> TeamsListOutput
     data = TeamsListAPIResponse.model_validate(response.json())
 
     return TeamsListOutput(
-        teams=[build_team_output(team, settings) for team in data.data],
+        teams=data.data,
         total_count=data.count,
         limit=limit,
         offset=offset,
@@ -64,6 +61,8 @@ def _render_teams_list_output(data: TeamsListOutput, toolkit: RichToolkit) -> No
         toolkit.print("No teams found.", tag="teams")
         return
 
+    settings = Settings.get()
+
     table = Table.grid(padding=(0, 2), pad_edge=False)
     table.add_column("Name")
     table.add_column("ID")
@@ -72,7 +71,7 @@ def _render_teams_list_output(data: TeamsListOutput, toolkit: RichToolkit) -> No
 
     for team in data.teams:
         table.add_row(
-            f"[link={team.dashboard_url}]{escape(team.name)}[/link]",
+            f"[link={_get_team_dashboard_url(team, settings=settings)}]{escape(team.name)}[/link]",
             team.id,
         )
 

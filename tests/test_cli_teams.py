@@ -20,10 +20,6 @@ def test_lists_teams_as_json_with_pagination_params(
         "slug": "acme",
         "name": "Acme",
     }
-    expected_team = {
-        **team,
-        "dashboard_url": "https://dashboard.fastapicloud.com/acme/apps",
-    }
     respx_mock.get("/teams/", params={"limit": "100", "skip": "20"}).mock(
         return_value=Response(200, json={"data": [team], "count": 1})
     )
@@ -36,7 +32,7 @@ def test_lists_teams_as_json_with_pagination_params(
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {
         "data": {
-            "teams": [expected_team],
+            "teams": [team],
             "total_count": 1,
             "limit": 100,
             "offset": 20,
@@ -155,16 +151,12 @@ def test_gets_team_as_json(
         "slug": "acme",
         "name": "Acme",
     }
-    expected_team = {
-        **team,
-        "dashboard_url": "https://dashboard.fastapicloud.com/acme/apps",
-    }
     respx_mock.get(f"/teams/{team['id']}").mock(return_value=Response(200, json=team))
 
     result = runner.invoke(app, ["teams", "get", team["id"], "--json"])
 
     assert result.exit_code == 0
-    assert json.loads(result.stdout) == {"data": {"team": expected_team}}
+    assert json.loads(result.stdout) == {"data": {"team": team}}
     assert result.stderr == ""
 
 
