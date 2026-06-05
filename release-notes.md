@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add support for --json for whoami command. PR [#213](https://github.com/fastapilabs/fastapi-cloud-cli/pull/213) by [@patrick91](https://github.com/patrick91).
+
 ## 0.19.0 (2026-06-01)
 
 ### Features
