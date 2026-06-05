@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fastapi_cloud_cli.commands.deploy import (
+from fastapi_cloud_cli.commands.deploy.archive import (
     _get_large_files,
     _should_exclude_entry,
     validate_app_directory,

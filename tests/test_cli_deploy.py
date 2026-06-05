@@ -1371,7 +1371,9 @@ def test_shows_error_message_on_build_log_http_error(
 
 
 @pytest.mark.respx
-@patch("fastapi_cloud_cli.commands.deploy.WAITING_MESSAGES", ["short wait message"])
+@patch(
+    "fastapi_cloud_cli.commands.deploy.wait.WAITING_MESSAGES", ["short wait message"]
+)
 def test_short_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1443,7 +1445,9 @@ def test_short_wait_messages(
 
 
 @pytest.mark.respx
-@patch("fastapi_cloud_cli.commands.deploy.LONG_WAIT_MESSAGES", ["long wait message"])
+@patch(
+    "fastapi_cloud_cli.commands.deploy.wait.LONG_WAIT_MESSAGES", ["long wait message"]
+)
 def test_long_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1541,7 +1545,7 @@ def test_calls_upload_cancelled_when_user_interrupts(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            "fastapi_cloud_cli.commands.deploy.command._upload_deployment",
             side_effect=KeyboardInterrupt(),
         ),
     ):
@@ -1576,7 +1580,7 @@ def test_cancel_upload_swallows_exceptions(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            "fastapi_cloud_cli.commands.deploy.command._upload_deployment",
             side_effect=KeyboardInterrupt(),
         ),
     ):
