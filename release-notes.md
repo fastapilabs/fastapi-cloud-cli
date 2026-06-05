@@ -12,6 +12,7 @@
 
 ### Refactors
 
+* 💄 Improve how we show the update message. PR [#216](https://github.com/fastapilabs/fastapi-cloud-cli/pull/216) by [@patrick91](https://github.com/patrick91).
 * ♻️ Refactor deploy command into multiple files. PR [#214](https://github.com/fastapilabs/fastapi-cloud-cli/pull/214) by [@patrick91](https://github.com/patrick91).
 
 ## 0.19.0 (2026-06-01)
