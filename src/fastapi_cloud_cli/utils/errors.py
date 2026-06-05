@@ -4,6 +4,7 @@ ErrorCode = Literal[
     "api_error",
     "invalid_token",
     "network_error",
+    "not_found",
     "not_logged_in",
     "permission_denied",
 ]
