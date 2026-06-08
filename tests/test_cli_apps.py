@@ -321,6 +321,141 @@ def test_creates_app_json_rejects_path_without_link(
 
 
 @pytest.mark.respx
+def test_links_existing_app_to_path_as_json(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_id = "00000000-0000-4000-8000-000000000002"
+    path_to_link = tmp_path / "repo"
+    path_to_link.mkdir()
+    app_data = {
+        "id": app_id,
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": None,
+    }
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "link",
+            app_id,
+            "--path",
+            str(path_to_link),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "team_id": team_id,
+            "path": str(path_to_link),
+        }
+    }
+    assert AppConfig.model_validate_json(
+        (path_to_link / ".fastapicloud" / "cloud.json").read_text(encoding="utf-8")
+    ) == AppConfig(app_id=app_id, team_id=team_id)
+    assert result.stderr == ""
+
+
+def test_links_existing_app_returns_already_linked_without_force(
+    logged_in_cli: None,
+    tmp_path: Path,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    path_to_link = tmp_path / "repo"
+    config_path = path_to_link / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        AppConfig(app_id="existing-app", team_id="existing-team").model_dump_json(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "link",
+            app_id,
+            "--path",
+            str(path_to_link),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "already_linked",
+            "message": "This directory is already linked to an app.",
+            "hint": "Pass --force to replace the existing configuration.",
+        }
+    }
+    assert AppConfig.model_validate_json(config_path.read_text(encoding="utf-8")) == (
+        AppConfig(app_id="existing-app", team_id="existing-team")
+    )
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_links_existing_app_replaces_config_with_force(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_id = "00000000-0000-4000-8000-000000000002"
+    path_to_link = tmp_path / "repo"
+    config_path = path_to_link / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        AppConfig(app_id="existing-app", team_id="existing-team").model_dump_json(),
+        encoding="utf-8",
+    )
+    app_data = {
+        "id": app_id,
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": None,
+    }
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "link",
+            app_id,
+            "--path",
+            str(path_to_link),
+            "--force",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "team_id": team_id,
+            "path": str(path_to_link),
+        }
+    }
+    assert AppConfig.model_validate_json(config_path.read_text(encoding="utf-8")) == (
+        AppConfig(app_id=app_id, team_id=team_id)
+    )
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
 def test_lists_apps_as_json_with_team_and_pagination_params(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,

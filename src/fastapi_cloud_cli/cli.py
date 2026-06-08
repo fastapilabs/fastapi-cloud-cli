@@ -5,9 +5,9 @@ from rich import print
 
 from . import __version__
 from .commands.apps import apps_app
+from .commands.apps.link import link_app
 from .commands.deploy import deploy
 from .commands.env import env_app
-from .commands.link import link
 from .commands.login import login
 from .commands.logout import logout
 from .commands.logs import logs
@@ -56,7 +56,7 @@ def cloud_main(
 
 # fastapi cloud [command]
 cloud_app.command()(deploy)
-cloud_app.command()(link)
+cloud_app.command("link")(link_app)
 cloud_app.command()(login)
 cloud_app.command()(logs)
 cloud_app.command()(logout)

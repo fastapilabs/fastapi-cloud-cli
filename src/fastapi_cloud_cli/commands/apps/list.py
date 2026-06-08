@@ -100,6 +100,13 @@ def _get_team(client: APIClient, team_id: str) -> Team:
     return Team.model_validate(response.json())
 
 
+def _get_app(client: APIClient, app_id: str) -> App:
+    response = client.get(f"/apps/{app_id}")
+    response.raise_for_status()
+
+    return App.model_validate(response.json())
+
+
 def _get_apps(
     client: APIClient, *, team_id: str, limit: int, offset: int, team_slug: str
 ) -> AppsListOutput:

@@ -8,6 +8,7 @@ from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.commands.apps.list import (
     App,
+    _get_app,
     _get_app_dashboard_url,
     _get_team,
 )
@@ -23,13 +24,6 @@ logger = logging.getLogger(__name__)
 class AppGetOutput(BaseModel):
     app: App
     dashboard_url: Annotated[str | None, Field(exclude=True)] = None
-
-
-def _get_app(client: APIClient, app_id: str) -> App:
-    response = client.get(f"/apps/{app_id}")
-    response.raise_for_status()
-
-    return App.model_validate(response.json())
 
 
 def _render_app_get_output(data: AppGetOutput, toolkit: RichToolkit) -> None:
