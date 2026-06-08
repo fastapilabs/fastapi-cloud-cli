@@ -1,3 +1,4 @@
+import json
 import random
 import re
 import string
@@ -264,6 +265,138 @@ def test_fails_with_clear_error_when_running_on_ci_without_token(
     assert not isinstance(result.exception, OSError)
     assert "FASTAPI_CLOUD_TOKEN is required to deploy from CI." in result.output
     assert "fastapi cloud setup-ci" in result.output
+
+
+@pytest.mark.respx
+def test_deploy_json_uses_configured_app_and_skips_waiting_by_default(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(
+        app_id=app_id,
+        status="ready_for_build",
+    )
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "deployment_id": deployment_data["id"],
+            "app_id": app_id,
+            "slug": deployment_data["slug"],
+            "status": "ready_for_build",
+            "dashboard_url": deployment_data["dashboard_url"],
+            "url": deployment_data["url"],
+        },
+        "hint": (
+            "Check deployment status in the FastAPI Cloud dashboard: "
+            f"{deployment_data['dashboard_url']}"
+        ),
+    }
+
+
+def test_deploy_json_returns_missing_required_input_without_app_context(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "App ID is required.",
+            "hint": "Pass --app-id or run `fastapi cloud apps create --link` first.",
+        }
+    }
+
+
+def test_deploy_json_returns_not_logged_in_without_prompt(
+    logged_out_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "No credentials found.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+        }
+    }
+
+
+@pytest.mark.respx
+def test_deploy_json_includes_large_file_warnings(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(
+        app_id=app_id,
+        status="ready_for_build",
+    )
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+    _create_file(tmp_path / "model.bin", 12 * 1024 * 1024)
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["warnings"] == [
+        {
+            "code": "large_files",
+            "message": "1 uploaded file is larger than 10 MB.",
+            "files": [{"path": "model.bin", "size_bytes": 12 * 1024 * 1024}],
+        }
+    ]
 
 
 @pytest.mark.respx
@@ -1983,6 +2116,36 @@ def test_deploy_with_app_id_mismatch_fails(
         assert "FASTAPI_CLOUD_APP_ID" in result.output
 
 
+def test_deploy_json_with_app_id_mismatch_returns_invalid_input(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    local_app_id = "local-app-id"
+    team_id = "some-team-id"
+    cli_app_id = "different-app-id"
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{local_app_id}", "team_id": "{team_id}"}}')
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", cli_app_id, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": (
+                f"Provided app ID ({cli_app_id}) does not match "
+                f"the local config ({local_app_id})."
+            ),
+            "hint": (
+                "Run `fastapi cloud unlink` to remove the local config, "
+                "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app."
+            ),
+        }
+    }
+
+
 @pytest.mark.respx
 def test_deploy_with_app_id_arg_app_not_found(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
@@ -1998,6 +2161,27 @@ def test_deploy_with_app_id_arg_app_not_found(
         assert "App not found" in result.output
         # Should NOT show unlink tip when using --app-id
         assert "unlink" not in result.output
+
+
+@pytest.mark.respx
+def test_deploy_json_with_app_id_arg_app_not_found(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "nonexistent-app-id"
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(404))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", app_id, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": "App not found. Make sure you're logged in the correct account.",
+            "hint": None,
+        }
+    }
 
 
 def _setup_deployment_mocks(
