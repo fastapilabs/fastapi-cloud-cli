@@ -181,6 +181,7 @@ class FastAPIRichToolkit(RichToolkit):
             self.print(f"[error]{message}[/]")
 
             if hint:
+                self.print_line()
                 self.print(hint, tag="tip")
 
         raise typer.Exit(exit_code)
