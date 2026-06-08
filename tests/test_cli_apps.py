@@ -92,6 +92,19 @@ def test_lists_apps_json_returns_missing_required_input_without_team_id(
     assert result.stderr == ""
 
 
+def test_gets_app_human_returns_not_logged_in_when_logged_out(
+    logged_out_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        ["apps", "get", "00000000-0000-4000-8000-000000000002"],
+    )
+
+    assert result.exit_code == 1
+    assert "No credentials found." in result.output
+    assert "fastapi cloud login" in result.output
+
+
 @pytest.mark.respx
 def test_lists_apps_prompts_for_team_when_team_id_is_missing(
     logged_in_cli: None,
@@ -150,6 +163,97 @@ def test_lists_apps_rejects_no_input_option(
 
     assert result.exit_code == 2
     assert "--no-input" in result.output
+
+
+@pytest.mark.respx
+def test_gets_app_as_json(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_data = {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "team_id": "00000000-0000-4000-8000-000000000001",
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+        "url": "https://api.fastapicloud.app",
+    }
+    respx_mock.get(f"/apps/{app_data['id']}").mock(
+        return_value=Response(200, json=app_data)
+    )
+
+    result = runner.invoke(app, ["apps", "get", app_data["id"], "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app": {
+                **app_data,
+                "region": None,
+                "updated_at": None,
+            }
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_gets_app_in_human_output(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    team_data = {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "slug": "strawberry",
+        "name": "Strawberry",
+    }
+    app_data = {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "team_id": team_data["id"],
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+        "url": "https://api.fastapicloud.app",
+    }
+    dashboard_url = "https://dashboard.fastapicloud.com/strawberry/apps/api"
+    respx_mock.get(f"/apps/{app_data['id']}").mock(
+        return_value=Response(200, json=app_data)
+    )
+    respx_mock.get(f"/teams/{team_data['id']}").mock(
+        return_value=Response(200, json=team_data)
+    )
+
+    result = runner.invoke(app, ["apps", "get", app_data["id"]])
+
+    assert result.exit_code == 0
+    assert "app   API" in result.output
+    assert "slug   api" in result.output
+    assert "directory   backend" in result.output
+    assert "url   https://api.fastapicloud.app" in result.output
+    assert f"dashboard   {dashboard_url}" in result.output
+    assert f"id   {app_data['id']}" in result.output
+    assert f"team id   {app_data['team_id']}" in result.output
+
+
+@pytest.mark.respx
+def test_gets_app_json_returns_not_found_for_unknown_app(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(404))
+
+    result = runner.invoke(app, ["apps", "get", app_id, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": "App not found.",
+            "hint": None,
+        }
+    }
+    assert result.stderr == ""
 
 
 def test_get_app_dashboard_url_uses_settings_team_and_app_slugs() -> None:
