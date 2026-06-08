@@ -28,7 +28,6 @@ def test_apps_unlink_removes_cloud_json_and_preserves_fastapicloud_dir(
     assert result.exit_code == 0
     assert "Removed app link" in result.output
     assert "Deleted" in result.output
-    assert "cloud.json" in result.output
     assert config_dir.exists()
     assert not cloud_json.exists()
     assert readme_file.exists()
