@@ -137,6 +137,30 @@ def test_toolkit_success_uses_strict_json_output(
             toolkit.success(MetricsOutput(cpu=float("inf")))
 
 
+def test_toolkit_json_mode_suppresses_update_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_app = typer.Typer()
+    monkeypatch.setenv("FASTAPI_CLOUD_DISABLE_VERSION_CHECK", "")
+    write_latest_version_cache(
+        get_version_check_cache_path(),
+        latest_version="999.0.0",
+        now=datetime.now(timezone.utc),
+    )
+
+    @test_app.command()
+    def command(json_output: JsonOutputOption = False) -> None:
+        with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+            toolkit.success(AuthStatus(authenticated=True))
+
+    result = runner.invoke(test_app, env={"FASTAPI_CLOUD_JSON": "1"})
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {"authenticated": True},
+    }
+
+
 def test_toolkit_fail_prints_json_error_and_exits() -> None:
     test_app = typer.Typer()
 

@@ -1,25 +1,104 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import typer
+from pydantic import BaseModel
+from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
-from fastapi_cloud_cli.commands.deploy.cloud import _create_deployment, _get_app
+from fastapi_cloud_cli.commands.deploy.cloud import (
+    AppResponse,
+    CreateDeploymentResponse,
+    _create_deployment,
+    _get_app,
+)
 from fastapi_cloud_cli.commands.deploy.configure import _configure_app
 from fastapi_cloud_cli.commands.deploy.upload import _cancel_upload, _upload_deployment
 from fastapi_cloud_cli.commands.deploy.wait import _wait_for_deployment
 from fastapi_cloud_cli.commands.deploy.waitlist import _waitlist_form
 from fastapi_cloud_cli.commands.login import login
-from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
-from fastapi_cloud_cli.utils.execution import is_ci_enabled
+from fastapi_cloud_cli.utils.errors import ErrorCode
+from fastapi_cloud_cli.utils.execution import JsonOutputOption, is_ci_enabled
 
 logger = logging.getLogger(__name__)
+
+
+class DeployOutput(BaseModel):
+    deployment_id: str
+    app_id: str
+    slug: str
+    status: DeploymentStatus
+    dashboard_url: str
+    url: str
+
+
+def _get_deploy_output(deployment: CreateDeploymentResponse) -> DeployOutput:
+    return DeployOutput(
+        deployment_id=deployment.id,
+        app_id=deployment.app_id,
+        slug=deployment.slug,
+        status=deployment.status,
+        dashboard_url=deployment.dashboard_url,
+        url=deployment.url,
+    )
+
+
+def _get_large_file_warnings(
+    large_files: list[tuple[Path, int]],
+    *,
+    threshold_mb: int,
+) -> list[dict[str, Any]]:
+    if not large_files:
+        return []
+
+    count = len(large_files)
+    message = (
+        f"1 uploaded file is larger than {threshold_mb} MB."
+        if count == 1
+        else f"{count} uploaded files are larger than {threshold_mb} MB."
+    )
+
+    return [
+        {
+            "code": "large_files",
+            "message": message,
+            "files": [
+                {"path": path.as_posix(), "size_bytes": size}
+                for path, size in large_files
+            ],
+        }
+    ]
+
+
+def _render_app_id_mismatch(
+    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+) -> None:
+    toolkit.print(f"[error]Error: {message}[/]")
+    toolkit.print_line()
+    toolkit.print(hint, tag="tip")
+
+
+def _render_app_not_found(
+    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+) -> None:
+    toolkit.print_line()
+
+
+def _render_linked_app_not_found(
+    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+) -> None:
+    _render_app_not_found(toolkit, code=code, message=message, hint=hint)
+    toolkit.print(
+        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
+        tag="tip",
+    )
 
 
 def deploy(
@@ -51,6 +130,7 @@ def deploy(
             envvar="FASTAPI_CLOUD_LARGE_FILE_THRESHOLD",
         ),
     ] = 10,
+    json_output: JsonOutputOption = False,
 ) -> Any:
     """
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
@@ -68,7 +148,7 @@ def deploy(
         "Authentication mode: %s", "deploy token" if use_deploy_token else "user token"
     )
 
-    with get_rich_toolkit() as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not has_auth:
             logger.debug("User not logged in, prompting for login or waitlist")
 
@@ -80,6 +160,13 @@ def deploy(
                         "Run `fastapi cloud setup-ci` to configure a deploy token, "
                         "or set FASTAPI_CLOUD_TOKEN in your CI secrets."
                     ),
+                )
+
+            if json_output:
+                toolkit.fail(
+                    "not_logged_in",
+                    "No credentials found.",
+                    hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
                 )
 
             toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
@@ -129,24 +216,28 @@ def deploy(
             app_config = get_app_config(path_to_deploy)
 
             if app_config and provided_app_id and app_config.app_id != provided_app_id:
-                toolkit.print(
-                    f"[error]Error: Provided app ID ({provided_app_id}) does not match the local "
-                    f"config ({app_config.app_id}).[/]"
+                toolkit.fail(
+                    "invalid_input",
+                    f"Provided app ID ({provided_app_id}) does not match the local config ({app_config.app_id}).",
+                    hint=(
+                        "Run `fastapi cloud unlink` to remove the local config, "
+                        "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app."
+                    ),
+                    render_output=_render_app_id_mismatch,
                 )
-                toolkit.print_line()
-                toolkit.print(
-                    "Run [bold]fastapi cloud unlink[/] to remove the local config, "
-                    "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app.",
-                    tag="tip",
-                )
-
-                raise typer.Exit(1) from None
 
             if provided_app_id:
                 target_app_id = provided_app_id
             elif app_config:
                 target_app_id = app_config.app_id
             else:
+                if json_output:
+                    toolkit.fail(
+                        "missing_required_input",
+                        "App ID is required.",
+                        hint="Pass --app-id or run `fastapi cloud apps create --link` first.",
+                    )
+
                 logger.debug("No app config found, configuring new app")
 
                 app_config = _configure_app(
@@ -166,28 +257,35 @@ def deploy(
             toolkit.print_line()
 
             with toolkit.progress("Checking app...", transient=True) as progress:
-                with client.handle_http_errors(progress):
+                with client.handle_http_errors(progress, toolkit=toolkit):
                     logger.debug("Checking app with ID: %s", target_app_id)
                     app = _get_app(client=client, app_id=target_app_id)
 
-                if not app:
+                if app is None:
                     logger.debug("App not found in API")
                     progress.set_error(
                         "App not found. Make sure you're logged in the correct account."
                     )
 
-            if not app:
-                toolkit.print_line()
+            if app is None:
+                toolkit.fail(
+                    "not_found",
+                    "App not found. Make sure you're logged in the correct account.",
+                    render_output=(
+                        _render_app_not_found
+                        if provided_app_id
+                        else _render_linked_app_not_found
+                    ),
+                )
 
-                if not provided_app_id:
-                    toolkit.print(
-                        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
-                        tag="tip",
-                    )
-                raise typer.Exit(1)
+            app = cast(AppResponse, app)
 
             large_files = _get_large_files(
                 path_to_deploy, threshold_mb=large_file_threshold
+            )
+            warnings = _get_large_file_warnings(
+                large_files,
+                threshold_mb=large_file_threshold,
             )
             if large_files:
                 toolkit.print(
@@ -217,7 +315,7 @@ def deploy(
                     toolkit.progress(
                         title="Creating deployment", done_emoji="📦"
                     ) as progress,
-                    client.handle_http_errors(progress),
+                    client.handle_http_errors(progress, toolkit=toolkit),
                 ):
                     logger.debug("Creating deployment for app: %s", app.id)
                     deployment = _create_deployment(client=client, app_id=app.id)
@@ -241,7 +339,7 @@ def deploy(
 
             toolkit.print_line()
 
-            if not skip_wait:
+            if not skip_wait and not json_output:
                 logger.debug("Waiting for deployment to complete")
                 _wait_for_deployment(
                     toolkit=toolkit,
@@ -251,6 +349,17 @@ def deploy(
                 )
             else:
                 logger.debug("Skipping deployment wait as requested")
+                if json_output:
+                    toolkit.success(
+                        _get_deploy_output(deployment),
+                        warnings=warnings,
+                        hint=(
+                            "Check deployment status in the FastAPI Cloud dashboard: "
+                            f"{deployment.dashboard_url}"
+                        ),
+                    )
+                    return
+
                 toolkit.print(
                     f"Check the status of your deployment at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
                 )
