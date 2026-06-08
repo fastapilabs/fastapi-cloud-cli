@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -14,9 +15,309 @@ from fastapi_cloud_cli.commands.apps.list import (
     _get_app_dashboard_url,
 )
 from fastapi_cloud_cli.config import Settings
-from tests.utils import Keys
+from fastapi_cloud_cli.utils.apps import AppConfig
+from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
+
+
+def test_creates_app_json_returns_not_logged_in_when_logged_out(
+    logged_out_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "create",
+            "--team-id",
+            "00000000-0000-4000-8000-000000000001",
+            "--name",
+            "API",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "No credentials found.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_creates_app_as_json_without_link_by_default(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_id = "00000000-0000-4000-8000-000000000002"
+    app_data = {
+        "id": app_id,
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+    }
+    respx_mock.post(
+        "/apps/",
+        json={"team_id": team_id, "name": "API", "directory": "backend"},
+    ).mock(return_value=Response(201, json=app_data))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(
+            app,
+            [
+                "apps",
+                "create",
+                "--team-id",
+                team_id,
+                "--name",
+                "API",
+                "--directory",
+                "backend",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app": app_data,
+            "linked": False,
+        }
+    }
+    assert not (tmp_path / ".fastapicloud" / "cloud.json").exists()
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_creates_app_and_links_to_path_when_link_is_explicit(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_id = "00000000-0000-4000-8000-000000000002"
+    app_data = {
+        "id": app_id,
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+    }
+    path_to_link = tmp_path / "repo"
+    path_to_link.mkdir()
+    config_path = path_to_link / ".fastapicloud" / "cloud.json"
+    respx_mock.post(
+        "/apps/",
+        json={"team_id": team_id, "name": "API", "directory": "backend"},
+    ).mock(return_value=Response(201, json=app_data))
+
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "create",
+            "--team-id",
+            team_id,
+            "--name",
+            "API",
+            "--directory",
+            "backend",
+            "--link",
+            "--path",
+            str(path_to_link),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app": app_data,
+            "linked": True,
+        }
+    }
+    assert AppConfig.model_validate_json(config_path.read_text(encoding="utf-8")) == (
+        AppConfig(app_id=app_id, team_id=team_id)
+    )
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_creates_app_prompts_for_team_when_team_id_is_missing(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    team_data = {
+        "id": team_id,
+        "slug": "acme",
+        "name": "Acme",
+    }
+    app_data = {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": None,
+    }
+    respx_mock.get("/teams/").mock(
+        return_value=Response(200, json={"data": [team_data], "count": 1})
+    )
+    respx_mock.post(
+        "/apps/",
+        json={"team_id": team_id, "name": "API", "directory": None},
+    ).mock(return_value=Response(201, json=app_data))
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = [Keys.ENTER]
+        result = runner.invoke(app, ["apps", "create", "--name", "API", "--no-link"])
+
+    assert result.exit_code == 0
+    assert "Select the team:" in result.output
+    assert "Acme" in result.output
+    assert "Created app API" in result.output
+    assert not (tmp_path / ".fastapicloud" / "cloud.json").exists()
+
+
+@pytest.mark.respx
+def test_creates_app_prompts_for_name_and_links_by_default(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_id = "00000000-0000-4000-8000-000000000002"
+    app_data = {
+        "id": app_id,
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": None,
+    }
+    path_to_link = tmp_path / "repo"
+    path_to_link.mkdir()
+    config_path = path_to_link / ".fastapicloud" / "cloud.json"
+    respx_mock.post(
+        "/apps/",
+        json={"team_id": team_id, "name": "API", "directory": None},
+    ).mock(return_value=Response(201, json=app_data))
+
+    with patch("rich_toolkit.container.getchar") as mock_getchar:
+        mock_getchar.side_effect = [*"API", Keys.ENTER]
+        result = runner.invoke(
+            app,
+            [
+                "apps",
+                "create",
+                "--team-id",
+                team_id,
+                "--path",
+                str(path_to_link),
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert "What's your app name?" in result.output
+    assert "Created app API" in result.output
+    assert "Linked" in result.output
+    assert "to API" in result.output
+    assert AppConfig.model_validate_json(config_path.read_text(encoding="utf-8")) == (
+        AppConfig(app_id=app_id, team_id=team_id)
+    )
+
+
+@pytest.mark.parametrize(
+    ("args", "message", "hint"),
+    [
+        (
+            ["--name", "API"],
+            "Team ID is required.",
+            "Pass --team-id to choose a team.",
+        ),
+        (
+            ["--team-id", "00000000-0000-4000-8000-000000000001"],
+            "App name is required.",
+            "Pass --name to choose an app name.",
+        ),
+    ],
+)
+def test_creates_app_json_requires_team_id_and_name(
+    logged_in_cli: None,
+    args: list[str],
+    message: str,
+    hint: str,
+) -> None:
+    result = runner.invoke(app, ["apps", "create", *args, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": message,
+            "hint": hint,
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_creates_app_json_rejects_path_without_link(
+    logged_in_cli: None,
+    settings: Settings,
+    tmp_path: Path,
+) -> None:
+    team_id = "00000000-0000-4000-8000-000000000001"
+    app_data = {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "team_id": team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": None,
+    }
+    path_to_link = tmp_path / "repo"
+    path_to_link.mkdir()
+
+    with respx.mock(base_url=settings.base_api_url, assert_all_called=False) as router:
+        router.post(
+            "/apps/",
+            json={"team_id": team_id, "name": "API", "directory": None},
+        ).mock(return_value=Response(201, json=app_data))
+
+        result = runner.invoke(
+            app,
+            [
+                "apps",
+                "create",
+                "--team-id",
+                team_id,
+                "--name",
+                "API",
+                "--path",
+                str(path_to_link),
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": "Path can only be used when linking.",
+            "hint": "Pass --link or omit --path.",
+        }
+    }
+    assert not (path_to_link / ".fastapicloud" / "cloud.json").exists()
+    assert result.stderr == ""
 
 
 @pytest.mark.respx
@@ -154,15 +455,6 @@ def test_lists_apps_returns_missing_required_input_when_no_teams(
     assert result.exit_code == 1
     assert "No teams found." in result.output
     assert "Create a team before listing apps." in result.output
-
-
-def test_lists_apps_rejects_no_input_option(
-    logged_in_cli: None,
-) -> None:
-    result = runner.invoke(app, ["apps", "list", "--no-input"])
-
-    assert result.exit_code == 2
-    assert "--no-input" in result.output
 
 
 @pytest.mark.respx
