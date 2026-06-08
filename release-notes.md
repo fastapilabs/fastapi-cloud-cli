@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add support for --json to the deploy command. PR [#222](https://github.com/fastapilabs/fastapi-cloud-cli/pull/222) by [@patrick91](https://github.com/patrick91).
 * ✨ Add app create command. PR [#221](https://github.com/fastapilabs/fastapi-cloud-cli/pull/221) by [@patrick91](https://github.com/patrick91).
 * ✨ Add get app command. PR [#220](https://github.com/fastapilabs/fastapi-cloud-cli/pull/220) by [@patrick91](https://github.com/patrick91).
 * ✨ Add app list command. PR [#219](https://github.com/fastapilabs/fastapi-cloud-cli/pull/219) by [@patrick91](https://github.com/patrick91).
