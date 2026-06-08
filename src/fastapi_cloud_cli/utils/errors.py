@@ -8,6 +8,7 @@ ErrorCode = Literal[
     "missing_required_input",
     "network_error",
     "not_found",
+    "not_linked",
     "not_logged_in",
     "permission_denied",
 ]
