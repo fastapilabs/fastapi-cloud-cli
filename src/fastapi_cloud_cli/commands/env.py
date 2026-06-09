@@ -4,20 +4,23 @@ from typing import Annotated, Any
 
 import typer
 from pydantic import BaseModel
-from rich import box
 from rich.table import Table
 from rich.text import Text
+from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from fastapi_cloud_cli.utils.dates import format_last_updated
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
+from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
 
 ENV_VAR_VALUE_MAX_LENGTH = 40
+ENVIRONMENT_VARIABLES_TAG = "environment variables"
+APP_ID_REQUIRED_HINT = "Pass --app-id or run `fastapi cloud apps create --link` first."
 
 
 class EnvironmentVariable(BaseModel):
@@ -29,6 +32,11 @@ class EnvironmentVariable(BaseModel):
 
 class EnvironmentVariableResponse(BaseModel):
     data: list[EnvironmentVariable]
+
+
+class EnvironmentVariablesListOutput(BaseModel):
+    app_id: str
+    variables: list[EnvironmentVariable]
 
 
 def _get_environment_variables(
@@ -78,14 +86,12 @@ def _format_env_var_value(env_var: EnvironmentVariable) -> Text:
 def _get_environment_variables_table(
     environment_variables: list[EnvironmentVariable],
 ) -> Table:
-    table = Table(
-        box=box.SIMPLE_HEAD,
-        pad_edge=False,
-        show_edge=False,
-    )
+    table = Table.grid(padding=(0, 2), pad_edge=False)
     table.add_column("Key", no_wrap=True)
     table.add_column("Value", overflow="ellipsis", max_width=ENV_VAR_VALUE_MAX_LENGTH)
     table.add_column("Last updated", style="dim", no_wrap=True)
+    table.add_row("[bold]Key[/bold]", "[bold]Value[/bold]", "[bold]Last updated[/bold]")
+    table.add_row("", "", "")
 
     for env_var in environment_variables:
         table.add_row(
@@ -97,6 +103,38 @@ def _get_environment_variables_table(
     return table
 
 
+def _resolve_app_id(
+    toolkit: FastAPIRichToolkit, *, app_id: str | None, path: Path | None
+) -> str:
+    if app_id is not None:
+        return app_id
+
+    app_path = path or Path.cwd()
+    app_config = get_app_config(app_path)
+
+    if app_config is not None:
+        return app_config.app_id
+
+    toolkit.fail(
+        "missing_required_input",
+        "App ID is required.",
+        hint=APP_ID_REQUIRED_HINT,
+    )
+
+
+def _render_environment_variables_list_output(
+    data: EnvironmentVariablesListOutput, toolkit: RichToolkit
+) -> None:
+    toolkit.print_title(ENVIRONMENT_VARIABLES_TAG)
+    toolkit.print_line()
+
+    if not data.variables:
+        toolkit.print("No environment variables found.", bullet=False)
+        return
+
+    toolkit.print(_get_environment_variables_table(data.variables), bullet=False)
+
+
 env_app = typer.Typer()
 
 
@@ -104,13 +142,22 @@ env_app = typer.Typer()
 def list_variables(
     path: Annotated[
         Path | None,
-        typer.Argument(
+        typer.Option(
+            "--path",
             help=(
                 "Path to the directory with your app's pyproject.toml "
                 "(defaults to current directory)"
-            )
+            ),
         ),
     ] = None,
+    app_id: Annotated[
+        str | None,
+        typer.Option(
+            "--app-id",
+            help="ID of the app whose environment variables should be listed.",
+        ),
+    ] = None,
+    json_output: JsonOutputOption = False,
 ) -> Any:
     """
     List the environment variables for the app.
@@ -118,24 +165,15 @@ def list_variables(
 
     identity = Identity()
 
-    with get_rich_toolkit(minimal=True) as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not identity.is_logged_in():
-            toolkit.print(
-                "No credentials found. Use [blue]`fastapi login`[/] to login.",
-                tag="auth",
+            toolkit.fail(
+                "not_logged_in",
+                "No credentials found.",
+                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-            raise typer.Exit(1)
-
-        app_path = path or Path.cwd()
-
-        app_config = get_app_config(app_path)
-
-        if not app_config:
-            toolkit.print(
-                f"No app found in the folder [bold]{app_path}[/].",
-            )
-            raise typer.Exit(1)
+        target_app_id = _resolve_app_id(toolkit, app_id=app_id, path=path)
 
         with APIClient() as client:
             with toolkit.progress(
@@ -143,14 +181,16 @@ def list_variables(
             ) as progress:
                 with client.handle_http_errors(progress):
                     environment_variables = _get_environment_variables(
-                        client=client, app_id=app_config.app_id
+                        client=client, app_id=target_app_id
                     )
 
-        if not environment_variables.data:
-            toolkit.print("No environment variables found.")
-            return
-
-        toolkit.print(_get_environment_variables_table(environment_variables.data))
+        toolkit.success(
+            EnvironmentVariablesListOutput(
+                app_id=target_app_id,
+                variables=environment_variables.data,
+            ),
+            render_output=_render_environment_variables_list_output,
+        )
 
 
 @env_app.command()
