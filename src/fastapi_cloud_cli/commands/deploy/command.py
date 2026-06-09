@@ -6,7 +6,6 @@ from typing import Annotated, Any, cast
 import typer
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
-from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
@@ -18,8 +17,7 @@ from fastapi_cloud_cli.commands.deploy.cloud import (
 from fastapi_cloud_cli.commands.deploy.configure import _configure_app
 from fastapi_cloud_cli.commands.deploy.upload import _cancel_upload, _upload_deployment
 from fastapi_cloud_cli.commands.deploy.wait import _wait_for_deployment
-from fastapi_cloud_cli.commands.deploy.waitlist import _waitlist_form
-from fastapi_cloud_cli.commands.login import login
+from fastapi_cloud_cli.commands.login import _interactive_login
 from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
@@ -150,7 +148,7 @@ def deploy(
 
     with get_rich_toolkit(json_output=json_output) as toolkit:
         if not has_auth:
-            logger.debug("User not logged in, prompting for login or waitlist")
+            logger.debug("User not logged in, starting login")
 
             if is_ci_enabled():
                 toolkit.fail(
@@ -182,22 +180,22 @@ def deploy(
                     "You need to be logged in to deploy to FastAPI Cloud.",
                     tag="info",
                 )
-            toolkit.print_line()
 
-            choice = toolkit.ask(
-                "What would you like to do?",
+            toolkit.print_line()
+            should_login = toolkit.confirm(
+                "Do you want to log in now?",
                 tag="auth",
-                options=[
-                    Option({"name": "Login to my existing account", "value": "login"}),
-                    Option({"name": "Join the waiting list", "value": "waitlist"}),
-                ],
+                default=True,
             )
 
-            if choice == "login":
-                login()
-            else:
-                _waitlist_form(toolkit)
-                raise typer.Exit(1)
+            if not should_login:
+                toolkit.print_line()
+                toolkit.print("Deployment cancelled.")
+                raise typer.Exit(0)
+
+            toolkit.print_line()
+            _interactive_login(toolkit)
+            toolkit.print_line()
 
         if use_deploy_token:
             toolkit.print(
