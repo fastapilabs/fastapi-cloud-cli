@@ -325,6 +325,24 @@ def test_stream_build_logs_continue_after_timeout(
         assert next(logs).type == "complete"
 
 
+def test_stream_build_logs_no_follow_stops_after_timeout(
+    logs_route: respx.Route, client: APIClient, deployment_id: str
+) -> None:
+    logs_route.mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Step 1", "id": "1"},
+                {"type": "timeout"},
+            ),
+        )
+    )
+
+    logs = list(client.stream_build_logs(deployment_id, follow=False))
+
+    assert logs == [BuildLogLineMessage(message="Step 1", id="1")]
+
+
 def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
     logs_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:

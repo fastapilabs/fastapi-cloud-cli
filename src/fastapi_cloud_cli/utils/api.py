@@ -378,7 +378,7 @@ class APIClient(httpx.Client):
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
-        self, deployment_id: str
+        self, deployment_id: str, *, follow: bool = True
     ) -> Generator[BuildLogLine, None, None]:
         last_id = None
 
@@ -410,8 +410,13 @@ class APIClient(httpx.Client):
 
                         if log_line.type == "timeout":
                             logger.debug("Received timeout; reconnecting")
+                            if not follow:
+                                return
                             break  # Breaks for loop to reconnect
                 else:
+                    if not follow:
+                        return
+
                     logger.debug("Connection closed by server unexpectedly; will retry")
 
                     raise httpx.NetworkError("Connection closed without terminal state")
