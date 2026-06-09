@@ -9,6 +9,7 @@ from .commands.apps.link import link_app
 from .commands.apps.unlink import unlink_app
 from .commands.auth import auth_app
 from .commands.deploy import deploy
+from .commands.deployments import deployments_app
 from .commands.env import env_app
 from .commands.login import login
 from .commands.logout import logout
@@ -68,6 +69,7 @@ cloud_app.command()(setup_ci)
 cloud_app.add_typer(env_app, name="env")
 cloud_app.add_typer(auth_app, name="auth")
 cloud_app.add_typer(apps_app, name="apps")
+cloud_app.add_typer(deployments_app, name="deployments")
 cloud_app.add_typer(teams_app, name="teams")
 
 # fastapi [command]

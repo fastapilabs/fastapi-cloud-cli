@@ -185,6 +185,29 @@ def test_toolkit_fail_prints_json_error_and_exits() -> None:
     }
 
 
+def test_toolkit_fail_uses_red_error_tag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    with get_rich_toolkit() as toolkit:
+
+        def record_print(
+            *renderables: object,
+            end: str = "\n",
+            **metadata: object,
+        ) -> None:
+            calls.append(metadata)
+
+        monkeypatch.setattr(toolkit, "print", record_print)
+
+        with pytest.raises(typer.Exit):
+            toolkit.fail("api_error", "A value is required.")
+
+    assert calls[0]["tag"] == "error"
+    assert calls[0]["tag_style"] == "tag.error"
+
+
 def test_toolkit_fail_uses_custom_human_output_renderer_and_exits() -> None:
     test_app = typer.Typer()
 
