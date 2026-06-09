@@ -43,6 +43,10 @@ class DeploymentsListOutput(BaseModel):
     offset: int
 
 
+class DeploymentGetOutput(BaseModel):
+    deployment: Deployment
+
+
 def _get_deployments(
     client: APIClient, *, app_id: str, limit: int, offset: int
 ) -> DeploymentsListOutput:
@@ -63,6 +67,15 @@ def _get_deployments(
         limit=limit,
         offset=offset,
     )
+
+
+def _get_deployment(
+    client: APIClient, *, app_id: str, deployment_id: str
+) -> DeploymentGetOutput:
+    response = client.get(f"/apps/{app_id}/deployments/{deployment_id}")
+    response.raise_for_status()
+
+    return DeploymentGetOutput(deployment=Deployment.model_validate(response.json()))
 
 
 def _render_deployments_list_output(
@@ -90,6 +103,32 @@ def _render_deployments_list_output(
     toolkit.console.print(Padding(table, (0, 0, 0, 2)))
 
 
+def _render_deployment_get_output(
+    data: DeploymentGetOutput, toolkit: RichToolkit
+) -> None:
+    deployment = data.deployment
+
+    toolkit.print(f"[bold]{deployment.id}[/bold]", tag="deployment")
+    toolkit.print_line()
+    toolkit.print(deployment.app_id, tag="app id", tag_style="text")
+    toolkit.print(deployment.slug, tag="slug", tag_style="text")
+    toolkit.print(deployment.status.value, tag="status", tag_style="text")
+    toolkit.print(
+        deployment.url if deployment.url is not None else Text("-", style="dim"),
+        tag="url",
+        tag_style="text",
+    )
+    toolkit.print(
+        (
+            Text(deployment.dashboard_url, style=f"link {deployment.dashboard_url}")
+            if deployment.dashboard_url is not None
+            else Text("-", style="dim")
+        ),
+        tag="dashboard",
+        tag_style="text",
+    )
+
+
 def _get_app_id(app_id: str | None) -> str | None:
     if app_id is not None:
         return app_id
@@ -102,6 +141,65 @@ def _get_app_id(app_id: str | None) -> str | None:
 
 
 deployments_app = typer.Typer(no_args_is_help=True)
+
+
+@deployments_app.command("get")
+def get_deployment(
+    deployment_id: Annotated[
+        str,
+        typer.Argument(
+            help="ID of the deployment to return.",
+        ),
+    ],
+    app_id: Annotated[
+        str | None,
+        typer.Option(
+            "--app-id",
+            help="ID of the app that owns the deployment.",
+        ),
+    ] = None,
+    json_output: JsonOutputOption = False,
+) -> Any:
+    """
+    Get a FastAPI Cloud deployment by ID.
+    """
+    identity = Identity()
+
+    with get_rich_toolkit(json_output=json_output) as toolkit:
+        if not identity.is_logged_in():
+            toolkit.fail(
+                "not_logged_in",
+                "No credentials found.",
+                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            )
+
+        target_app_id = _get_app_id(app_id)
+        if target_app_id is None:
+            toolkit.fail(
+                "missing_required_input",
+                "App ID is required.",
+                hint="Pass --app-id or run `fastapi cloud apps create --link` first.",
+            )
+        assert target_app_id is not None
+
+        with APIClient() as client:
+            with toolkit.progress(
+                title="Fetching deployment",
+                transient=True,
+            ) as progress:
+                with client.handle_http_errors(
+                    progress,
+                    default_message="Error fetching deployment. Please try again later.",
+                    not_found_message="Deployment not found.",
+                    toolkit=toolkit,
+                ):
+                    result = _get_deployment(
+                        client,
+                        app_id=target_app_id,
+                        deployment_id=deployment_id,
+                    )
+
+        toolkit.success(result, render_output=_render_deployment_get_output)
 
 
 @deployments_app.command("list")
