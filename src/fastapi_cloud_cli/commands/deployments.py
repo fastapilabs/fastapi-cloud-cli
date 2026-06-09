@@ -1,18 +1,30 @@
+import json
 import logging
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from httpx import HTTPError
 from pydantic import BaseModel
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
+from fastapi_cloud_cli.utils.api import (
+    APIClient,
+    BuildLogLineMessage,
+    DeploymentStatus,
+    StreamLogError,
+    TooManyRetriesError,
+    get_http_error_code,
+    get_http_error_hint,
+    handle_http_error,
+)
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -45,6 +57,17 @@ class DeploymentsListOutput(BaseModel):
 
 class DeploymentGetOutput(BaseModel):
     deployment: Deployment
+
+
+class BuildLogOutput(BaseModel):
+    id: str | None = None
+    message: str
+
+
+class BuildLogsOutput(BaseModel):
+    deployment_id: str
+    failed: bool
+    logs: list[BuildLogOutput]
 
 
 def _get_deployments(
@@ -140,6 +163,135 @@ def _get_app_id(app_id: str | None) -> str | None:
     return app_config.app_id
 
 
+def _print_build_log_json(
+    deployment_id: str,
+    record_type: str,
+    *,
+    log_id: str | None,
+    message: str | None = None,
+) -> None:
+    record = {
+        "type": record_type,
+        "deployment_id": deployment_id,
+        "id": log_id,
+        "message": message,
+    }
+
+    typer.echo(
+        json.dumps(
+            {key: value for key, value in record.items() if value is not None},
+            separators=(",", ":"),
+        )
+    )
+
+
+def _render_build_logs_output(data: BuildLogsOutput, toolkit: RichToolkit) -> None:
+    if not data.logs:
+        toolkit.print("No build logs found.")
+        return
+
+    for log in data.logs:
+        toolkit.print(Text.from_ansi(log.message.rstrip()))
+
+    if data.failed:
+        toolkit.print("Build failed.", tag="error")
+
+
+def _stream_build_logs(
+    toolkit: FastAPIRichToolkit,
+    client: APIClient,
+    deployment_id: str,
+) -> bool:
+    failed = False
+
+    for log in client.stream_build_logs(deployment_id, follow=True):
+        if isinstance(log, BuildLogLineMessage):
+            if toolkit.mode == "json":
+                _print_build_log_json(
+                    deployment_id,
+                    "log",
+                    log_id=log.id,
+                    message=log.message,
+                )
+            else:
+                toolkit.print(Text.from_ansi(log.message.rstrip()))
+
+        elif log.type == "complete":
+            if toolkit.mode == "json":
+                _print_build_log_json(
+                    deployment_id,
+                    "complete",
+                    log_id=log.id,
+                )
+
+        elif log.type == "failed":
+            failed = True
+            if toolkit.mode == "json":
+                _print_build_log_json(
+                    deployment_id,
+                    "failed",
+                    log_id=log.id,
+                )
+            else:
+                toolkit.print("Build failed.", tag="error")
+
+    return failed
+
+
+def _fetch_build_logs(client: APIClient, deployment_id: str) -> BuildLogsOutput:
+    logs: list[BuildLogOutput] = []
+    failed = False
+
+    for log in client.stream_build_logs(deployment_id, follow=False):
+        if isinstance(log, BuildLogLineMessage):
+            logs.append(BuildLogOutput(id=log.id, message=log.message))
+
+        elif log.type == "failed":
+            failed = True
+
+    return BuildLogsOutput(deployment_id=deployment_id, failed=failed, logs=logs)
+
+
+def _handle_build_log_error(
+    toolkit: FastAPIRichToolkit,
+    error: StreamLogError,
+) -> None:
+    hint: str | None = None
+
+    if error.status_code == 404:
+        code: ErrorCode = "not_found"
+        message = "Deployment not found."
+
+    elif isinstance(error.__cause__, HTTPError):
+        code = get_http_error_code(error.__cause__)
+        message = handle_http_error(error.__cause__)
+        hint = get_http_error_hint(code)
+
+    else:
+        code = "api_error"
+        message = f"Error streaming build logs: {error}"
+
+    toolkit.fail(
+        code,
+        message,
+        hint=hint,
+        render_output=_render_build_log_error,
+    )
+
+
+def _render_build_log_error(
+    toolkit: RichToolkit,
+    *,
+    code: ErrorCode,
+    message: str,
+    hint: str,
+) -> None:
+    toolkit.print(message, tag="error", tag_style="tag.error")
+    if hint:
+        toolkit.print_line()
+        toolkit.print(hint, tag="tip")
+
+
 deployments_app = typer.Typer(no_args_is_help=True)
 
 
@@ -200,6 +352,77 @@ def get_deployment(
                     )
 
         toolkit.success(result, render_output=_render_deployment_get_output)
+
+
+@deployments_app.command("build-logs")
+def build_logs(
+    deployment_id: Annotated[
+        str,
+        typer.Argument(
+            help="ID of the deployment whose build logs should be returned.",
+        ),
+    ],
+    follow: Annotated[
+        bool,
+        typer.Option(
+            "--follow/--no-follow",
+            "-f",
+            help="Stream build logs until the build reaches a terminal state.",
+        ),
+    ] = True,
+    json_output: JsonOutputOption = False,
+) -> None:
+    """
+    Stream or fetch build logs for a FastAPI Cloud deployment.
+    """
+    identity = Identity()
+
+    with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+        if not identity.is_logged_in():
+            toolkit.fail(
+                "not_logged_in",
+                "No credentials found.",
+                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            )
+
+        if follow:
+            toolkit.print(
+                f"Streaming build logs for [bold]{deployment_id}[/bold]...",
+                tag="logs",
+            )
+        else:
+            toolkit.print(
+                f"Fetching build logs for [bold]{deployment_id}[/bold]...",
+                tag="logs",
+            )
+        toolkit.print_line()
+
+        try:
+            with APIClient() as client:
+                if follow:
+                    failed = _stream_build_logs(toolkit, client, deployment_id)
+                else:
+                    result = _fetch_build_logs(client, deployment_id)
+                    toolkit.success(result, render_output=_render_build_logs_output)
+                    failed = result.failed
+
+        except KeyboardInterrupt:  # pragma: no cover
+            toolkit.print_line()
+            return
+        except StreamLogError as e:
+            _handle_build_log_error(toolkit, e)
+
+        except (TooManyRetriesError, TimeoutError):
+            message = "Lost connection to build log stream. Please try again later."
+            toolkit.fail(
+                "network_error",
+                message,
+                hint="Please try again later.",
+                render_output=_render_build_log_error,
+            )
+
+        if failed:
+            raise typer.Exit(1)
 
 
 @deployments_app.command("list")

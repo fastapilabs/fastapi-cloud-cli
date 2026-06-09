@@ -65,6 +65,100 @@ def test_displays_logs(
 
 
 @pytest.mark.respx
+def test_apps_logs_displays_logs(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(200, content=response_content)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--no-follow"])
+
+    assert result.exit_code == 0
+    assert "Fetching logs" in result.output
+    assert configured_app.app_id in result.output
+    assert "Application startup complete" in result.output
+
+
+@pytest.mark.respx
+def test_apps_logs_no_follow_json_outputs_envelope(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    logs = [
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        },
+        {
+            "timestamp": "2025-12-05T14:32:05.456000Z",
+            "message": "GET /health 200",
+            "level": "info",
+        },
+    ]
+    response_content = "\n".join(json.dumps(log) for log in logs)
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "false"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--no-follow", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": configured_app.app_id,
+            "logs": logs,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_apps_logs_follow_json_outputs_ndjson(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    logs = [
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        },
+        {
+            "timestamp": "2025-12-05T14:32:05.456000Z",
+            "message": "GET /health 200",
+            "level": "info",
+        },
+    ]
+    response_content = "\n".join(json.dumps(log) for log in logs)
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--json"])
+
+    assert result.exit_code == 0
+    assert [json.loads(line) for line in result.stdout.splitlines()] == [
+        {"type": "log", "app_id": configured_app.app_id, **log} for log in logs
+    ]
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
 def test_passes_default_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -79,6 +173,31 @@ def test_passes_default_params(
     assert result.exit_code == 0
     assert "Streaming logs" in result.output
     assert configured_app.app_id in result.output
+
+
+@pytest.mark.respx
+def test_streams_logs_in_human_output(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs"])
+
+    assert result.exit_code == 0
+    assert "Streaming logs" in result.output
+    assert "Application startup complete" in result.output
 
 
 @pytest.mark.respx
