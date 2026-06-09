@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add build logs and json mode for logs. PR [#229](https://github.com/fastapilabs/fastapi-cloud-cli/pull/229) by [@patrick91](https://github.com/patrick91).
 * ✨ Add deployments get command. PR [#228](https://github.com/fastapilabs/fastapi-cloud-cli/pull/228) by [@patrick91](https://github.com/patrick91).
 * ✨ Add deployments list command. PR [#227](https://github.com/fastapilabs/fastapi-cloud-cli/pull/227) by [@patrick91](https://github.com/patrick91).
 * ✨ Add auth command group with json support. PR [#225](https://github.com/fastapilabs/fastapi-cloud-cli/pull/225) by [@patrick91](https://github.com/patrick91).
