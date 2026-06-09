@@ -178,7 +178,7 @@ class FastAPIRichToolkit(RichToolkit):
         elif render_output is not None:
             render_output(self, code=code, message=message, hint=hint or "")
         else:  # pragma: no cover
-            self.print(f"[error]{message}[/]")
+            self.print(f"[error]{message}[/]", tag="error", tag_style="tag.error")
 
             if hint:
                 self.print_line()
@@ -199,6 +199,7 @@ def get_rich_toolkit(
         theme={
             "tag.title": "white on #009485",
             "tag": "white on #007166",
+            "tag.error": "white on red",
             "tag.update": "black on yellow",
             "placeholder": "grey62",
             "text": "white",
