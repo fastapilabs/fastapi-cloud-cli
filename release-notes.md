@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add auth command group with json support. PR [#225](https://github.com/fastapilabs/fastapi-cloud-cli/pull/225) by [@patrick91](https://github.com/patrick91).
 * ✨ Add apps unlink command. PR [#224](https://github.com/fastapilabs/fastapi-cloud-cli/pull/224) by [@patrick91](https://github.com/patrick91).
 * ✨ Add apps link command. PR [#223](https://github.com/fastapilabs/fastapi-cloud-cli/pull/223) by [@patrick91](https://github.com/patrick91).
 * ✨ Add support for --json to the deploy command. PR [#222](https://github.com/fastapilabs/fastapi-cloud-cli/pull/222) by [@patrick91](https://github.com/patrick91).
