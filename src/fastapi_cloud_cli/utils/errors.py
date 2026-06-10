@@ -1,11 +1,18 @@
 from typing import Literal, NoReturn, Protocol
 
 ErrorCode = Literal[
+    "already_linked",
     "api_error",
+    "cancelled",
     "invalid_token",
+    "invalid_input",
+    "missing_required_input",
     "network_error",
+    "not_found",
+    "not_linked",
     "not_logged_in",
     "permission_denied",
+    "timeout",
 ]
 
 

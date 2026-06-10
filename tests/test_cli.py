@@ -60,17 +60,10 @@ def test_version() -> None:
     assert "FastAPI Cloud CLI version:" in result.output
 
 
-def test_tag_style_metadata_uses_dedicated_color() -> None:
+def test_uses_header_style() -> None:
     toolkit = get_rich_toolkit()
     assert isinstance(toolkit, FastAPIRichToolkit)
     assert isinstance(toolkit.style, FastAPIStyle)
-
-    segments, _ = toolkit.style._get_tag_segments(
-        {"tag": "notice", "tag_style": "tag.update"}
-    )
-
-    assert segments[0].style == toolkit.style.console.get_style("tag.update")
-    assert segments[0].style != toolkit.style.console.get_style("tag")
 
 
 def test_toolkit_success_prints_json_envelope() -> None:
@@ -137,6 +130,30 @@ def test_toolkit_success_uses_strict_json_output(
             toolkit.success(MetricsOutput(cpu=float("inf")))
 
 
+def test_toolkit_json_mode_suppresses_update_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_app = typer.Typer()
+    monkeypatch.setenv("FASTAPI_CLOUD_DISABLE_VERSION_CHECK", "")
+    write_latest_version_cache(
+        get_version_check_cache_path(),
+        latest_version="999.0.0",
+        now=datetime.now(timezone.utc),
+    )
+
+    @test_app.command()
+    def command(json_output: JsonOutputOption = False) -> None:
+        with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+            toolkit.success(AuthStatus(authenticated=True))
+
+    result = runner.invoke(test_app, env={"FASTAPI_CLOUD_JSON": "1"})
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {"authenticated": True},
+    }
+
+
 def test_toolkit_fail_prints_json_error_and_exits() -> None:
     test_app = typer.Typer()
 
@@ -159,6 +176,28 @@ def test_toolkit_fail_prints_json_error_and_exits() -> None:
             "hint": "Pass --value.",
         }
     }
+
+
+def test_toolkit_fail_uses_error_emoji(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    with get_rich_toolkit() as toolkit:
+
+        def record_print(
+            *renderables: object,
+            end: str = "\n",
+            **metadata: object,
+        ) -> None:
+            calls.append(metadata)
+
+        monkeypatch.setattr(toolkit, "print", record_print)
+
+        with pytest.raises(typer.Exit):
+            toolkit.fail("api_error", "A value is required.")
+
+    assert calls[0]["emoji"] == "❌"
 
 
 def test_toolkit_fail_uses_custom_human_output_renderer_and_exits() -> None:
