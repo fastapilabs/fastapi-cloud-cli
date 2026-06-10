@@ -30,6 +30,19 @@ def _get_environment_variables(
     return EnvironmentVariableResponse.model_validate(response.json())
 
 
+def _find_environment_variable(
+    environment_variables: list[EnvironmentVariable], name: str
+) -> EnvironmentVariable | None:
+    return next(
+        (
+            environment_variable
+            for environment_variable in environment_variables
+            if environment_variable.name == name
+        ),
+        None,
+    )
+
+
 def _format_env_var_value(env_var: EnvironmentVariable) -> Text:
     if env_var.value is None:
         placeholder = "[secret]" if env_var.is_secret else "-"
