@@ -3,11 +3,20 @@ from typing import Annotated, Any
 
 import typer
 
-from fastapi_cloud_cli.commands.env._shared import _set_environment_variable
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+
+
+def _set_environment_variable(
+    client: APIClient, app_id: str, name: str, value: str, is_secret: bool = False
+) -> None:
+    response = client.post(
+        f"/apps/{app_id}/environment-variables/",
+        json={"name": name, "value": value, "is_secret": is_secret},
+    )
+    response.raise_for_status()
 
 
 def set(

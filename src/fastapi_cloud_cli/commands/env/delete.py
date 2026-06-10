@@ -3,15 +3,23 @@ from typing import Annotated, Any
 
 import typer
 
-from fastapi_cloud_cli.commands.env._shared import (
-    _delete_environment_variable,
-    _get_environment_variables,
-)
+from fastapi_cloud_cli.commands.env._shared import _get_environment_variables
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
+
+
+def _delete_environment_variable(client: APIClient, app_id: str, name: str) -> bool:
+    response = client.delete(f"/apps/{app_id}/environment-variables/{name}")
+
+    if response.status_code == 404:
+        return False
+
+    response.raise_for_status()
+
+    return True
 
 
 def delete(
