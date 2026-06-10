@@ -8,6 +8,7 @@ from .utils.config import get_cli_config_path
 
 class Settings(BaseModel):
     base_api_url: str = "https://api.fastapicloud.com/api/v1"
+    dashboard_base_url: str = "https://dashboard.fastapicloud.com"
     client_id: str = "fastapi-cli"
 
     @classmethod

@@ -20,6 +20,7 @@ from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.errors import ErrorCode, ErrorToolkit
 
 from .auth import AuthMode, Identity, delete_auth_config
 
@@ -209,9 +210,26 @@ def _handle_unauthorized(auth_mode: AuthMode) -> str:
     return message
 
 
+def _get_response_error_message(response: httpx.Response) -> str | None:
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, httpx.ResponseNotRead):
+        return None
+
+    if not isinstance(data, dict):
+        return None  # pragma: no cover
+
+    detail = data.get("detail")
+    if not isinstance(detail, str):
+        return None  # pragma: no cover
+
+    return detail
+
+
 def handle_http_error(
     error: httpx.HTTPError,
     default_message: str | None = None,
+    not_found_message: str | None = None,
     auth_mode: AuthMode = "user",
 ) -> str:
     message: str | None = None
@@ -227,7 +245,17 @@ def handle_http_error(
             message = _handle_unauthorized(auth_mode=auth_mode)
 
         elif status_code == 403:
-            message = "You don't have permissions for this resource"
+            message = (
+                _get_response_error_message(error.response)
+                or "You don't have permissions for this resource"
+            )
+
+        elif status_code == 404:
+            message = (
+                _get_response_error_message(error.response)
+                or not_found_message
+                or "Resource not found."
+            )
 
     if not message:
         message = (
@@ -236,6 +264,35 @@ def handle_http_error(
         )
 
     return message
+
+
+def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
+    if isinstance(error, httpx.TimeoutException | httpx.NetworkError):
+        return "network_error"
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+
+        if status_code == 401:
+            return "invalid_token"
+
+        if status_code == 403:
+            return "permission_denied"
+
+        if status_code == 404:
+            return "not_found"
+
+    return "api_error"
+
+
+def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str | None:
+    if code == "invalid_token":
+        if auth_mode == "user":
+            return "Run `fastapi cloud login` to generate a new token."
+
+        return "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
+
+    return None
 
 
 class APIClient(httpx.Client):
@@ -268,30 +325,60 @@ class APIClient(httpx.Client):
         self,
         progress: Progress,
         default_message: str | None = None,
+        *,
+        not_found_message: str | None = None,
+        toolkit: ErrorToolkit | None = None,
     ) -> Generator[None, None, None]:
+        # TODO: Once every command supports JSON output, require toolkit here
+        # and let it be the single human/JSON error rendering boundary.
+
+        mode = toolkit.mode if toolkit else "human"
+
         try:
             yield
         except httpx.ReadTimeout as e:
             logger.debug(e)
 
-            progress.set_error(
+            message = (
                 "The request to the FastAPI Cloud server timed out."
                 " Please try again later."
             )
 
-            raise typer.Exit(1) from None
+            if mode == "json" and toolkit:
+                toolkit.fail(
+                    "network_error",
+                    message,
+                    hint="Please try again later.",
+                )
+
+            progress.set_error(message)
+
+            raise typer.Exit(1) from None  # pragma: no cover
         except httpx.HTTPError as e:
             logger.debug(e)
 
-            message = handle_http_error(e, default_message, auth_mode=self.auth_mode)
+            message = handle_http_error(
+                e,
+                default_message,
+                not_found_message=not_found_message,
+                auth_mode=self.auth_mode,
+            )
+            code = get_http_error_code(e)
 
-            progress.set_error(message)
+            if mode == "json" and toolkit:
+                toolkit.fail(
+                    code,
+                    message,
+                    hint=get_http_error_hint(code, auth_mode=self.auth_mode),
+                )
+            else:
+                progress.set_error(message)
 
             raise typer.Exit(1) from None
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
-        self, deployment_id: str
+        self, deployment_id: str, *, follow: bool = True
     ) -> Generator[BuildLogLine, None, None]:
         last_id = None
 
@@ -323,8 +410,13 @@ class APIClient(httpx.Client):
 
                         if log_line.type == "timeout":
                             logger.debug("Received timeout; reconnecting")
+                            if not follow:
+                                return
                             break  # Breaks for loop to reconnect
                 else:
+                    if not follow:
+                        return
+
                     logger.debug("Connection closed by server unexpectedly; will retry")
 
                     raise httpx.NetworkError("Connection closed without terminal state")

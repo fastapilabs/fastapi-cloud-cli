@@ -14,6 +14,8 @@ from fastapi_cloud_cli.utils.api import (
     DeploymentStatus,
     StreamLogError,
     TooManyRetriesError,
+    get_http_error_code,
+    get_http_error_hint,
 )
 from tests.utils import build_logs_response
 
@@ -61,6 +63,18 @@ def test_stream_build_logs_successful(
     assert logs[1].message == "Done!"  # ty: ignore[unresolved-attribute]
 
     assert logs[2].type == "complete"
+
+
+def test_get_http_error_code_returns_network_error() -> None:
+    assert (
+        get_http_error_code(httpx.NetworkError("Connection failed")) == "network_error"
+    )
+
+
+def test_get_http_error_hint_for_invalid_deploy_token() -> None:
+    assert get_http_error_hint("invalid_token", auth_mode="token") == (
+        "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
+    )
 
 
 def test_stream_build_logs_failed(
@@ -309,6 +323,24 @@ def test_stream_build_logs_continue_after_timeout(
         assert next(logs) == BuildLogLineMessage(message="message 3", id="3")
         assert next(logs) == BuildLogLineMessage(message="message 4", id="4")
         assert next(logs).type == "complete"
+
+
+def test_stream_build_logs_no_follow_stops_after_timeout(
+    logs_route: respx.Route, client: APIClient, deployment_id: str
+) -> None:
+    logs_route.mock(
+        return_value=Response(
+            200,
+            content=build_logs_response(
+                {"type": "message", "message": "Step 1", "id": "1"},
+                {"type": "timeout"},
+            ),
+        )
+    )
+
+    logs = list(client.stream_build_logs(deployment_id, follow=False))
+
+    assert logs == [BuildLogLineMessage(message="Step 1", id="1")]
 
 
 def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(

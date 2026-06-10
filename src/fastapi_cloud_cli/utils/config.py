@@ -25,3 +25,7 @@ def get_cli_config_path() -> Path:
     cli_config_path.parent.mkdir(parents=True, exist_ok=True)
 
     return cli_config_path
+
+
+def get_version_check_cache_path() -> Path:
+    return get_config_folder() / "version-check.json"

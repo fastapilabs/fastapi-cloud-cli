@@ -1,60 +1,370 @@
 import logging
-from typing import Any, Literal
+import os
+from collections.abc import Callable, Iterable
+from types import TracebackType
+from typing import Any, Literal, NoReturn, Protocol, TypeVar, cast
 
+import typer
+from pydantic import BaseModel
+from rich._loop import loop_first_last
+from rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
+from rich.padding import Padding
 from rich.segment import Segment
+from rich.table import Table
+from rich.text import Text
 from rich_toolkit import RichToolkit, RichToolkitTheme
-from rich_toolkit.styles import MinimalStyle, TaggedStyle
+from rich_toolkit.container import Container
+from rich_toolkit.element import CursorOffset, Element
+from rich_toolkit.input import Input
+from rich_toolkit.progress import Progress
+from rich_toolkit.styles import BaseStyle, MinimalStyle
+
+from fastapi_cloud_cli.utils.errors import ErrorCode
+from fastapi_cloud_cli.utils.version_check import (
+    DISABLE_VERSION_CHECK_ENV,
+    BackgroundVersionCheck,
+)
 
 logger = logging.getLogger(__name__)
 
+OutputT = TypeVar("OutputT", bound=BaseModel)
+OutputRenderer = Callable[[OutputT, RichToolkit], None]
 
-class FastAPIStyle(TaggedStyle):
-    def __init__(self, tag_width: int = 11):
-        super().__init__(tag_width=tag_width)
 
-    def _get_tag_segments(
+class ErrorRenderer(Protocol):
+    def __call__(
         self,
-        metadata: dict[str, Any],
-        is_animated: bool = False,
+        toolkit: RichToolkit,
+        *,
+        code: ErrorCode,
+        message: str,
+        hint: str,
+    ) -> None: ...
+
+
+def _strip_rich_markup(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    return Text.from_markup(value).plain
+
+
+class IndentedBlock:
+    """Indent a renderable, hanging a prefix (e.g. an emoji bullet) on the
+    first line.
+
+    Blank lines stay truly empty: live renders (inputs, menus) don't end
+    with a newline, so any padding on a final blank line would leave the
+    terminal cursor mid-line and shift whatever gets printed next.
+    """
+
+    def __init__(
+        self,
+        renderable: RenderableType,
+        *,
+        first_prefix: Text,
+        prefix: Text,
+    ) -> None:
+        self.renderable = renderable
+        self.first_prefix = first_prefix
+        self.prefix = prefix
+
+        # Text renders its `end` ("\n" by default), which would break lines
+        self.first_prefix.end = ""
+        self.prefix.end = ""
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        prefix_width = max(self.first_prefix.cell_len, self.prefix.cell_len)
+        lines = console.render_lines(
+            self.renderable,
+            options.update_width(options.max_width - prefix_width),
+            pad=False,
+        )
+
+        new_line = Segment.line()
+
+        for first, last, line in loop_first_last(lines):
+            if any(segment.text.strip() for segment in line):
+                yield from console.render(
+                    self.first_prefix if first else self.prefix, options
+                )
+                yield from line
+            elif last:
+                # a zero-width space stops live renders from stripping the
+                # final blank line, keeping the cursor at column 0
+                yield Segment("​")
+
+            yield new_line
+
+
+class FastAPIStyle(BaseStyle):
+    """Header chip + uniform indent, without the per-line tag gutter.
+
+    Titles render as a single chip at the top of the command's output and
+    everything else gets a fixed left indent, so renderables don't need to
+    be wrapped in `Padding` manually. Emojis (`emoji=` metadata, or the
+    progress animation/done emoji) hang to the left of the text like list
+    bullets.
+    """
+
+    content_padding = 1
+    emoji_column_width = 3
+
+    animation_emojis = [
+        "🥚",
+        "🐣",
+        "🐤",
+        "🐥",
+        "🐓",
+        "🐔",
+    ]
+
+    def render_element(
+        self,
+        element: Any,
+        is_active: bool = False,
         done: bool = False,
-        animation_status: Literal["started", "stopped", "error"] | None = None,
-    ) -> tuple[list[Segment], int]:
-        if not is_animated:
-            return super()._get_tag_segments(
-                metadata, is_animated, done, animation_status=animation_status
-            )
+        parent: Element | None = None,
+        **kwargs: Any,
+    ) -> RenderableType:
+        rendered = super().render_element(
+            element=element, is_active=is_active, done=done, parent=parent, **kwargs
+        )
 
-        emojis = [
-            "🥚",
-            "🐣",
-            "🐤",
-            "🐥",
-            "🐓",
-            "🐔",
-        ]
+        # progress log lines and container children are already part of
+        # their parent's render, which gets indented as a whole
+        if isinstance(parent, (Progress, Container)):
+            return rendered
 
-        tag = emojis[self.animation_counter % len(emojis)]
+        metadata = kwargs
+        if isinstance(element, Element) and element.metadata:
+            metadata = {**element.metadata, **metadata}
+
+        # Input.ask wraps the element in a metadata-less Container; pull the
+        # child's metadata so flags like bullet= still apply
+        if isinstance(element, Container) and element.elements:
+            child = element.elements[0]
+            if isinstance(child, Element) and child.metadata:
+                metadata = {**child.metadata, **metadata}
+
+        if metadata.get("title", False):
+            return self._render_title(element, metadata)
+
+        if isinstance(element, Progress):
+            emoji = self._get_progress_status_emoji(element, done)
+        else:
+            emoji = metadata.get("emoji", "")
+
+        if not emoji and not metadata.get("bullet", True):
+            # skip the bullet column and align with the title chip's text
+            indent = Text(" " * (self.title_padding + 1))
+            return IndentedBlock(rendered, first_prefix=indent, prefix=indent)
+
+        return self._render_with_emoji_bullet(rendered, emoji)
+
+    @property
+    def title_padding(self) -> int:
+        # align the chip with the emoji bullet column
+        return self.content_padding
+
+    def _render_title(self, title: Any, metadata: dict[str, Any]) -> RenderableType:
+        tag = metadata.get("tag", "")
+
+        chip = Padding(
+            Text(f" {tag or title} ", style="tag.title"),
+            (0, 0, 0, self.title_padding),
+            expand=False,
+        )
+
+        if not (tag and title):
+            return chip
+
+        title_text = self._render_with_emoji_bullet(
+            Text.from_markup(f"[bold]{title}[/bold]"),
+            metadata.get("emoji", ""),
+        )
+
+        return Group(chip, "", title_text)
+
+    def _get_progress_status_emoji(self, element: Progress, done: bool) -> str:
+        if element._cancelled or element.is_error:
+            return "🟡"
 
         if done:
-            tag = metadata.get("done_emoji", emojis[-1])
+            return cast(str, element.metadata.get("done_emoji", "🐔"))
 
-        if animation_status == "error":
-            tag = "🟡"
+        return self.animation_emojis[
+            self.animation_counter % len(self.animation_emojis)
+        ]
 
-        left_padding = self.tag_width - 1
-        left_padding = max(0, left_padding)
+    def _render_with_emoji_bullet(
+        self, rendered: RenderableType, emoji: str
+    ) -> RenderableType:
+        return IndentedBlock(
+            rendered,
+            first_prefix=self._get_bullet_prefix(emoji),
+            prefix=Text(" " * (self.content_padding + self.emoji_column_width)),
+        )
 
-        return [Segment(tag)], left_padding
+    def _get_bullet_prefix(self, emoji: str) -> Text:
+        prefix = Text(" " * self.content_padding)
+
+        if emoji:
+            prefix.append_text(Text.from_markup(emoji))
+
+        prefix.pad_right(
+            self.content_padding + self.emoji_column_width - prefix.cell_len
+        )
+
+        return prefix
+
+    def get_cursor_offset_for_element(
+        self, element: Element, parent: Element | None = None
+    ) -> CursorOffset:
+        has_bullet_column = bool(element.metadata.get("emoji")) or element.metadata.get(
+            "bullet", True
+        )
+
+        decoration_width = (
+            self.content_padding + self.emoji_column_width
+            if has_bullet_column
+            else self.title_padding + 1
+        )
+
+        offset = element.cursor_offset
+        top = offset.top
+        left = decoration_width + offset.left
+
+        if isinstance(element, Input) and not element.inline and element.label:
+            label_lines = self._count_label_lines(
+                element.label, decoration_width=decoration_width
+            )
+            top = label_lines + 1
+
+        return CursorOffset(top=top, left=left)
 
 
-def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
-    style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
+class FastAPIRichToolkit(RichToolkit):
+    mode: Literal["human", "json"]
+
+    def __init__(
+        self,
+        style: BaseStyle | None = None,
+        theme: RichToolkitTheme | None = None,
+        mode: Literal["human", "json"] = "human",
+    ) -> None:
+        super().__init__(style=style, theme=theme, mode=mode)
+        self._version_check = self._get_version_check()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        self._print_update_message()
+
+        return super().__exit__(
+            exc_type,
+            exc_value,
+            traceback,
+        )
+
+    def _get_version_check(self) -> BackgroundVersionCheck | None:
+        if os.environ.get(DISABLE_VERSION_CHECK_ENV) == "1":
+            return None
+
+        version_check = BackgroundVersionCheck()
+        version_check.start()
+
+        return version_check
+
+    def _print_update_message(self) -> None:
+        if self._version_check is None:
+            return
+
+        if message := self._version_check.get_update_message():
+            self.print_line()
+            self.print(Text.from_markup(message), emoji="⬆️")
+
+    def success(
+        self,
+        data: OutputT,
+        *,
+        warnings: list[dict[str, Any]] | None = None,
+        hint: str | None = None,
+        render_output: OutputRenderer[OutputT] | None = None,
+    ) -> None:
+        if self.mode != "json":
+            self.output(data, render_output=render_output)
+            return
+
+        output: dict[str, Any] = {"data": data}
+
+        if warnings:
+            output["warnings"] = warnings
+
+        if hint is not None:
+            output["hint"] = hint
+
+        self.output(output)
+
+    def fail(
+        self,
+        code: ErrorCode,
+        message: str,
+        *,
+        render_output: ErrorRenderer | None = None,
+        hint: str | None = None,
+        exit_code: int = 1,
+    ) -> NoReturn:
+        if self.mode == "json":
+            self.output(
+                {
+                    "error": {
+                        "code": code,
+                        "message": _strip_rich_markup(message),
+                        "hint": _strip_rich_markup(hint),
+                    }
+                }
+            )
+        elif render_output is not None:
+            render_output(self, code=code, message=message, hint=hint or "")
+        else:  # pragma: no cover
+            self.print(f"[error]Error: {message}[/]", emoji="❌")
+
+            if hint:
+                self.print_line()
+                self.print(hint, emoji="💡")
+
+        raise typer.Exit(exit_code)
+
+
+def get_details_table(rows: Iterable[tuple[str, RenderableType]]) -> Table:
+    """Build a label/value grid for `get` views (labels dimmed)."""
+    table = Table.grid(padding=(0, 2), pad_edge=False)
+    table.add_column(style="dim", no_wrap=True)
+    table.add_column(overflow="fold")
+
+    for label, value in rows:
+        table.add_row(label, value)
+
+    return table
+
+
+def get_rich_toolkit(
+    minimal: bool = False,
+    *,
+    json_output: bool | None = None,
+) -> FastAPIRichToolkit:
+    style: BaseStyle = MinimalStyle() if minimal else FastAPIStyle()
 
     theme = RichToolkitTheme(
         style=style,
         theme={
             "tag.title": "white on #009485",
-            "tag": "white on #007166",
             "placeholder": "grey62",
             "text": "white",
             "selected": "#007166",
@@ -65,4 +375,6 @@ def get_rich_toolkit(minimal: bool = False) -> RichToolkit:
         },
     )
 
-    return RichToolkit(theme=theme)
+    mode: Literal["human", "json"] = "json" if json_output else "human"
+
+    return FastAPIRichToolkit(theme=theme, mode=mode)
