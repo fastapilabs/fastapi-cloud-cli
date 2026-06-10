@@ -28,6 +28,7 @@
 
 ### Refactors
 
+* ♻️ Resolve app ID consistently across commands. PR [#236](https://github.com/fastapilabs/fastapi-cloud-cli/pull/236) by [@patrick91](https://github.com/patrick91).
 * ♻️ Split env command into package. PR [#232](https://github.com/fastapilabs/fastapi-cloud-cli/pull/232) by [@patrick91](https://github.com/patrick91).
 * 💄 Update CLI styles. PR [#230](https://github.com/fastapilabs/fastapi-cloud-cli/pull/230) by [@patrick91](https://github.com/patrick91).
 * 🔥 Remove waitlist prompt. PR [#226](https://github.com/fastapilabs/fastapi-cloud-cli/pull/226) by [@patrick91](https://github.com/patrick91).
