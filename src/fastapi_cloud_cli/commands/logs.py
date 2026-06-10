@@ -20,7 +20,7 @@ from fastapi_cloud_cli.utils.api import (
     get_http_error_hint,
     handle_http_error,
 )
-from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from fastapi_cloud_cli.utils.errors import ErrorCode
@@ -140,7 +140,7 @@ def _handle_stream_log_error(
 
 def _process_log_stream(
     toolkit: FastAPIRichToolkit,
-    app_config: AppConfig,
+    app_id: str,
     tail: int,
     since: str,
     follow: bool,
@@ -151,14 +151,14 @@ def _process_log_stream(
     try:
         with APIClient() as client:
             for log in client.stream_app_logs(
-                app_id=app_config.app_id,
+                app_id=app_id,
                 tail=tail,
                 since=since,
                 follow=follow,
             ):
                 if follow:
                     if toolkit.mode == "json":
-                        _print_app_log_json(app_config.app_id, log)
+                        _print_app_log_json(app_id, log)
                     else:
                         _print_log_line(toolkit, log)
                     continue
@@ -167,7 +167,7 @@ def _process_log_stream(
 
             if not follow:
                 toolkit.success(
-                    AppLogsOutput(app_id=app_config.app_id, logs=logs),
+                    AppLogsOutput(app_id=app_id, logs=logs),
                     render_output=_render_app_logs_output,
                 )
             return
@@ -195,6 +195,13 @@ def logs(
                 "Path to the directory with your app's pyproject.toml "
                 "(defaults to current directory)"
             )
+        ),
+    ] = None,
+    app_id: Annotated[
+        str | None,
+        typer.Option(
+            "--app-id",
+            help="ID of the app whose logs should be fetched.",
         ),
     ] = None,
     tail: int = typer.Option(
@@ -236,34 +243,30 @@ def logs(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        app_path = path or Path.cwd()
-        app_config = get_app_config(app_path)
+        target_app_id = resolve_app_id_or_fail(
+            toolkit,
+            app_id=app_id,
+            path=path,
+            hint="Pass --app-id or run `fastapi cloud link` to link an app.",
+        )
 
-        if not app_config:
-            toolkit.fail(
-                "missing_required_input",
-                "No app linked to this directory.",
-                hint="Run `fastapi cloud link` to link an app.",
-            )
-        assert app_config is not None
-
-        logger.debug("Fetching logs for app ID: %s", app_config.app_id)
+        logger.debug("Fetching logs for app ID: %s", target_app_id)
 
         if follow:
             toolkit.print(
-                f"Streaming logs for [bold]{app_config.app_id}[/bold] (Ctrl+C to exit)...",
+                f"Streaming logs for [bold]{target_app_id}[/bold] (Ctrl+C to exit)...",
                 emoji="📡",
             )
         else:
             toolkit.print(
-                f"Fetching logs for [bold]{app_config.app_id}[/bold]...",
+                f"Fetching logs for [bold]{target_app_id}[/bold]...",
                 emoji="📜",
             )
         toolkit.print_line()
 
         _process_log_stream(
             toolkit=toolkit,
-            app_config=app_config,
+            app_id=target_app_id,
             tail=tail,
             since=since,
             follow=follow,

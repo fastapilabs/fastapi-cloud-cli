@@ -1,7 +1,11 @@
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 
 logger = logging.getLogger("fastapi_cli")
 
@@ -21,6 +25,38 @@ def get_app_config(path_to_deploy: Path) -> AppConfig | None:
 
     logger.debug("App config loaded successfully")
     return AppConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
+
+
+def resolve_app_id(
+    *, app_id: str | None = None, path: Path | None = None
+) -> str | None:
+    if app_id is not None:
+        return app_id
+
+    app_config = get_app_config(path or Path.cwd())
+    if app_config is None:
+        return None
+
+    return app_config.app_id
+
+
+def resolve_app_id_or_fail(
+    toolkit: "FastAPIRichToolkit",
+    *,
+    app_id: str | None = None,
+    path: Path | None = None,
+    hint: str = "Pass --app-id or run `fastapi cloud apps create --link` first.",
+) -> str:
+    target_app_id = resolve_app_id(app_id=app_id, path=path)
+
+    if target_app_id is None:
+        toolkit.fail(
+            "missing_required_input",
+            "App ID is required.",
+            hint=hint,
+        )
+
+    return target_app_id
 
 
 README = """

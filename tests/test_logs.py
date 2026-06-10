@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
@@ -25,7 +26,7 @@ def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
     result = runner.invoke(app, ["logs"])
 
     assert result.exit_code == 1
-    assert "No app linked to this directory" in result.output
+    assert "App ID is required." in result.output
 
 
 @pytest.mark.respx
@@ -62,6 +63,32 @@ def test_displays_logs(
     assert configured_app.app_id in result.output
     assert "Application startup complete" in result.output
     assert "GET /health 200" in result.output
+
+
+@pytest.mark.respx
+def test_displays_logs_with_explicit_app_id(
+    logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
+) -> None:
+    app_id = "explicit-app"
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(url__regex=rf"/apps/{app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(200, content=response_content)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["logs", "--no-follow", "--app-id", app_id])
+
+    assert result.exit_code == 0
+    assert "Fetching logs" in result.output
+    assert app_id in result.output
+    assert "Application startup complete" in result.output
 
 
 @pytest.mark.respx
