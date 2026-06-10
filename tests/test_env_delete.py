@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,6 +13,10 @@ from tests.utils import Keys, changing_dir
 runner = CliRunner()
 
 assets_path = Path(__file__).parent / "assets"
+
+
+def _has_environment_variables_title(output: str) -> bool:
+    return any(line.strip() == "environment variables" for line in output.splitlines())
 
 
 @pytest.fixture
@@ -38,7 +43,23 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
     result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 1
-    assert "No app found" in result.output
+    assert "App ID is required." in result.output
+
+
+def test_delete_json_returns_missing_required_input_without_app_context(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(app, ["env", "delete", "DATABASE_URL", "--yes", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "App ID is required.",
+            "hint": "Pass --app-id or run `fastapi cloud apps create --link` first.",
+        }
+    }
+    assert result.stderr == ""
 
 
 @pytest.mark.respx
@@ -50,7 +71,7 @@ def test_shows_a_message_if_something_is_wrong(
     )
 
     with changing_dir(configured_app):
-        result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
+        result = runner.invoke(app, ["env", "delete", "SOME_VAR", "--yes"])
 
     assert result.exit_code == 1
     assert (
@@ -68,7 +89,7 @@ def test_shows_message_if_not_found(
     )
 
     with changing_dir(configured_app):
-        result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
+        result = runner.invoke(app, ["env", "delete", "SOME_VAR", "--yes"])
 
     assert result.exit_code == 1
     assert "Environment variable not found" in result.output
@@ -92,11 +113,82 @@ def test_shows_message_when_it_deletes(
         return_value=Response(204)
     )
 
-    with changing_dir(configured_app):
+    with (
+        changing_dir(configured_app),
+        patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]),
+    ):
         result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
 
     assert result.exit_code == 0
+    assert "Delete SOME_VAR?" in result.output
+    assert _has_environment_variables_title(result.output)
     assert "Environment variable SOME_VAR deleted" in result.output
+
+
+@pytest.mark.respx
+def test_deletes_environment_variable_as_json_with_app_id(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.delete(f"/apps/{app_id}/environment-variables/DATABASE_URL").mock(
+        return_value=Response(204)
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "delete",
+            "DATABASE_URL",
+            "--app-id",
+            app_id,
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "name": "DATABASE_URL",
+            "deleted": True,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_delete_environment_variable_json_returns_not_found(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.delete(f"/apps/{app_id}/environment-variables/DATABASE_URL").mock(
+        return_value=Response(404)
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "delete",
+            "DATABASE_URL",
+            "--app-id",
+            app_id,
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": "Environment variable DATABASE_URL not found.",
+            "hint": "Run `fastapi cloud env list` to see available variables.",
+        }
+    }
+    assert result.stderr == ""
 
 
 @pytest.mark.respx
@@ -127,6 +219,13 @@ def test_shows_selector_for_environment_variables(
         result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 0
+    assert _has_environment_variables_title(result.output)
+    selector_line = next(
+        line
+        for line in result.output.splitlines()
+        if line.strip() == "Select the environment variable to delete:"
+    )
+    assert selector_line.startswith("  Select the environment variable to delete:")
     assert "Select the environment variable to delete" in result.output
 
     assert "Environment variable SECRET_KEY deleted" in result.output
@@ -144,4 +243,67 @@ def test_shows_message_if_no_environment_variable(
         result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 0
+    assert _has_environment_variables_title(result.output)
     assert "No environment variables found." in result.output
+
+
+def test_delete_json_returns_missing_required_input_without_name(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        ["env", "delete", "--app-id", "00000000-0000-4000-8000-000000000002", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Environment variable name is required.",
+            "hint": "Pass NAME to choose an environment variable.",
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_delete_json_returns_missing_required_input_without_confirmation(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "delete",
+            "DATABASE_URL",
+            "--app-id",
+            "00000000-0000-4000-8000-000000000002",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Deletion confirmation is required.",
+            "hint": "Pass --yes to confirm deletion.",
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_shows_message_when_deletion_is_cancelled(
+    logged_in_cli: None, configured_app: Path
+) -> None:
+    with (
+        changing_dir(configured_app),
+        patch(
+            "rich_toolkit.container.getchar",
+            side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+        ),
+    ):
+        result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
+
+    assert result.exit_code == 0
+    assert "Delete SOME_VAR?" in result.output
+    assert "Deletion cancelled." in result.output
