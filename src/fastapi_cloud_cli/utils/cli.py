@@ -2,14 +2,21 @@ import logging
 import os
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Literal, NoReturn, Protocol, TypeVar
+from typing import Any, Literal, NoReturn, Protocol, TypeVar, cast
 
 import typer
 from pydantic import BaseModel
+from rich.console import Group, RenderableType
+from rich.padding import Padding
 from rich.segment import Segment
 from rich.style import Style
+from rich.table import Column, Table
 from rich.text import Text
 from rich_toolkit import RichToolkit, RichToolkitTheme
+from rich_toolkit.container import Container
+from rich_toolkit.element import CursorOffset, Element
+from rich_toolkit.input import Input
+from rich_toolkit.progress import Progress
 from rich_toolkit.styles import BaseStyle, MinimalStyle, TaggedStyle
 
 from fastapi_cloud_cli.utils.errors import ErrorCode
@@ -89,6 +96,165 @@ class FastAPIStyle(TaggedStyle):
         left_padding = max(0, left_padding)
 
         return [Segment(tag)], left_padding
+
+
+class FastAPIHeaderStyle(BaseStyle):
+    """Header chip + uniform indent, without the per-line tag gutter.
+
+    Titles render as a single chip at the top of the command's output and
+    everything else gets a fixed left indent, so renderables don't need to
+    be wrapped in `Padding` manually. Emojis (`emoji=` metadata, or the
+    progress animation/done emoji) hang to the left of the text like list
+    bullets, and tags render as inline chips before the content (e.g. tips
+    and warnings).
+    """
+
+    content_padding = 1
+    emoji_column_width = 3
+
+    animation_emojis = [
+        "🥚",
+        "🐣",
+        "🐤",
+        "🐥",
+        "🐓",
+        "🐔",
+    ]
+
+    def render_element(
+        self,
+        element: Any,
+        is_active: bool = False,
+        done: bool = False,
+        parent: Element | None = None,
+        **kwargs: Any,
+    ) -> RenderableType:
+        rendered = super().render_element(
+            element=element, is_active=is_active, done=done, parent=parent, **kwargs
+        )
+
+        # progress log lines and container children are already part of
+        # their parent's render, which gets indented as a whole
+        if isinstance(parent, (Progress, Container)):
+            return rendered
+
+        metadata = kwargs
+        if isinstance(element, Element) and element.metadata:
+            metadata = {**element.metadata, **metadata}
+
+        if metadata.get("title", False):
+            return self._render_title(element, metadata)
+
+        if isinstance(element, Progress):
+            emoji = self._get_progress_status_emoji(element, done)
+        else:
+            emoji = metadata.get("emoji", "")
+            rendered = self._render_with_inline_tag(rendered, metadata)
+
+        return Padding(
+            self._render_with_emoji_bullet(rendered, emoji),
+            (0, 0, 0, self.content_padding),
+            expand=False,
+        )
+
+    @property
+    def title_padding(self) -> int:
+        # align the chip with the emoji bullet column
+        return self.content_padding
+
+    def _render_title(self, title: Any, metadata: dict[str, Any]) -> RenderableType:
+        tag = metadata.get("tag", "")
+
+        chip = Padding(
+            Text(f" {tag or title} ", style="tag.title"),
+            (0, 0, 0, self.title_padding),
+            expand=False,
+        )
+
+        if not (tag and title):
+            return chip
+
+        title_text = Padding(
+            self._render_with_emoji_bullet(
+                Text.from_markup(f"[bold]{title}[/bold]"),
+                metadata.get("emoji", ""),
+            ),
+            (0, 0, 0, self.content_padding),
+            expand=False,
+        )
+
+        return Group(chip, "", title_text)
+
+    def _render_with_inline_tag(
+        self, rendered: RenderableType, metadata: dict[str, Any]
+    ) -> RenderableType:
+        tag = metadata.get("tag")
+
+        if not tag:
+            return rendered
+
+        tag_style = metadata.get("tag_style")
+        chip_style = (
+            tag_style if isinstance(tag_style, (str, Style)) and tag_style else "tag"
+        )
+
+        grid = Table.grid(
+            Column(no_wrap=True),
+            Column(overflow="fold"),
+            padding=(0, 0),
+            pad_edge=False,
+        )
+        grid.add_row(
+            Text.assemble(Text(f" {tag} ", style=chip_style), " "),
+            Group(rendered),
+        )
+
+        return grid
+
+    def _get_progress_status_emoji(self, element: Progress, done: bool) -> str:
+        if element._cancelled or element.is_error:
+            return "🟡"
+
+        if done:
+            return cast(str, element.metadata.get("done_emoji", "🐔"))
+
+        return self.animation_emojis[
+            self.animation_counter % len(self.animation_emojis)
+        ]
+
+    def _render_with_emoji_bullet(
+        self, rendered: RenderableType, emoji: str
+    ) -> RenderableType:
+        grid = Table.grid(
+            Column(width=self.emoji_column_width, no_wrap=True),
+            Column(overflow="fold"),
+            padding=(0, 0),
+            pad_edge=False,
+        )
+        grid.add_row(Text(emoji), Group(rendered))
+
+        return grid
+
+    def get_cursor_offset_for_element(
+        self, element: Element, parent: Element | None = None
+    ) -> CursorOffset:
+        decoration_width = self.content_padding + self.emoji_column_width
+
+        offset = element.cursor_offset
+        top = offset.top
+        left = decoration_width + offset.left
+
+        if isinstance(element, Input) and not element.inline and element.label:
+            label_lines = self._count_label_lines(
+                element.label, decoration_width=decoration_width
+            )
+            top = label_lines + 1
+
+        if tag := element.metadata.get("tag"):
+            # account for the inline chip rendered before the element
+            left += len(f" {tag} ") + 1
+
+        return CursorOffset(top=top, left=left)
 
 
 class FastAPIRichToolkit(RichToolkit):
@@ -191,8 +357,16 @@ def get_rich_toolkit(
     minimal: bool = False,
     *,
     json_output: bool | None = None,
+    header: bool = False,
 ) -> FastAPIRichToolkit:
-    style = MinimalStyle() if minimal else FastAPIStyle(tag_width=11)
+    style: BaseStyle
+
+    if minimal:
+        style = MinimalStyle()
+    elif header:
+        style = FastAPIHeaderStyle()
+    else:
+        style = FastAPIStyle(tag_width=11)
 
     theme = RichToolkitTheme(
         style=style,

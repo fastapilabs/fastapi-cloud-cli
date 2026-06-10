@@ -58,7 +58,10 @@ def _verify_deployment(
             return
 
         if final_status in SUCCESSFUL_STATUSES:
-            progress.current_message = f"Ready the chicken! 🐔 Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+            progress.current_message = (
+                "Ready the chicken! 🐔\n"
+                f"Your app is ready at [link={deployment.url}]{deployment.url}[/link]"
+            )
         else:
             progress.metadata["done_emoji"] = "❌"
             progress.current_message = "Deployment failed"
@@ -80,10 +83,7 @@ def _wait_for_deployment(
 ) -> None:
     messages = cycle(WAITING_MESSAGES)
 
-    toolkit.print(
-        "Checking the status of your deployment 👀",
-        tag="cloud",
-    )
+    toolkit.print("Checking the status of your deployment", emoji="👀")
     toolkit.print_line()
 
     time_elapsed = 0.0

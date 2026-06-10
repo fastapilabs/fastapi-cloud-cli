@@ -146,7 +146,7 @@ def deploy(
         "Authentication mode: %s", "deploy token" if use_deploy_token else "user token"
     )
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
+    with get_rich_toolkit(json_output=json_output, header=True) as toolkit:
         if not has_auth:
             logger.debug("User not logged in, starting login")
 
@@ -167,24 +167,19 @@ def deploy(
                     hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
                 )
 
-            toolkit.print_title("Welcome to FastAPI Cloud!", tag="FastAPI")
+            toolkit.print_title(
+                "Welcome to FastAPI Cloud!", tag="FastAPI Cloud", emoji="👋"
+            )
             toolkit.print_line()
 
             if identity.user_token and identity.is_user_token_expired():
-                toolkit.print(
-                    "Your session has expired. Please log in again.",
-                    tag="info",
-                )
+                toolkit.print("Your session has expired. Please log in again.")
             else:
-                toolkit.print(
-                    "You need to be logged in to deploy to FastAPI Cloud.",
-                    tag="info",
-                )
+                toolkit.print("You need to be logged in to deploy to FastAPI Cloud.")
 
             toolkit.print_line()
             should_login = toolkit.confirm(
                 "Do you want to log in now?",
-                tag="auth",
                 default=True,
             )
 
@@ -200,13 +195,14 @@ def deploy(
         if use_deploy_token:
             toolkit.print(
                 "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
-                tag="info",
             )
             toolkit.print_line()
 
         with APIClient(use_deploy_token=use_deploy_token) as client:
-            toolkit.print_title("Starting deployment", tag="FastAPI")
-            toolkit.print_line()
+            # the welcome title already shows the header when logging in
+            if has_auth:
+                toolkit.print_title("FastAPI Cloud")
+                toolkit.print_line()
 
             path_to_deploy = path or Path.cwd()
             logger.debug("Deploying from path: %s", path_to_deploy)
