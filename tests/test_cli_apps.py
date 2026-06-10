@@ -231,7 +231,8 @@ def test_creates_app_prompts_for_name_and_links_by_default(
     assert "What's your app name?" in result.output
     assert "Created app API" in result.output
     assert "Linked" in result.output
-    assert "to API" in result.output
+    # join wrapped lines: where the message wraps depends on the tmp path length
+    assert "to API" in " ".join(result.output.split())
     assert AppConfig.model_validate_json(config_path.read_text(encoding="utf-8")) == (
         AppConfig(app_id=app_id, team_id=team_id)
     )
@@ -653,13 +654,13 @@ def test_gets_app_in_human_output(
     result = runner.invoke(app, ["apps", "get", app_data["id"]])
 
     assert result.exit_code == 0
-    assert "app   API" in result.output
-    assert "slug   api" in result.output
-    assert "directory   backend" in result.output
-    assert "url   https://api.fastapicloud.app" in result.output
-    assert f"dashboard   {dashboard_url}" in result.output
-    assert f"id   {app_data['id']}" in result.output
-    assert f"team id   {app_data['team_id']}" in result.output
+    assert "📦 API" in result.output
+    assert "slug       api" in result.output
+    assert "directory  backend" in result.output
+    assert "url        https://api.fastapicloud.app" in result.output
+    assert f"dashboard  {dashboard_url}" in result.output
+    assert f"id         {app_data['id']}" in result.output
+    assert f"team id    {app_data['team_id']}" in result.output
 
 
 @pytest.mark.respx
@@ -734,7 +735,8 @@ def test_lists_apps_in_human_output(
     result = runner.invoke(app, ["apps", "list", "--team-id", team_id])
 
     assert result.exit_code == 0
-    assert "apps   Name  ID" in result.output
+    assert "apps" in result.output
+    assert "Name  ID" in result.output
     assert "API   00000000-0000-4000-8000-000000000002" in result.output
 
 

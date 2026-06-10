@@ -22,45 +22,38 @@ def _configure_app(
     client: APIClient,
     path_to_deploy: Path,
 ) -> AppConfig:
-    toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", tag="path")
+    toolkit.print(f"Setting up and deploying [blue]{path_to_deploy}[/blue]", emoji="📁")
 
     toolkit.print_line()
 
-    with toolkit.progress("Fetching teams...") as progress:
+    with toolkit.progress("Fetching teams...", transient=True) as progress:
         with client.handle_http_errors(
             progress,
             default_message="Error fetching teams. Please try again later.",
         ):
             teams = _get_teams(client)
 
-    toolkit.print_line()
-
     team = toolkit.ask(
         "Select the team you want to deploy to:",
-        tag="team",
         options=[Option({"name": team.name, "value": team}) for team in teams],
         allow_filtering=True,
     )
 
     toolkit.print_line()
 
-    create_new_app = toolkit.confirm(
-        "Do you want to create a new app?", tag="app", default=True
-    )
+    create_new_app = toolkit.confirm("Do you want to create a new app?", default=True)
 
     toolkit.print_line()
 
     selected_app: AppResponse | None = None
 
     if not create_new_app:
-        with toolkit.progress("Fetching apps...") as progress:
+        with toolkit.progress("Fetching apps...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
                 default_message="Error fetching apps. Please try again later.",
             ):
                 apps = _get_apps(client=client, team_id=team.id)
-
-        toolkit.print_line()
 
         if not apps:
             toolkit.print(
@@ -92,7 +85,6 @@ def _configure_app(
         title=(
             "Directory where your app's pyproject.toml file lives (e.g. src, backend):"
         ),
-        tag="dir",
         value=initial_directory or "",
         placeholder=(
             "[italic]Leave empty if pyproject.toml is in the current directory[/italic]"
@@ -104,7 +96,7 @@ def _configure_app(
 
     toolkit.print_line()
 
-    toolkit.print("Deployment configuration:", tag="summary")
+    toolkit.print("Deployment configuration:")
     toolkit.print_line()
     toolkit.print(f"Team: [bold]{team.name}[/bold]")
     toolkit.print(f"App name: [bold]{app_name}[/bold]")
@@ -114,7 +106,6 @@ def _configure_app(
 
     choice = toolkit.ask(
         "Does everything look right?",
-        tag="confirm",
         options=[
             Option({"name": "Yes, start the deployment!", "value": "deploy"}),
             Option({"name": "No, let me start over", "value": "cancel"}),

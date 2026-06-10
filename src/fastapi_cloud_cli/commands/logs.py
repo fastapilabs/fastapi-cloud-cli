@@ -57,19 +57,28 @@ def _validate_since(value: str) -> str:
     return value
 
 
+def _get_log_bullet(log: AppLogEntry) -> str:
+    """Colored indicator rendered in the emoji bullet column.
+
+    ▕ draws at the right edge of its cell, centering the bar under the
+    double-width emojis.
+    """
+    color = LOG_LEVEL_COLORS.get(log.level.lower(), "dim")
+
+    return f"[{color}]▕[/{color}]"
+
+
 def _format_log_line(log: AppLogEntry) -> str:
-    """Format a log entry for display with a colored indicator"""
+    """Format a log entry for display"""
     # Parse the timestamp string to format it consistently
     timestamp = datetime.fromisoformat(log.timestamp.replace("Z", "+00:00"))
     timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    color = LOG_LEVEL_COLORS.get(log.level.lower())
 
-    message = escape(log.message)
+    return f"[dim]{timestamp_str}[/dim] {escape(log.message)}"
 
-    if color:
-        return f"[{color}]┃[/{color}] [dim]{timestamp_str}[/dim] {message}"
 
-    return f"[dim]┃[/dim] [dim]{timestamp_str}[/dim] {message}"
+def _print_log_line(toolkit: RichToolkit, log: AppLogEntry) -> None:
+    toolkit.print(_format_log_line(log), emoji=_get_log_bullet(log))
 
 
 def _render_app_logs_output(data: AppLogsOutput, toolkit: RichToolkit) -> None:
@@ -78,7 +87,7 @@ def _render_app_logs_output(data: AppLogsOutput, toolkit: RichToolkit) -> None:
         return
 
     for log in data.logs:
-        toolkit.print(_format_log_line(log))
+        _print_log_line(toolkit, log)
 
 
 def _print_app_log_json(app_id: str, log: AppLogEntry) -> None:
@@ -94,32 +103,6 @@ def _print_app_log_json(app_id: str, log: AppLogEntry) -> None:
     )
 
 
-def _render_not_logged_in_error(
-    toolkit: RichToolkit,
-    *,
-    code: ErrorCode,
-    message: str,
-    hint: str,
-) -> None:
-    toolkit.print(message, tag="auth")
-    if hint:
-        toolkit.print_line()
-        toolkit.print(hint, tag="tip")
-
-
-def _render_app_not_configured_error(
-    toolkit: RichToolkit,
-    *,
-    code: ErrorCode,
-    message: str,
-    hint: str,
-) -> None:
-    toolkit.print(message)
-    if hint:
-        toolkit.print_line()
-        toolkit.print(hint, tag="tip")
-
-
 def _render_plain_error(
     toolkit: RichToolkit,
     *,
@@ -130,7 +113,7 @@ def _render_plain_error(
     toolkit.print(message)
     if hint:
         toolkit.print_line()
-        toolkit.print(hint, tag="tip")
+        toolkit.print(hint, emoji="💡")
 
 
 def _handle_stream_log_error(
@@ -177,7 +160,7 @@ def _process_log_stream(
                     if toolkit.mode == "json":
                         _print_app_log_json(app_config.app_id, log)
                     else:
-                        toolkit.print(_format_log_line(log))
+                        _print_log_line(toolkit, log)
                     continue
 
                 logs.append(log)
@@ -245,13 +228,12 @@ def logs(
         fastapi cloud logs --tail 50 --since 1h # Last 50 logs from the past hour
     """
     identity = Identity()
-    with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not identity.is_logged_in():
             toolkit.fail(
                 "not_logged_in",
                 "No credentials found.",
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-                render_output=_render_not_logged_in_error,
             )
 
         app_path = path or Path.cwd()
@@ -261,8 +243,7 @@ def logs(
             toolkit.fail(
                 "missing_required_input",
                 "No app linked to this directory.",
-                hint="Run `fastapi cloud apps create --link` first.",
-                render_output=_render_app_not_configured_error,
+                hint="Run `fastapi cloud link` to link an app.",
             )
         assert app_config is not None
 
@@ -271,12 +252,12 @@ def logs(
         if follow:
             toolkit.print(
                 f"Streaming logs for [bold]{app_config.app_id}[/bold] (Ctrl+C to exit)...",
-                tag="logs",
+                emoji="📡",
             )
         else:
             toolkit.print(
                 f"Fetching logs for [bold]{app_config.app_id}[/bold]...",
-                tag="logs",
+                emoji="📜",
             )
         toolkit.print_line()
 

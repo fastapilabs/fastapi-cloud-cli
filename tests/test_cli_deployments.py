@@ -320,12 +320,12 @@ def test_gets_deployment_in_human_output(
     )
 
     assert result.exit_code == 0
-    assert f"deployment  {deployment['id']}" in result.output
-    assert f"app id   {app_id}" in result.output
-    assert "slug   api-20260522" in result.output
-    assert "status   success" in result.output
-    assert "url   https://api.fastapicloud.app" in result.output
-    assert "dashboard   https://dashboard.example.com/d/api-20260522" in result.output
+    assert f"🚀 {deployment['id']}" in result.output
+    assert f"app id     {app_id}" in result.output
+    assert "slug       api-20260522" in result.output
+    assert "status     success" in result.output
+    assert "url        https://api.fastapicloud.app" in result.output
+    assert "dashboard  https://dashboard.example.com/d/api-20260522" in result.output
     assert "created at" not in result.output
     assert "2026-05-22T10:00:00Z" not in result.output
 

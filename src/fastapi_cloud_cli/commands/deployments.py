@@ -6,7 +6,6 @@ from typing import Annotated, Any
 import typer
 from httpx import HTTPError
 from pydantic import BaseModel
-from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
@@ -23,7 +22,11 @@ from fastapi_cloud_cli.utils.api import (
 )
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import (
+    FastAPIRichToolkit,
+    get_details_table,
+    get_rich_toolkit,
+)
 from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -104,11 +107,11 @@ def _get_deployment(
 def _render_deployments_list_output(
     data: DeploymentsListOutput, toolkit: RichToolkit
 ) -> None:
-    toolkit.console.print(Padding(Text(" deployments ", style="tag"), (0, 0, 0, 1)))
-    toolkit.console.print()
+    toolkit.print_title("deployments")
+    toolkit.print_line()
 
     if not data.deployments:
-        toolkit.console.print(Padding("No deployments found.", (0, 0, 0, 2)))
+        toolkit.print("No deployments found.", bullet=False)
         return
 
     table = Table.grid(padding=(0, 2), pad_edge=False)
@@ -123,7 +126,7 @@ def _render_deployments_list_output(
             deployment.status.value,
         )
 
-    toolkit.console.print(Padding(table, (0, 0, 0, 2)))
+    toolkit.print(table, bullet=False)
 
 
 def _render_deployment_get_output(
@@ -131,24 +134,31 @@ def _render_deployment_get_output(
 ) -> None:
     deployment = data.deployment
 
-    toolkit.print(f"[bold]{deployment.id}[/bold]", tag="deployment")
+    toolkit.print(f"[bold]{deployment.id}[/bold]", emoji="🚀")
     toolkit.print_line()
-    toolkit.print(deployment.app_id, tag="app id", tag_style="text")
-    toolkit.print(deployment.slug, tag="slug", tag_style="text")
-    toolkit.print(deployment.status.value, tag="status", tag_style="text")
     toolkit.print(
-        deployment.url if deployment.url is not None else Text("-", style="dim"),
-        tag="url",
-        tag_style="text",
-    )
-    toolkit.print(
-        (
-            Text(deployment.dashboard_url, style=f"link {deployment.dashboard_url}")
-            if deployment.dashboard_url is not None
-            else Text("-", style="dim")
-        ),
-        tag="dashboard",
-        tag_style="text",
+        get_details_table(
+            [
+                ("app id", deployment.app_id),
+                ("slug", deployment.slug),
+                ("status", deployment.status.value),
+                (
+                    "url",
+                    deployment.url
+                    if deployment.url is not None
+                    else Text("-", style="dim"),
+                ),
+                (
+                    "dashboard",
+                    Text(
+                        deployment.dashboard_url,
+                        style=f"link {deployment.dashboard_url}",
+                    )
+                    if deployment.dashboard_url is not None
+                    else Text("-", style="dim"),
+                ),
+            ]
+        )
     )
 
 
@@ -185,16 +195,24 @@ def _print_build_log_json(
     )
 
 
+BUILD_LOG_BULLET = "[dim]▕[/dim]"
+
+
+def _print_build_log_line(toolkit: RichToolkit, message: str) -> None:
+    toolkit.print(Text.from_ansi(message.rstrip()), emoji=BUILD_LOG_BULLET)
+
+
 def _render_build_logs_output(data: BuildLogsOutput, toolkit: RichToolkit) -> None:
     if not data.logs:
         toolkit.print("No build logs found.")
         return
 
     for log in data.logs:
-        toolkit.print(Text.from_ansi(log.message.rstrip()))
+        _print_build_log_line(toolkit, log.message)
 
     if data.failed:
-        toolkit.print("Build failed.", tag="error")
+        toolkit.print_line()
+        toolkit.print("[error]Build failed.[/]", emoji="❌")
 
 
 def _stream_build_logs(
@@ -214,7 +232,7 @@ def _stream_build_logs(
                     message=log.message,
                 )
             else:
-                toolkit.print(Text.from_ansi(log.message.rstrip()))
+                _print_build_log_line(toolkit, log.message)
 
         elif log.type == "complete":
             if toolkit.mode == "json":
@@ -233,7 +251,8 @@ def _stream_build_logs(
                     log_id=log.id,
                 )
             else:
-                toolkit.print("Build failed.", tag="error")
+                toolkit.print_line()
+                toolkit.print("[error]Build failed.[/]", emoji="❌")
 
     return failed
 
@@ -286,10 +305,10 @@ def _render_build_log_error(
     message: str,
     hint: str,
 ) -> None:
-    toolkit.print(message, tag="error", tag_style="tag.error")
+    toolkit.print(f"[error]{message}[/]", emoji="❌")
     if hint:
         toolkit.print_line()
-        toolkit.print(hint, tag="tip")
+        toolkit.print(hint, emoji="💡")
 
 
 deployments_app = typer.Typer(no_args_is_help=True)
@@ -377,7 +396,7 @@ def build_logs(
     """
     identity = Identity()
 
-    with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not identity.is_logged_in():
             toolkit.fail(
                 "not_logged_in",
@@ -388,12 +407,12 @@ def build_logs(
         if follow:
             toolkit.print(
                 f"Streaming build logs for [bold]{deployment_id}[/bold]...",
-                tag="logs",
+                emoji="📡",
             )
         else:
             toolkit.print(
                 f"Fetching build logs for [bold]{deployment_id}[/bold]...",
-                tag="logs",
+                emoji="📜",
             )
         toolkit.print_line()
 

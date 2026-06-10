@@ -15,7 +15,7 @@ from fastapi_cloud_cli.commands.apps.list import (
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -29,30 +29,30 @@ class AppGetOutput(BaseModel):
 def _render_app_get_output(data: AppGetOutput, toolkit: RichToolkit) -> None:
     app = data.app
 
-    toolkit.print(f"[bold]{app.name}[/bold]", tag="app")
+    toolkit.print(f"[bold]{app.name}[/bold]", emoji="📦")
     toolkit.print_line()
-    toolkit.print(app.id, tag="id", tag_style="text")
-    toolkit.print(app.slug, tag="slug", tag_style="text")
     toolkit.print(
-        app.directory if app.directory is not None else Text("-", style="dim"),
-        tag="directory",
-        tag_style="text",
+        get_details_table(
+            [
+                ("id", app.id),
+                ("slug", app.slug),
+                (
+                    "directory",
+                    app.directory
+                    if app.directory is not None
+                    else Text("-", style="dim"),
+                ),
+                ("url", app.url if app.url is not None else Text("-", style="dim")),
+                (
+                    "dashboard",
+                    Text(data.dashboard_url, style=f"link {data.dashboard_url}")
+                    if data.dashboard_url is not None
+                    else Text("-", style="dim"),
+                ),
+                ("team id", app.team_id),
+            ]
+        )
     )
-    toolkit.print(
-        app.url if app.url is not None else Text("-", style="dim"),
-        tag="url",
-        tag_style="text",
-    )
-    toolkit.print(
-        (
-            Text(data.dashboard_url, style=f"link {data.dashboard_url}")
-            if data.dashboard_url is not None
-            else Text("-", style="dim")
-        ),
-        tag="dashboard",
-        tag_style="text",
-    )
-    toolkit.print(app.team_id, tag="team id", tag_style="text")
 
 
 def get_app(

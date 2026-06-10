@@ -94,7 +94,8 @@ def test_lists_teams_in_human_output(
     result = runner.invoke(app, ["teams", "list"])
 
     assert result.exit_code == 0
-    assert "teams   Name  ID" in result.output
+    assert "teams" in result.output
+    assert "Name  ID" in result.output
     assert "Slug" not in result.output
     assert "acme" not in result.output
     assert "Acme  00000000-0000-4000-8000-000000000001" in result.output
@@ -176,9 +177,9 @@ def test_gets_team_in_human_output(
     result = runner.invoke(app, ["teams", "get", team["id"]])
 
     assert result.exit_code == 0
-    assert "team   Acme" in result.output
-    assert f"id   {team['id']}" in result.output
-    assert "slug   acme" in result.output
+    assert "🏢 Acme" in result.output
+    assert f"id    {team['id']}" in result.output
+    assert "slug  acme" in result.output
     assert f"url   {dashboard_url}" in result.output
     assert "Team:" not in result.output
 
