@@ -47,11 +47,12 @@ def _create_app(
 
 
 def _render_apps_create_output(data: AppsCreateOutput, toolkit: RichToolkit) -> None:
-    toolkit.print(f"Created app [bold]{data.app.name}[/bold]")
+    toolkit.print(f"Created app [bold]{data.app.name}[/bold]", bullet=False)
 
     if data.linked and data.path_to_link is not None:
         toolkit.print(
-            f"Linked [bold]{data.path_to_link}[/bold] to [bold]{data.app.name}[/bold]"
+            f"Linked [bold]{data.path_to_link}[/bold] to [bold]{data.app.name}[/bold]",
+            bullet=False,
         )
 
 
@@ -141,6 +142,7 @@ def create_app(
                 name = toolkit.input(
                     title="What's your app name?",
                     default=_get_app_name(path_to_link),
+                    bullet=False,
                 )
                 toolkit.print_line()
 

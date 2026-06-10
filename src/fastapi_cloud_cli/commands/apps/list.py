@@ -132,8 +132,11 @@ def _get_apps(
 
 
 def _render_apps_list_output(data: AppsListOutput, toolkit: RichToolkit) -> None:
+    toolkit.print_title("apps")
+    toolkit.print_line()
+
     if not data.apps:
-        toolkit.print("No apps found.", tag="apps")
+        toolkit.print("No apps found.", bullet=False)
         return
 
     toolkit.print(
@@ -142,7 +145,7 @@ def _render_apps_list_output(data: AppsListOutput, toolkit: RichToolkit) -> None
             team_slug=data.team_slug,
             settings=Settings.get(),
         ),
-        tag="apps",
+        bullet=False,
     )
 
 
@@ -167,9 +170,9 @@ def _prompt_for_team(toolkit: FastAPIRichToolkit, client: APIClient) -> Team:
 
     return toolkit.ask(
         "Select the team:",
-        tag="team",
         options=[Option({"name": team.name, "value": team}) for team in teams],
         allow_filtering=True,
+        bullet=False,
     )
 
 

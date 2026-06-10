@@ -57,8 +57,11 @@ def _get_teams(client: APIClient, *, limit: int, offset: int) -> TeamsListOutput
 
 
 def _render_teams_list_output(data: TeamsListOutput, toolkit: RichToolkit) -> None:
+    toolkit.print_title("teams")
+    toolkit.print_line()
+
     if not data.teams:
-        toolkit.print("No teams found.", tag="teams")
+        toolkit.print("No teams found.", bullet=False)
         return
 
     settings = Settings.get()
@@ -75,7 +78,7 @@ def _render_teams_list_output(data: TeamsListOutput, toolkit: RichToolkit) -> No
             team.id,
         )
 
-    toolkit.print(table, tag="teams")
+    toolkit.print(table, bullet=False)
 
 
 teams_app = typer.Typer(no_args_is_help=True)

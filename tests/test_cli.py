@@ -60,17 +60,10 @@ def test_version() -> None:
     assert "FastAPI Cloud CLI version:" in result.output
 
 
-def test_tag_style_metadata_uses_dedicated_color() -> None:
+def test_uses_header_style() -> None:
     toolkit = get_rich_toolkit()
     assert isinstance(toolkit, FastAPIRichToolkit)
     assert isinstance(toolkit.style, FastAPIStyle)
-
-    segments, _ = toolkit.style._get_tag_segments(
-        {"tag": "notice", "tag_style": "tag.update"}
-    )
-
-    assert segments[0].style == toolkit.style.console.get_style("tag.update")
-    assert segments[0].style != toolkit.style.console.get_style("tag")
 
 
 def test_toolkit_success_prints_json_envelope() -> None:
@@ -185,7 +178,7 @@ def test_toolkit_fail_prints_json_error_and_exits() -> None:
     }
 
 
-def test_toolkit_fail_uses_red_error_tag(
+def test_toolkit_fail_uses_error_emoji(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, object]] = []
@@ -204,8 +197,7 @@ def test_toolkit_fail_uses_red_error_tag(
         with pytest.raises(typer.Exit):
             toolkit.fail("api_error", "A value is required.")
 
-    assert calls[0]["tag"] == "error"
-    assert calls[0]["tag_style"] == "tag.error"
+    assert calls[0]["emoji"] == "❌"
 
 
 def test_toolkit_fail_uses_custom_human_output_renderer_and_exits() -> None:

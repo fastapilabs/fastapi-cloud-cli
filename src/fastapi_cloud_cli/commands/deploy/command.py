@@ -78,9 +78,9 @@ def _get_large_file_warnings(
 def _render_app_id_mismatch(
     toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
 ) -> None:
-    toolkit.print(f"[error]Error: {message}[/]")
+    toolkit.print(f"[error]Error: {message}[/]", emoji="❌")
     toolkit.print_line()
-    toolkit.print(hint, tag="tip")
+    toolkit.print(hint, emoji="💡")
 
 
 def _render_app_not_found(
@@ -95,7 +95,7 @@ def _render_linked_app_not_found(
     _render_app_not_found(toolkit, code=code, message=message, hint=hint)
     toolkit.print(
         "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
-        tag="tip",
+        emoji="💡",
     )
 
 
@@ -146,7 +146,7 @@ def deploy(
         "Authentication mode: %s", "deploy token" if use_deploy_token else "user token"
     )
 
-    with get_rich_toolkit(json_output=json_output, header=True) as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not has_auth:
             logger.debug("User not logged in, starting login")
 
@@ -192,16 +192,16 @@ def deploy(
             _interactive_login(toolkit)
             toolkit.print_line()
 
-        if use_deploy_token:
-            toolkit.print(
-                "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
-            )
-            toolkit.print_line()
-
         with APIClient(use_deploy_token=use_deploy_token) as client:
             # the welcome title already shows the header when logging in
             if has_auth:
                 toolkit.print_title("FastAPI Cloud")
+                toolkit.print_line()
+
+            if use_deploy_token:
+                toolkit.print(
+                    "Using token from [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable",
+                )
                 toolkit.print_line()
 
             path_to_deploy = path or Path.cwd()
@@ -283,22 +283,28 @@ def deploy(
             )
             if large_files:
                 toolkit.print(
-                    f"⚠️  Some uploaded files are larger than {large_file_threshold} MB ⚖️ :",
-                    tag="warning",
-                )
-                for fname, fsize in large_files[:3]:
-                    fsize_mb = fsize // (1024 * 1024)
-                    toolkit.print(f" • {fname} [yellow]({fsize_mb} MB)[/yellow]")
-                is_more = len(large_files) > 3
-                if is_more:
-                    toolkit.print(f" [dim]...and {len(large_files) - 3} more[/dim]")
-
-                large_files_docs_url = "https://fastapicloud.com/docs/fastapi-cloud-cli/deploy/#large-files-warning"
-                toolkit.print(
-                    f"Read more: [link={large_files_docs_url}]{large_files_docs_url}[/link]",
-                    tag="tip",
+                    f"Some uploaded files are larger than {large_file_threshold} MB:",
+                    emoji="⚠️",
                 )
                 toolkit.print_line()
+                for fname, fsize in large_files[:3]:
+                    fsize_mb = fsize // (1024 * 1024)
+                    toolkit.print(
+                        f"• [bold]{fname}[/bold] [yellow]({fsize_mb} MB)[/yellow]"
+                    )
+                is_more = len(large_files) > 3
+                if is_more:
+                    toolkit.print(f"[dim]...and {len(large_files) - 3} more[/dim]")
+
+                large_files_docs_url = "https://fastapicloud.com/docs/fastapi-cloud-cli/deploy/#large-files-warning"
+                toolkit.print_line()
+                toolkit.print(
+                    f"Read more: [link={large_files_docs_url}]{large_files_docs_url}[/link]",
+                    emoji="💡",
+                )
+                toolkit.print_line()
+
+            will_wait = not skip_wait and not json_output
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 logger.debug("Creating archive for deployment")
@@ -307,7 +313,10 @@ def deploy(
 
                 with (
                     toolkit.progress(
-                        title="Creating deployment", done_emoji="📦"
+                        title="Creating deployment",
+                        # the build status replaces this when waiting
+                        transient=will_wait,
+                        done_emoji="📦",
                     ) as progress,
                     client.handle_http_errors(progress, toolkit=toolkit),
                 ):
@@ -331,9 +340,7 @@ def deploy(
                         _cancel_upload(client=client, deployment_id=deployment.id)
                         raise
 
-            toolkit.print_line()
-
-            if not skip_wait and not json_output:
+            if will_wait:
                 logger.debug("Waiting for deployment to complete")
                 _wait_for_deployment(
                     toolkit=toolkit,
@@ -342,6 +349,7 @@ def deploy(
                     deployment=deployment,
                 )
             else:
+                toolkit.print_line()
                 logger.debug("Skipping deployment wait as requested")
                 if json_output:
                     toolkit.success(

@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
@@ -16,11 +17,19 @@ class UnlinkOutput(BaseModel):
     unlinked: bool
     path: Path
     removed_path: Path
+    path_provided: Annotated[bool, Field(exclude=True)] = False
 
 
 def _render_unlink_output(data: UnlinkOutput, toolkit: RichToolkit) -> None:
-    toolkit.print("Removed app link")
-    toolkit.print(f"Deleted {data.removed_path}")
+    removed_path = (
+        data.removed_path
+        if data.path_provided
+        else data.removed_path.relative_to(Path.cwd())
+    )
+
+    toolkit.print("Removed app link", emoji="🔗")
+    toolkit.print_line()
+    toolkit.print(Text(f"Deleted {removed_path}", style="dim"))
 
 
 def _fail_not_linked(toolkit: FastAPIRichToolkit) -> None:
@@ -47,7 +56,7 @@ def unlink_app(
     path_to_unlink = path or Path.cwd()
     config_path = path_to_unlink / ".fastapicloud/cloud.json"
 
-    with get_rich_toolkit(minimal=True, json_output=json_output) as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not config_path.exists():
             logger.debug(f"Configuration file not found: {config_path}")
             _fail_not_linked(toolkit)
@@ -60,6 +69,7 @@ def unlink_app(
                 unlinked=True,
                 path=path_to_unlink,
                 removed_path=config_path,
+                path_provided=path is not None,
             ),
             render_output=_render_unlink_output,
         )

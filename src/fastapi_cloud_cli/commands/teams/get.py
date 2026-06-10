@@ -8,7 +8,7 @@ from rich_toolkit import RichToolkit
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -38,14 +38,16 @@ def _get_team(client: APIClient, team_id: str) -> TeamGetOutput:
 
 
 def _render_team_get_output(data: TeamGetOutput, toolkit: RichToolkit) -> None:
-    toolkit.print(f"[bold]{data.team.name}[/bold]", tag="team")
+    toolkit.print(f"[bold]{data.team.name}[/bold]", emoji="🏢")
     toolkit.print_line()
-    toolkit.print(data.team.id, tag="id", tag_style="text")
-    toolkit.print(data.team.slug, tag="slug", tag_style="text")
     toolkit.print(
-        _get_team_dashboard_url(data.team, settings=Settings.get()),
-        tag="url",
-        tag_style="text",
+        get_details_table(
+            [
+                ("id", data.team.id),
+                ("slug", data.team.slug),
+                ("url", _get_team_dashboard_url(data.team, settings=Settings.get())),
+            ]
+        )
     )
 
 

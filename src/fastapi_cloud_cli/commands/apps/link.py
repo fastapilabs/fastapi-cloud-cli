@@ -26,8 +26,11 @@ class LinkOutput(BaseModel):
 
 
 def _render_link_output(data: LinkOutput, toolkit: RichToolkit) -> None:
-    toolkit.print(f"Linked [bold]{data.path}[/bold] to [bold]{data.app_name}[/bold]")
-    toolkit.print(f"Config: [bold]{data.config_path}[/bold]")
+    toolkit.print(
+        f"Linked [bold]{data.path}[/bold] to [bold]{data.app_name}[/bold]",
+        bullet=False,
+    )
+    toolkit.print(f"Config: [bold]{data.config_path}[/bold]", bullet=False)
 
 
 def _fail_not_logged_in_interactive(toolkit: FastAPIRichToolkit) -> None:
@@ -37,7 +40,7 @@ def _fail_not_logged_in_interactive(toolkit: FastAPIRichToolkit) -> None:
     toolkit.print_line()
     toolkit.print(
         "Run [bold]fastapi cloud login[/] to authenticate.",
-        tag="tip",
+        emoji="💡",
     )
     raise typer.Exit(1)
 
@@ -49,7 +52,7 @@ def _fail_already_linked_interactive(toolkit: FastAPIRichToolkit) -> None:
     toolkit.print_line()
     toolkit.print(
         "Run [bold]fastapi cloud unlink[/] first to remove the existing configuration.",
-        tag="tip",
+        emoji="💡",
     )
     raise typer.Exit(1)
 
@@ -106,11 +109,11 @@ def _link_app_interactively(
     if get_app_config(path_to_link) and not force:
         _fail_already_linked_interactive(toolkit)
 
-    toolkit.print_title("Link to FastAPI Cloud", tag="FastAPI")
+    toolkit.print_title("Link to FastAPI Cloud")
     toolkit.print_line()
 
     with APIClient() as client:
-        with toolkit.progress("Fetching teams...") as progress:
+        with toolkit.progress("Fetching teams...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
                 default_message="Error fetching teams. Please try again later.",
@@ -122,23 +125,22 @@ def _link_app_interactively(
         if not teams_data:
             toolkit.print(
                 "[error]No teams found. Please create a team first.[/]",
+                bullet=False,
             )
             raise typer.Exit(1)
 
-        toolkit.print_line()
-
         team = toolkit.ask(
             "Select the team:",
-            tag="team",
             options=[
                 Option({"name": t["name"], "value": {"id": t["id"], "name": t["name"]}})
                 for t in teams_data
             ],
+            bullet=False,
         )
 
         toolkit.print_line()
 
-        with toolkit.progress("Fetching apps...") as progress:
+        with toolkit.progress("Fetching apps...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
                 default_message="Error fetching apps. Please try again later.",
@@ -150,23 +152,22 @@ def _link_app_interactively(
     if not apps_data:
         toolkit.print(
             "[error]No apps found in this team.[/]",
+            bullet=False,
         )
         toolkit.print_line()
         toolkit.print(
             "Run [bold]fastapi cloud apps create[/] to create and deploy a new app.",
-            tag="tip",
+            emoji="💡",
         )
         raise typer.Exit(1)
 
-    toolkit.print_line()
-
     app = toolkit.ask(
         "Select the app to link:",
-        tag="app",
         options=[
             Option({"name": a["slug"], "value": {"id": a["id"], "slug": a["slug"]}})
             for a in apps_data
         ],
+        bullet=False,
     )
 
     toolkit.print_line()
@@ -175,7 +176,8 @@ def _link_app_interactively(
     write_app_config(path_to_link, app_config)
 
     toolkit.print(
-        f"Successfully linked to app [bold]{app['slug']}[/bold]! 🔗",
+        f"Successfully linked to app [bold]{app['slug']}[/bold]!",
+        emoji="🔗",
     )
     logger.debug(f"Linked to app: {app['id']} in team: {team['id']}")
 

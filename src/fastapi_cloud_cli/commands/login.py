@@ -109,10 +109,10 @@ def login(
                 "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
                 "This token will take precedence over the user token for "
                 "[blue]`fastapi deploy`[/] command.",
-                tag="Warning",
+                emoji="⚠️",
             )
 
-    toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
+    toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud")
     toolkit.print_line()
 
     _interactive_login(toolkit, no_open=no_open, timeout=timeout)
