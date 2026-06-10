@@ -9,6 +9,7 @@ from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.env._shared import (
     EnvironmentVariable,
+    _find_environment_variable,
     _format_env_var_value,
     _get_environment_variables,
     _resolve_app_id,
@@ -118,14 +119,7 @@ def get_variable(
                 bullet=False,
             )
 
-        variable = next(
-            (
-                environment_variable
-                for environment_variable in environment_variables.data
-                if environment_variable.name == name
-            ),
-            None,
-        )
+        variable = _find_environment_variable(environment_variables.data, name)
 
         if variable is None:
             toolkit.fail(
