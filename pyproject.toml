@@ -47,12 +47,12 @@ standard = ["uvicorn[standard] >= 0.15.0"]
 [dependency-groups]
 dev = [
     "prek>=0.2.24,<1.0.0",
-    "pytest>=7.0.0,<9.0.0",
+    "pytest>=7.0.0,<10.0.0",
     "coverage[toml]>=7.2,<8.0",
-    "mypy==1.14.1",
-    "ruff==0.13.0",
-    "respx==0.22.0",
-    "time-machine==2.15.0",
+    "mypy==2.1.0",
+    "ruff==0.15.15",
+    "respx==0.23.1",
+    "time-machine==3.2.0",
     "ty>=0.0.25",
     "zizmor>=1.24.1",
 ]
