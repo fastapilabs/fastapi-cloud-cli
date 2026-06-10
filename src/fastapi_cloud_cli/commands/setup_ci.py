@@ -157,7 +157,10 @@ def setup_ci(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help="Path to the folder containing the app (defaults to current directory)"
+            help=(
+                "Path to the directory with your app's pyproject.toml "
+                "(defaults to current directory)"
+            )
         ),
     ] = None,
     branch: str | None = typer.Option(
@@ -203,7 +206,6 @@ def setup_ci(
         if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
-                tag="auth",
             )
             raise typer.Exit(1)
 
@@ -213,14 +215,14 @@ def setup_ci(
         if not app_config:
             toolkit.print(
                 "No app linked to this directory. Run [blue]`fastapi deploy`[/] first.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1)
 
         if not _check_git_installed():
             toolkit.print(
                 "git is not installed. Please install git to use this command.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1)
 
@@ -229,7 +231,7 @@ def setup_ci(
         except subprocess.CalledProcessError:
             toolkit.print(
                 "Error retrieving git remote origin URL. Make sure you're in a git repository with a remote origin set.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1) from None
 
@@ -237,7 +239,7 @@ def setup_ci(
         if "github" not in origin.lower():
             toolkit.print(
                 "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1)
 
@@ -254,7 +256,7 @@ def setup_ci(
             )
             toolkit.print_line()
 
-        toolkit.print_title("Configuring CI", tag="FastAPI")
+        toolkit.print_title("Configuring CI")
         toolkit.print_line()
 
         toolkit.print(f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})")
@@ -285,7 +287,9 @@ def setup_ci(
 
         with (
             APIClient() as client,
-            toolkit.progress(title="Generating deploy token...") as progress,
+            toolkit.progress(
+                title="Generating deploy token...", done_emoji="🔑"
+            ) as progress,
             client.handle_http_errors(
                 progress, default_message="Error creating deploy token."
             ),
@@ -298,7 +302,9 @@ def setup_ci(
         toolkit.print_line()
 
         if has_gh:
-            with toolkit.progress(title="Setting repo secrets...") as progress:
+            with toolkit.progress(
+                title="Setting repo secrets...", done_emoji="🔒"
+            ) as progress:
                 try:
                     _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
                     _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
@@ -310,7 +316,6 @@ def setup_ci(
             secrets_url = f"https://{github_host}/{repo_slug}/settings/secrets/actions"
             toolkit.print(
                 "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
-                tag="info",
             )
             toolkit.print_line()
             toolkit.print(f"  Repository: [blue]{secrets_url}[/]")
@@ -330,13 +335,11 @@ def setup_ci(
             if not file and workflow_path.exists():
                 overwrite = toolkit.confirm(
                     f"Workflow file [bold]{workflow_path}[/bold] already exists. Overwrite?",
-                    tag="workflow",
                     default=False,
                 )
                 if not overwrite:
                     new_name = toolkit.input(
                         "Enter a new filename (without path) or leave blank to skip writing the workflow file:",
-                        tag="workflow",
                     ).strip()
                     if new_name:
                         workflow_path = Path(f".github/workflows/{new_name}")
@@ -347,13 +350,15 @@ def setup_ci(
                 toolkit.print_line()
             if write_workflow:
                 msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
-                with toolkit.progress(title="Writing workflow file...") as progress:
+                with toolkit.progress(
+                    title="Writing workflow file...", done_emoji="📄"
+                ) as progress:
                     _write_workflow_file(branch, workflow_path)
                     progress.log(msg_workflow)
 
                 toolkit.print_line()
 
-        toolkit.print(msg_done)
+        toolkit.print(msg_done, emoji="✅")
         toolkit.print_line()
         # Token expiration date is in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ), extract date portion
         toolkit.print(
