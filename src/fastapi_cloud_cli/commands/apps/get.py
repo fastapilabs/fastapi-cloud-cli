@@ -14,6 +14,7 @@ from fastapi_cloud_cli.commands.apps.list import (
 )
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
@@ -57,11 +58,11 @@ def _render_app_get_output(data: AppGetOutput, toolkit: RichToolkit) -> None:
 
 def get_app(
     app_id: Annotated[
-        str,
+        str | None,
         typer.Argument(
-            help="ID of the app to return.",
+            help="ID of the app to return (defaults to the app linked to the current directory).",
         ),
-    ],
+    ] = None,
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
@@ -77,6 +78,12 @@ def get_app(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
+        target_app_id = resolve_app_id_or_fail(
+            toolkit,
+            app_id=app_id,
+            hint="Pass an app ID or run `fastapi cloud apps create --link` first.",
+        )
+
         with APIClient() as client:
             with toolkit.progress(
                 title="Fetching app",
@@ -88,7 +95,7 @@ def get_app(
                     not_found_message="App not found.",
                     toolkit=toolkit,
                 ):
-                    app = _get_app(client, app_id)
+                    app = _get_app(client, target_app_id)
 
             dashboard_url = None
             if not json_output:

@@ -6,8 +6,8 @@ import typer
 from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.commands.env._shared import _resolve_app_id
 from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
@@ -169,7 +169,9 @@ def set(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        target_app_id = _resolve_app_id(toolkit, app_id=app_id, path=path or path_arg)
+        target_app_id = resolve_app_id_or_fail(
+            toolkit, app_id=app_id, path=path or path_arg
+        )
         name_needs_prompt = name is None
         value_needs_prompt = value is None and not value_stdin
         prompts_user = name_needs_prompt or value_needs_prompt

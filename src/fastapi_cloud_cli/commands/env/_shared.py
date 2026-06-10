@@ -1,11 +1,7 @@
-from pathlib import Path
-
 from pydantic import BaseModel
 from rich.text import Text
 
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.apps import get_app_config
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 
 ENV_VAR_VALUE_MAX_LENGTH = 40
 
@@ -55,22 +51,3 @@ def _format_env_var_value(env_var: EnvironmentVariable) -> Text:
         value = f"{value[: ENV_VAR_VALUE_MAX_LENGTH - 3]}..."
 
     return Text(value)
-
-
-def _resolve_app_id(
-    toolkit: FastAPIRichToolkit, *, app_id: str | None, path: Path | None
-) -> str:
-    if app_id is not None:
-        return app_id
-
-    app_path = path or Path.cwd()
-    app_config = get_app_config(app_path)
-
-    if app_config is not None:
-        return app_config.app_id
-
-    toolkit.fail(
-        "missing_required_input",
-        "App ID is required.",
-        hint="Pass --app-id or run `fastapi cloud apps create --link` first.",
-    )

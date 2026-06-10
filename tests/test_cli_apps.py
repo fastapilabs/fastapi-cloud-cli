@@ -16,6 +16,7 @@ from fastapi_cloud_cli.commands.apps.list import (
 )
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import AppConfig
+from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
 runner = CliRunner()
@@ -679,6 +680,50 @@ def test_gets_app_json_returns_not_found_for_unknown_app(
             "code": "not_found",
             "message": "App not found.",
             "hint": None,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_gets_app_as_json_uses_linked_app_when_id_omitted(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    configured_app: ConfiguredApp,
+) -> None:
+    app_data = {
+        "id": configured_app.app_id,
+        "team_id": configured_app.team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+        "url": "https://api.fastapicloud.app",
+    }
+    respx_mock.get(f"/apps/{configured_app.app_id}").mock(
+        return_value=Response(200, json=app_data)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "get", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["data"]["app"]["id"] == configured_app.app_id
+    assert result.stderr == ""
+
+
+def test_gets_app_json_returns_missing_required_input_without_app_id(
+    logged_in_cli: None,
+    tmp_path: Path,
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["apps", "get", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "App ID is required.",
+            "hint": "Pass an app ID or run `fastapi cloud apps create --link` first.",
         }
     }
     assert result.stderr == ""

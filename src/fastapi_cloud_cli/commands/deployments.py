@@ -1,6 +1,5 @@
 import json
 import logging
-from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -20,7 +19,7 @@ from fastapi_cloud_cli.utils.api import (
     get_http_error_hint,
     handle_http_error,
 )
-from fastapi_cloud_cli.utils.apps import get_app_config
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import (
     FastAPIRichToolkit,
@@ -160,17 +159,6 @@ def _render_deployment_get_output(
             ]
         )
     )
-
-
-def _get_app_id(app_id: str | None) -> str | None:
-    if app_id is not None:
-        return app_id
-
-    app_config = get_app_config(Path.cwd())
-    if app_config is None:
-        return None
-
-    return app_config.app_id
 
 
 def _print_build_log_json(
@@ -344,14 +332,7 @@ def get_deployment(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        target_app_id = _get_app_id(app_id)
-        if target_app_id is None:
-            toolkit.fail(
-                "missing_required_input",
-                "App ID is required.",
-                hint="Pass --app-id or run `fastapi cloud apps create --link` first.",
-            )
-        assert target_app_id is not None
+        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
         with APIClient() as client:
             with toolkit.progress(
@@ -484,14 +465,7 @@ def list_deployments(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        target_app_id = _get_app_id(app_id)
-        if target_app_id is None:
-            toolkit.fail(
-                "missing_required_input",
-                "App ID is required.",
-                hint="Pass --app-id or run `fastapi cloud apps create --link` first.",
-            )
-        assert target_app_id is not None
+        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
         with APIClient() as client:
             with toolkit.progress(

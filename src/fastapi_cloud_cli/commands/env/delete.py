@@ -6,11 +6,9 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
-from fastapi_cloud_cli.commands.env._shared import (
-    _get_environment_variables,
-    _resolve_app_id,
-)
+from fastapi_cloud_cli.commands.env._shared import _get_environment_variables
 from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
@@ -100,7 +98,9 @@ def delete(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        target_app_id = _resolve_app_id(toolkit, app_id=app_id, path=path or path_arg)
+        target_app_id = resolve_app_id_or_fail(
+            toolkit, app_id=app_id, path=path or path_arg
+        )
         name_provided = name is not None
 
         with APIClient() as client:

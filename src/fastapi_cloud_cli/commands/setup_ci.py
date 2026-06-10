@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.apps import get_app_config
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
@@ -163,6 +163,11 @@ def setup_ci(
             )
         ),
     ] = None,
+    app_id: str | None = typer.Option(
+        None,
+        "--app-id",
+        help="ID of the app to set up CI for (defaults to the app linked to the directory)",
+    ),
     branch: str | None = typer.Option(
         None,
         "--branch",
@@ -209,15 +214,12 @@ def setup_ci(
             )
             raise typer.Exit(1)
 
-        app_path = path or Path.cwd()
-        app_config = get_app_config(app_path)
-
-        if not app_config:
-            toolkit.print(
-                "No app linked to this directory. Run [blue]`fastapi deploy`[/] first.",
-                emoji="❌",
-            )
-            raise typer.Exit(1)
+        target_app_id = resolve_app_id_or_fail(
+            toolkit,
+            app_id=app_id,
+            path=path,
+            hint="Pass --app-id or run `fastapi deploy` first.",
+        )
 
         if not _check_git_installed():
             toolkit.print(
@@ -295,7 +297,7 @@ def setup_ci(
             ),
         ):
             token_data = _create_token(
-                client=client, app_id=app_config.app_id, token_name=token_name
+                client=client, app_id=target_app_id, token_name=token_name
             )
             progress.log(msg_token)
 
@@ -307,7 +309,7 @@ def setup_ci(
             ) as progress:
                 try:
                     _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
-                    _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
+                    _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
                 except GitHubSecretError:
                     progress.set_error("Failed to set GitHub secrets via gh CLI.")
                     raise typer.Exit(1) from None
@@ -321,7 +323,7 @@ def setup_ci(
             toolkit.print(f"  Repository: [blue]{secrets_url}[/]")
             toolkit.print_line()
             toolkit.print(f"  [bold]FASTAPI_CLOUD_TOKEN[/bold] = {token_data['value']}")
-            toolkit.print(f"  [bold]FASTAPI_CLOUD_APP_ID[/bold] = {app_config.app_id}")
+            toolkit.print(f"  [bold]FASTAPI_CLOUD_APP_ID[/bold] = {target_app_id}")
 
         toolkit.print_line()
 
