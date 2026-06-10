@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add env get command. PR [#233](https://github.com/fastapilabs/fastapi-cloud-cli/pull/233) by [@patrick91](https://github.com/patrick91).
 * ✨ Add JSON output for env list. PR [#231](https://github.com/fastapilabs/fastapi-cloud-cli/pull/231) by [@patrick91](https://github.com/patrick91).
 * ✨ Add build logs and json mode for logs. PR [#229](https://github.com/fastapilabs/fastapi-cloud-cli/pull/229) by [@patrick91](https://github.com/patrick91).
 * ✨ Add deployments get command. PR [#228](https://github.com/fastapilabs/fastapi-cloud-cli/pull/228) by [@patrick91](https://github.com/patrick91).
