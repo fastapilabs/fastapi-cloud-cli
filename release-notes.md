@@ -34,6 +34,7 @@
 
 ### Internal
 
+* ⬆ Bump pygments from 2.19.2 to 2.20.0. PR [#185](https://github.com/fastapilabs/fastapi-cloud-cli/pull/185) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump idna from 3.11 to 3.15. PR [#200](https://github.com/fastapilabs/fastapi-cloud-cli/pull/200) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump python-dotenv from 1.2.1 to 1.2.2. PR [#184](https://github.com/fastapilabs/fastapi-cloud-cli/pull/184) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the github-actions group with 3 updates. PR [#237](https://github.com/fastapilabs/fastapi-cloud-cli/pull/237) by [@dependabot[bot]](https://github.com/apps/dependabot).
