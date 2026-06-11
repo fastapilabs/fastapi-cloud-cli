@@ -1,6 +1,7 @@
 import logging
 import os
-from collections.abc import Callable, Iterable
+import time
+from collections.abc import Callable, Iterable, Iterator
 from types import TracebackType
 from typing import Any, Literal, NoReturn, Protocol, TypeVar, cast
 
@@ -10,6 +11,7 @@ from rich._loop import loop_first_last
 from rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
 from rich.padding import Padding
 from rich.segment import Segment
+from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit, RichToolkitTheme
@@ -20,6 +22,7 @@ from rich_toolkit.progress import Progress
 from rich_toolkit.styles import BaseStyle, MinimalStyle
 
 from fastapi_cloud_cli.utils.errors import ErrorCode
+from fastapi_cloud_cli.utils.execution import is_ci_enabled
 from fastapi_cloud_cli.utils.version_check import (
     DISABLE_VERSION_CHECK_ENV,
     BackgroundVersionCheck,
@@ -40,6 +43,35 @@ class ErrorRenderer(Protocol):
         message: str,
         hint: str,
     ) -> None: ...
+
+
+TITLE_SWEEP_SHADES = ("█", "▓", "▓", "▒", "░")
+TITLE_SWEEP_DELAY = 0.015
+
+
+def _title_sweep_frames(text: str) -> Iterator[tuple[str, str, str]]:
+    """Frames of a gradient sweep painting the title chip into existence.
+
+    Each frame is split into the part of the chip already swept (rendered
+    with the chip's background), the visible sweep shades, and the still
+    untouched tail, all together exactly as wide as the chip (one space of
+    padding around the text) so the real chip prints cleanly over the last
+    frame."""
+    chip = f" {text} "
+    width = len(chip)
+
+    for light_pos in range(-len(TITLE_SWEEP_SHADES), width + len(TITLE_SWEEP_SHADES)):
+        sweep_start = light_pos - len(TITLE_SWEEP_SHADES) + 1
+        chip_end = max(0, min(width, sweep_start))
+
+        shades = "".join(
+            shade
+            for index, shade in enumerate(TITLE_SWEEP_SHADES)
+            if 0 <= sweep_start + index < width
+        )
+        tail = " " * (width - chip_end - len(shades))
+
+        yield chip[:chip_end], shades, tail
 
 
 def _strip_rich_markup(value: str | None) -> str | None:
@@ -172,6 +204,9 @@ class FastAPIStyle(BaseStyle):
     def _render_title(self, title: Any, metadata: dict[str, Any]) -> RenderableType:
         tag = metadata.get("tag", "")
 
+        if metadata.get("animate", False):
+            self._animate_title_sweep(tag or title)
+
         chip = Padding(
             Text(f" {tag or title} ", style="tag.title"),
             (0, 0, 0, self.title_padding),
@@ -187,6 +222,30 @@ class FastAPIStyle(BaseStyle):
         )
 
         return Group(chip, "", title_text)
+
+    def _animate_title_sweep(self, text: str) -> None:
+        """Sweep a gradient across the chip's line right before it prints,
+        painting the chip background in behind the light."""
+        if not self.console.is_terminal or is_ci_enabled():
+            return
+
+        indent = " " * self.title_padding
+        # the shades sweep in the chip's background color over the bare
+        # terminal, so the solid trailing edge blends into the painted chip
+        sweep_style = Style(color=self.console.get_style("tag.title").bgcolor)
+
+        self.console.show_cursor(False)
+        try:
+            for chip, shades, tail in _title_sweep_frames(text):
+                self.console.print(
+                    Text.assemble(
+                        indent, (chip, "tag.title"), (shades, sweep_style), tail
+                    ),
+                    end="\r",
+                )
+                time.sleep(TITLE_SWEEP_DELAY)
+        finally:
+            self.console.show_cursor(True)
 
     def _get_progress_status_emoji(self, element: Progress, done: bool) -> str:
         if element._cancelled or element.is_error:

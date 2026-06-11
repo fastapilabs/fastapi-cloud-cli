@@ -168,7 +168,10 @@ def deploy(
                 )
 
             toolkit.print_title(
-                "Welcome to FastAPI Cloud!", tag="FastAPI Cloud", emoji="👋"
+                "Welcome to FastAPI Cloud!",
+                tag="FastAPI Cloud",
+                emoji="👋",
+                animate=True,
             )
             toolkit.print_line()
 
@@ -195,7 +198,7 @@ def deploy(
         with APIClient(use_deploy_token=use_deploy_token) as client:
             # the welcome title already shows the header when logging in
             if has_auth:
-                toolkit.print_title("FastAPI Cloud")
+                toolkit.print_title("FastAPI Cloud", animate=True)
                 toolkit.print_line()
 
             if use_deploy_token:
