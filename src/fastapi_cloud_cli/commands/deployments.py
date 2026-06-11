@@ -308,7 +308,10 @@ def _render_build_log_error(
         toolkit.print_hint(hint)
 
 
-deployments_app = typer.Typer(no_args_is_help=True)
+deployments_app = typer.Typer(
+    no_args_is_help=True,
+    help="Manage the deployments of your app.",
+)
 
 
 @deployments_app.command("get")

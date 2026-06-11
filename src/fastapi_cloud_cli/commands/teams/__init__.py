@@ -81,7 +81,10 @@ def _render_teams_list_output(data: TeamsListOutput, toolkit: RichToolkit) -> No
     toolkit.print(table, bullet=False)
 
 
-teams_app = typer.Typer(no_args_is_help=True)
+teams_app = typer.Typer(
+    no_args_is_help=True,
+    help="Manage your FastAPI Cloud teams.",
+)
 
 
 @teams_app.command("list")
