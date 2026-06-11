@@ -1,9 +1,11 @@
 import json
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import httpx
 import pytest
 import respx
+import time_machine
 from httpx import Response
 from typer.testing import CliRunner
 
@@ -98,7 +100,8 @@ def test_lists_deployments_as_json_uses_linked_app(
 
 
 @pytest.mark.respx
-def test_lists_deployments_human_output_shows_id_and_status_only(
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+def test_lists_deployments_human_output_shows_id_status_and_created(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
 ) -> None:
@@ -121,7 +124,8 @@ def test_lists_deployments_human_output_shows_id_and_status_only(
 
     assert result.exit_code == 0
     assert "Status" in result.output
-    assert "00000000-0000-4000-8000-000000000003  success" in result.output
+    assert "Created" in result.output
+    assert "00000000-0000-4000-8000-000000000003  success  2 hours ago" in result.output
     assert "Slug" not in result.output
     assert "URL" not in result.output
     assert "api-20260522" not in result.output
@@ -296,6 +300,7 @@ def test_gets_deployment_json_returns_missing_required_input_without_app_context
 
 
 @pytest.mark.respx
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
 def test_gets_deployment_in_human_output(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -320,13 +325,14 @@ def test_gets_deployment_in_human_output(
     )
 
     assert result.exit_code == 0
+    assert "deployment" in result.output
     assert f"🚀 {deployment['id']}" in result.output
     assert f"app id     {app_id}" in result.output
     assert "slug       api-20260522" in result.output
     assert "status     success" in result.output
+    assert "created    2 hours ago" in result.output
     assert "url        https://api.fastapicloud.app" in result.output
     assert "dashboard  https://dashboard.example.com/d/api-20260522" in result.output
-    assert "created at" not in result.output
     assert "2026-05-22T10:00:00Z" not in result.output
 
 
