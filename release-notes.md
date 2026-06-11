@@ -29,6 +29,7 @@
 
 ### Refactors
 
+* 💄 Improve CLI design consistency. PR [#241](https://github.com/fastapilabs/fastapi-cloud-cli/pull/241) by [@patrick91](https://github.com/patrick91).
 * 💄 Add option to animate titles. PR [#240](https://github.com/fastapilabs/fastapi-cloud-cli/pull/240) by [@patrick91](https://github.com/patrick91).
 * ♻️ Resolve app ID consistently across commands. PR [#236](https://github.com/fastapilabs/fastapi-cloud-cli/pull/236) by [@patrick91](https://github.com/patrick91).
 * ♻️ Split env command into package. PR [#232](https://github.com/fastapilabs/fastapi-cloud-cli/pull/232) by [@patrick91](https://github.com/patrick91).
