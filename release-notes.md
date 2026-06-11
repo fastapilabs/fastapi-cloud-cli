@@ -24,6 +24,7 @@
 
 ### Fixes
 
+* 🩹 Fix cloud unlink JSON output and path scope. PR [#239](https://github.com/fastapilabs/fastapi-cloud-cli/pull/239) by [@patrick91](https://github.com/patrick91).
 * 🐛 Show a proper error when running on CI and auth is missing. PR [#215](https://github.com/fastapilabs/fastapi-cloud-cli/pull/215) by [@patrick91](https://github.com/patrick91).
 
 ### Refactors
