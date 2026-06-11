@@ -31,6 +31,9 @@ def _render_whoami_output(data: WhoAmIOutput, toolkit: RichToolkit) -> None:
 def whoami(
     json_output: JsonOutputOption = False,
 ) -> Any:
+    """
+    Show the currently logged in user.
+    """
     identity = Identity()
 
     with get_rich_toolkit(json_output=json_output) as toolkit:

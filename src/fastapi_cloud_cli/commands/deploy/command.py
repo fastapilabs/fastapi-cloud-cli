@@ -129,7 +129,7 @@ def deploy(
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
-    Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud. 🚀
+    Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud.
     """
     logger.debug("Deploy command started")
     logger.debug(

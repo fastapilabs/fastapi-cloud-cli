@@ -78,7 +78,7 @@ def login(
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
-    Login to FastAPI Cloud. 🚀
+    Login to FastAPI Cloud.
     """
     if json_output:
         with get_rich_toolkit(json_output=json_output, minimal=True) as toolkit:

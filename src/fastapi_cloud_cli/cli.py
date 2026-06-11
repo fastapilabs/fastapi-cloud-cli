@@ -33,7 +33,7 @@ def version_callback(value: bool) -> None:
 
 cloud_app = typer.Typer(
     rich_markup_mode="rich",
-    help="Manage [bold]FastAPI[/bold] Cloud deployments. 🚀",
+    help="Manage [bold]FastAPI[/bold] Cloud deployments.",
     no_args_is_help=True,
 )
 
