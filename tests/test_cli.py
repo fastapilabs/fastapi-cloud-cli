@@ -19,6 +19,7 @@ from typer.testing import CliRunner
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.utils import cli as cli_utils
 from fastapi_cloud_cli.utils.cli import (
+    ERROR_BULLET,
     FastAPIRichToolkit,
     FastAPIStyle,
     IndentedBlock,
@@ -194,6 +195,10 @@ def test_fastapi_style_progress_status_emoji_states() -> None:
     style.animation_counter = 0
 
     assert style._get_progress_status_emoji(progress, done=False) == "🥚"
+    assert style._get_progress_status_emoji(progress, done=True) == "✅"
+
+    progress.metadata["emoji"] = "🤏"
+    assert style._get_progress_status_emoji(progress, done=False) == "🤏"
     assert style._get_progress_status_emoji(progress, done=True) == "✅"
 
     progress._cancelled = True
@@ -384,7 +389,7 @@ def test_toolkit_fail_uses_error_emoji(
         with pytest.raises(typer.Exit):
             toolkit.fail("api_error", "A value is required.")
 
-    assert calls[0]["emoji"] == "❌"
+    assert calls[0]["emoji"] == ERROR_BULLET
 
 
 def test_toolkit_fail_uses_custom_human_output_renderer_and_exits() -> None:

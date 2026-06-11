@@ -43,7 +43,9 @@ def wait(
     """
     with get_rich_toolkit(json_output=json_output) as toolkit:
         with APIClient() as client:
-            toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud")
+            toolkit.print_title(
+                "Login to FastAPI Cloud", tag="FastAPI Cloud", emoji="🔐"
+            )
             toolkit.print_line()
 
             with toolkit.progress(

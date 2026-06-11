@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 from pydantic import BaseModel, Field
@@ -33,28 +33,20 @@ def _render_link_output(data: LinkOutput, toolkit: RichToolkit) -> None:
     toolkit.print(f"Config: [bold]{data.config_path}[/bold]", bullet=False)
 
 
-def _fail_not_logged_in_interactive(toolkit: FastAPIRichToolkit) -> None:
-    toolkit.print(
-        "[error]You need to be logged in to link an app.[/]",
+def _fail_not_logged_in_interactive(toolkit: FastAPIRichToolkit) -> NoReturn:
+    toolkit.fail(
+        "not_logged_in",
+        "You need to be logged in to link an app.",
+        hint="Run [bold]fastapi cloud login[/] to authenticate.",
     )
-    toolkit.print_line()
-    toolkit.print(
-        "Run [bold]fastapi cloud login[/] to authenticate.",
-        emoji="💡",
-    )
-    raise typer.Exit(1)
 
 
-def _fail_already_linked_interactive(toolkit: FastAPIRichToolkit) -> None:
-    toolkit.print(
-        "[error]This directory is already linked to an app.[/]",
+def _fail_already_linked_interactive(toolkit: FastAPIRichToolkit) -> NoReturn:
+    toolkit.fail(
+        "already_linked",
+        "This directory is already linked to an app.",
+        hint="Run [bold]fastapi cloud unlink[/] first to remove the existing configuration.",
     )
-    toolkit.print_line()
-    toolkit.print(
-        "Run [bold]fastapi cloud unlink[/] first to remove the existing configuration.",
-        emoji="💡",
-    )
-    raise typer.Exit(1)
 
 
 def _link_app_by_id(
@@ -150,16 +142,11 @@ def _link_app_interactively(
                 apps_data = response.json()["data"]
 
     if not apps_data:
-        toolkit.print(
-            "[error]No apps found in this team.[/]",
-            bullet=False,
+        toolkit.fail(
+            "not_found",
+            "No apps found in this team.",
+            hint="Run [bold]fastapi cloud apps create[/] to create and deploy a new app.",
         )
-        toolkit.print_line()
-        toolkit.print(
-            "Run [bold]fastapi cloud apps create[/] to create and deploy a new app.",
-            emoji="💡",
-        )
-        raise typer.Exit(1)
 
     app = toolkit.ask(
         "Select the app to link:",

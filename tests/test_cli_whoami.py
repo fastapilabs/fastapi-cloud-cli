@@ -257,20 +257,16 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["whoami"])
 
     assert result.exit_code == 1
-    assert (
-        "No credentials found. Run `fastapi login` or set FASTAPI_CLOUD_TOKEN."
-        in result.output
-    )
+    assert "No credentials found." in result.output
+    assert "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN." in result.output
 
 
 def test_prints_not_logged_in_with_deploy_token(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["whoami"], env={"FASTAPI_CLOUD_TOKEN": "ABC"})
 
     assert result.exit_code == 1
-    assert (
-        "No credentials found. Run `fastapi login` or set FASTAPI_CLOUD_TOKEN."
-        in result.output
-    )
+    assert "No credentials found." in result.output
+    assert "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN." in result.output
 
 
 @pytest.mark.respx

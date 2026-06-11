@@ -15,24 +15,31 @@ from fastapi_cloud_cli.utils.api import (
     TooManyRetriesError,
 )
 
+# (bullet emoji, message) — the emoji replaces the progress animation
 WAITING_MESSAGES = [
-    "🚀 Preparing for liftoff! Almost there...",
-    "👹 Sneaking past the dependency gremlins... Don't wake them up!",
-    "🤏 Squishing code into a tiny digital sandwich. Nom nom nom.",
-    "🐱 Removing cat videos from our servers to free up space.",
-    "🐢 Uploading at blazing speeds of 1 byte per hour. Patience, young padawan.",
-    "🔌 Connecting to server... Please stand by while we argue with the firewall.",
-    "💥 Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
-    "🧙 Sprinkling magic deployment dust. Abracadabra!",
-    "👀 Hoping that @tiangolo doesn't find out about this deployment.",
-    "🍪 Cookie monster detected on server. Deploying anti-cookie shields.",
+    ("🚀", "Preparing for liftoff! Almost there..."),
+    ("👹", "Sneaking past the dependency gremlins... Don't wake them up!"),
+    ("🤏", "Squishing code into a tiny digital sandwich. Nom nom nom."),
+    ("🐱", "Removing cat videos from our servers to free up space."),
+    ("🐢", "Uploading at blazing speeds of 1 byte per hour. Patience, young padawan."),
+    ("🔌", "Connecting to server... Please stand by while we argue with the firewall."),
+    (
+        "💥",
+        "Oops! We've angered the Python God. Sacrificing a rubber duck to appease it.",
+    ),
+    ("🧙", "Sprinkling magic deployment dust. Abracadabra!"),
+    ("👀", "Hoping that @tiangolo doesn't find out about this deployment."),
+    ("🍪", "Cookie monster detected on server. Deploying anti-cookie shields."),
 ]
 
 LONG_WAIT_MESSAGES = [
-    "😅 Well, that's embarrassing. We're still waiting for the deployment to finish...",
-    "🤔 Maybe we should have brought snacks for this wait...",
-    "🥱 Yawn... Still waiting...",
-    "🤯 Time is relative... Especially when you're waiting for a deployment...",
+    (
+        "😅",
+        "Well, that's embarrassing. We're still waiting for the deployment to finish...",
+    ),
+    ("🤔", "Maybe we should have brought snacks for this wait..."),
+    ("🥱", "Yawn... Still waiting..."),
+    ("🤯", "Time is relative... Especially when you're waiting for a deployment..."),
 ]
 
 
@@ -42,6 +49,8 @@ def _verify_deployment(
     app_id: str,
     deployment: CreateDeploymentResponse,
 ) -> None:
+    failed_status: str | None = None
+
     with toolkit.progress(
         title="Verifying deployment...",
         inline_logs=True,
@@ -63,13 +72,16 @@ def _verify_deployment(
             progress.metadata["done_emoji"] = "❌"
             progress.current_message = "Deployment failed"
 
-            human_status = DeploymentStatus.to_human_readable(final_status)
+            failed_status = DeploymentStatus.to_human_readable(final_status)
 
-            progress.log(
-                f"😔 Oh no! Deployment failed: {human_status}. "
-                f"Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-            )
-            raise typer.Exit(1)
+    if failed_status is not None:
+        toolkit.print_line()
+        toolkit.print(
+            f"Oh no! Deployment failed: {failed_status}. "
+            f"Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
+            emoji="😔",
+        )
+        raise typer.Exit(1)
 
     toolkit.print_line()
     toolkit.print(
@@ -93,13 +105,15 @@ def _wait_for_deployment(
 
     with (
         toolkit.progress(
-            "Checking the status of your deployment 👀",
+            "Checking the status of your deployment",
             inline_logs=True,
             lines_to_show=20,
+            emoji="👀",
             done_emoji="🚀",
         ) as progress,
     ):
         build_complete = False
+        build_failed = False
 
         try:
             for log in client.stream_build_logs(deployment.id):
@@ -114,17 +128,21 @@ def _wait_for_deployment(
                     break
 
                 if log.type == "failed":
-                    progress.log("")
-                    progress.log(
-                        f"😔 Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
-                    )
-                    raise typer.Exit(1)
+                    build_failed = True
+                    # the headline comes from the title once there are log
+                    # lines, and from current_message when there are none
+                    progress.title = "Build failed"
+                    progress.current_message = "Build failed"
+                    progress.metadata["done_emoji"] = "❌"
+                    break
 
                 if time_elapsed > 30:
                     messages = cycle(LONG_WAIT_MESSAGES)
 
                 if (time.monotonic() - last_message_changed_at) > 2:
-                    progress.title = next(messages)
+                    emoji, title = next(messages)
+                    progress.metadata["emoji"] = emoji
+                    progress.title = title
 
                     last_message_changed_at = time.monotonic()
 
@@ -138,6 +156,14 @@ def _wait_for_deployment(
             )
 
             raise typer.Exit(1) from None
+
+    if build_failed:
+        toolkit.print_line()
+        toolkit.print(
+            f"Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
+            emoji="😔",
+        )
+        raise typer.Exit(1)
 
     if build_complete:
         toolkit.print_line()

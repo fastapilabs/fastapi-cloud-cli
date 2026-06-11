@@ -5,7 +5,6 @@ from typing import Annotated, Any, cast
 
 import typer
 from pydantic import BaseModel
-from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
@@ -21,7 +20,7 @@ from fastapi_cloud_cli.commands.login import _interactive_login
 from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.execution import JsonOutputOption, is_ci_enabled
 
@@ -76,26 +75,25 @@ def _get_large_file_warnings(
 
 
 def _render_app_id_mismatch(
-    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+    toolkit: FastAPIRichToolkit, *, code: ErrorCode, message: str, hint: str
 ) -> None:
-    toolkit.print(f"[error]Error: {message}[/]", emoji="❌")
+    toolkit.print_error(message)
     toolkit.print_line()
-    toolkit.print(hint, emoji="💡")
+    toolkit.print_hint(hint)
 
 
 def _render_app_not_found(
-    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+    toolkit: FastAPIRichToolkit, *, code: ErrorCode, message: str, hint: str
 ) -> None:
     toolkit.print_line()
 
 
 def _render_linked_app_not_found(
-    toolkit: RichToolkit, *, code: ErrorCode, message: str, hint: str
+    toolkit: FastAPIRichToolkit, *, code: ErrorCode, message: str, hint: str
 ) -> None:
     _render_app_not_found(toolkit, code=code, message=message, hint=hint)
-    toolkit.print(
-        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration.",
-        emoji="💡",
+    toolkit.print_hint(
+        "If you deleted this app, you can run [bold]fastapi cloud unlink[/] to unlink the local configuration."
     )
 
 
@@ -247,9 +245,11 @@ def deploy(
                 target_app_id = app_config.app_id
 
             if provided_app_id:
-                toolkit.print(f"Deploying to app [blue]{target_app_id}[/blue]...")
+                toolkit.print(
+                    f"Deploying to app [blue]{target_app_id}[/blue]...", emoji="🚀"
+                )
             else:
-                toolkit.print("Deploying app...")
+                toolkit.print("Deploying app...", emoji="🚀")
 
             toolkit.print_line()
 

@@ -2,7 +2,6 @@ from pathlib import Path
 
 import typer
 from pydantic import TypeAdapter
-from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.commands.deploy.archive import AppDirectory, _get_app_name
@@ -15,10 +14,11 @@ from fastapi_cloud_cli.commands.deploy.cloud import (
 )
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 
 
 def _configure_app(
-    toolkit: RichToolkit,
+    toolkit: FastAPIRichToolkit,
     client: APIClient,
     path_to_deploy: Path,
 ) -> AppConfig:
@@ -37,11 +37,14 @@ def _configure_app(
         "Select the team you want to deploy to:",
         options=[Option({"name": team.name, "value": team}) for team in teams],
         allow_filtering=True,
+        emoji="🏢",
     )
 
     toolkit.print_line()
 
-    create_new_app = toolkit.confirm("Do you want to create a new app?", default=True)
+    create_new_app = toolkit.confirm(
+        "Do you want to create a new app?", default=True, emoji="📦"
+    )
 
     toolkit.print_line()
 
@@ -56,16 +59,16 @@ def _configure_app(
                 apps = _get_apps(client=client, team_id=team.id)
 
         if not apps:
-            toolkit.print(
+            toolkit.fail(
+                "not_found",
                 "No apps found in this team. You can create a new app instead.",
             )
-
-            raise typer.Exit(1)
 
         selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
             options=[Option({"name": app.slug, "value": app}) for app in apps],
             allow_filtering=True,
+            emoji="📦",
         )
 
     app_name = (
@@ -74,6 +77,7 @@ def _configure_app(
         else toolkit.input(
             title="What's your app name?",
             default=_get_app_name(path_to_deploy),
+            emoji="✏️",
         )
     )
 
@@ -90,13 +94,14 @@ def _configure_app(
             "[italic]Leave empty if pyproject.toml is in the current directory[/italic]"
         ),
         validator=TypeAdapter(AppDirectory),
+        emoji="📂",
     )
 
     directory: str | None = directory_input if directory_input else None
 
     toolkit.print_line()
 
-    toolkit.print("Deployment configuration:")
+    toolkit.print("Deployment configuration:", emoji="📋")
     toolkit.print_line()
     toolkit.print(f"Team: [bold]{team.name}[/bold]")
     toolkit.print(f"App name: [bold]{app_name}[/bold]")
@@ -110,6 +115,7 @@ def _configure_app(
             Option({"name": "Yes, start the deployment!", "value": "deploy"}),
             Option({"name": "No, let me start over", "value": "cancel"}),
         ],
+        emoji="👀",
     )
     toolkit.print_line()
 

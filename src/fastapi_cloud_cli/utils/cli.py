@@ -31,18 +31,23 @@ from fastapi_cloud_cli.utils.version_check import (
 logger = logging.getLogger(__name__)
 
 OutputT = TypeVar("OutputT", bound=BaseModel)
-OutputRenderer = Callable[[OutputT, RichToolkit], None]
+OutputRenderer = Callable[[OutputT, "FastAPIRichToolkit"], None]
 
 
 class ErrorRenderer(Protocol):
     def __call__(
         self,
-        toolkit: RichToolkit,
+        toolkit: "FastAPIRichToolkit",
         *,
         code: ErrorCode,
         message: str,
         hint: str,
     ) -> None: ...
+
+
+# the leading space right-aligns the one-cell ✗ within the two-cell emoji
+# slot, so its right edge and gap to the text match the emoji bullets
+ERROR_BULLET = " [bold][error]✗[/][/]"
 
 
 TITLE_SWEEP_SHADES = ("█", "▓", "▓", "▒", "░")
@@ -254,6 +259,9 @@ class FastAPIStyle(BaseStyle):
         if done:
             return cast(str, element.metadata.get("done_emoji", "🐔"))
 
+        if emoji := element.metadata.get("emoji"):
+            return cast(str, emoji)
+
         return self.animation_emojis[
             self.animation_counter % len(self.animation_emojis)
         ]
@@ -348,6 +356,12 @@ class FastAPIRichToolkit(RichToolkit):
             self.print_line()
             self.print(Text.from_markup(message), emoji="⬆️")
 
+    def print_error(self, message: str) -> None:
+        self.print(f"[bold][error]error:[/][/] {message}", emoji=ERROR_BULLET)
+
+    def print_hint(self, message: str) -> None:
+        self.print(f"[dim]hint: {message}[/]")
+
     def success(
         self,
         data: OutputT,
@@ -357,7 +371,9 @@ class FastAPIRichToolkit(RichToolkit):
         render_output: OutputRenderer[OutputT] | None = None,
     ) -> None:
         if self.mode != "json":
-            self.output(data, render_output=render_output)
+            # the base class types render_output as taking a plain RichToolkit,
+            # but output() always passes self, so the narrowing is safe
+            self.output(data, render_output=cast(Any, render_output))
             return
 
         output: dict[str, Any] = {"data": data}
@@ -391,12 +407,12 @@ class FastAPIRichToolkit(RichToolkit):
             )
         elif render_output is not None:
             render_output(self, code=code, message=message, hint=hint or "")
-        else:  # pragma: no cover
-            self.print(f"[error]Error: {message}[/]", emoji="❌")
+        else:
+            self.print_error(message)
 
             if hint:
                 self.print_line()
-                self.print(hint, emoji="💡")
+                self.print_hint(hint)
 
         raise typer.Exit(exit_code)
 

@@ -104,16 +104,16 @@ def _print_app_log_json(app_id: str, log: AppLogEntry) -> None:
 
 
 def _render_plain_error(
-    toolkit: RichToolkit,
+    toolkit: FastAPIRichToolkit,
     *,
     code: ErrorCode,
     message: str,
     hint: str,
 ) -> None:
-    toolkit.print(message)
+    toolkit.print_error(message)
     if hint:
         toolkit.print_line()
-        toolkit.print(hint, emoji="💡")
+        toolkit.print_hint(hint)
 
 
 def _handle_stream_log_error(

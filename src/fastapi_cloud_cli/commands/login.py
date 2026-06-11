@@ -93,13 +93,16 @@ def login(
         return
     identity = Identity()
 
-    is_logged_in = identity.is_logged_in()
+    with get_rich_toolkit() as toolkit:
+        toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud", emoji="🔐")
+        toolkit.print_line()
 
-    with get_rich_toolkit(json_output=json_output, minimal=True) as toolkit:
-        if is_logged_in:
+        if identity.is_logged_in():
             toolkit.print("You are already logged in.")
+            toolkit.print_line()
             toolkit.print(
-                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
+                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts.",
+                emoji="💡",
             )
 
             return
@@ -111,8 +114,6 @@ def login(
                 "[blue]`fastapi deploy`[/] command.",
                 emoji="⚠️",
             )
+            toolkit.print_line()
 
-    toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud")
-    toolkit.print_line()
-
-    _interactive_login(toolkit, no_open=no_open, timeout=timeout)
+        _interactive_login(toolkit, no_open=no_open, timeout=timeout)
