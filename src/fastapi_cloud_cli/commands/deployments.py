@@ -26,6 +26,7 @@ from fastapi_cloud_cli.utils.cli import (
     get_details_table,
     get_rich_toolkit,
 )
+from fastapi_cloud_cli.utils.dates import format_last_updated
 from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -116,13 +117,15 @@ def _render_deployments_list_output(
     table = Table.grid(padding=(0, 2), pad_edge=False)
     table.add_column("ID", no_wrap=True)
     table.add_column("Status", no_wrap=True)
-    table.add_row("[bold]ID[/bold]", "[bold]Status[/bold]")
-    table.add_row("", "")
+    table.add_column("Created", style="dim", no_wrap=True)
+    table.add_row("[bold]ID[/bold]", "[bold]Status[/bold]", "[bold]Created[/bold]")
+    table.add_row("", "", "")
 
     for deployment in data.deployments:
         table.add_row(
             deployment.id,
             deployment.status.value,
+            Text(format_last_updated(deployment.created_at)),
         )
 
     toolkit.print(table, bullet=False)
@@ -133,6 +136,9 @@ def _render_deployment_get_output(
 ) -> None:
     deployment = data.deployment
 
+    toolkit.print_title("deployment")
+    toolkit.print_line()
+
     toolkit.print(f"[bold]{deployment.id}[/bold]", emoji="🚀")
     toolkit.print_line()
     toolkit.print(
@@ -141,6 +147,7 @@ def _render_deployment_get_output(
                 ("app id", deployment.app_id),
                 ("slug", deployment.slug),
                 ("status", deployment.status.value),
+                ("created", format_last_updated(deployment.created_at)),
                 (
                     "url",
                     deployment.url
