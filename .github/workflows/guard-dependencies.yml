@@ -22,16 +22,12 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const author = pr.user.login;
-            const assoc = pr.author_association;
 
-            const botAllowlist = new Set(['dependabot[bot]']);
-            const orgAuthorAssociations = new Set(['MEMBER', 'OWNER']);
+            // Is PR branch in the same repo (not a fork)?
+            const sameRepo =
+              pr.head.repo != null && pr.head.repo.id === pr.base.repo.id;
 
-            const allowed =
-              botAllowlist.has(author) ||
-              (assoc != null && orgAuthorAssociations.has(assoc));
-
-            if (!allowed) {
+            if (!sameRepo) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -48,5 +44,5 @@ jobs:
 
               core.setFailed('Dependency changes are restricted to organization members.');
             } else {
-              console.log(`Author ${author} (author_association=${assoc}) is allowed to make dependency changes.`);
+              console.log(`Author ${author} (sameRepo=${sameRepo}) is allowed to make dependency changes.`);
             }
