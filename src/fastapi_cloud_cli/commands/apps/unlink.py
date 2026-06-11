@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class UnlinkOutput(BaseModel):
     unlinked: bool
-    path: Path
+    path: Annotated[Path, Field(exclude=True)]
     removed_path: Path
     path_provided: Annotated[bool, Field(exclude=True)] = False
 
