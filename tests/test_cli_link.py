@@ -325,6 +325,81 @@ def test_shows_error_on_apps_api_failure(
 
 
 @pytest.mark.respx
+def test_app_menu_is_ordered_by_slug(
+    logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
+) -> None:
+    steps = [Keys.ENTER, Keys.ENTER]
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200, json={"data": [{"id": "team-1", "name": "My Team", "slug": "my-team"}]}
+        )
+    )
+    respx_mock.get("/apps/", params={"team_id": "team-1"}).mock(
+        return_value=Response(
+            200,
+            json={
+                "data": [
+                    {"id": "app-2", "slug": "zebra"},
+                    {"id": "app-1", "slug": "alpha"},
+                ]
+            },
+        )
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+        result = runner.invoke(app, ["link"])
+
+    assert result.exit_code == 0
+    assert "Successfully linked to app" in result.output
+    assert "alpha" in result.output
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config = AppConfig.model_validate_json(config_path.read_text())
+    assert config.app_id == "app-1"
+
+
+@pytest.mark.respx
+def test_team_menu_is_ordered_by_name(
+    logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
+) -> None:
+    steps = [Keys.ENTER, Keys.ENTER]
+
+    respx_mock.get("/teams/").mock(
+        return_value=Response(
+            200,
+            json={
+                "data": [
+                    {"id": "team-2", "name": "Zebra Team", "slug": "zebra-team"},
+                    {"id": "team-1", "name": "Alpha Team", "slug": "alpha-team"},
+                ]
+            },
+        )
+    )
+    respx_mock.get("/apps/", params={"team_id": "team-1"}).mock(
+        return_value=Response(200, json={"data": [{"id": "app-1", "slug": "my-app"}]})
+    )
+
+    with (
+        changing_dir(tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = steps
+        result = runner.invoke(app, ["link"])
+
+    assert result.exit_code == 0
+    assert "Successfully linked to app" in result.output
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config = AppConfig.model_validate_json(config_path.read_text())
+    assert config.team_id == "team-1"
+
+
+@pytest.mark.respx
 def test_links_with_multiple_teams_and_apps(
     logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
 ) -> None:

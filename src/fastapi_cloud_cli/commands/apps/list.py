@@ -170,7 +170,10 @@ def _prompt_for_team(toolkit: FastAPIRichToolkit, client: APIClient) -> Team:
 
     return toolkit.ask(
         "Select the team:",
-        options=[Option({"name": team.name, "value": team}) for team in teams],
+        options=[
+            Option({"name": team.name, "value": team})
+            for team in sorted(teams, key=lambda team: team.name.lower())
+        ],
         allow_filtering=True,
         bullet=False,
     )

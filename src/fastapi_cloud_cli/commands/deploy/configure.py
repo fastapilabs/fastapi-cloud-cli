@@ -35,7 +35,10 @@ def _configure_app(
 
     team = toolkit.ask(
         "Select the team you want to deploy to:",
-        options=[Option({"name": team.name, "value": team}) for team in teams],
+        options=[
+            Option({"name": team.name, "value": team})
+            for team in sorted(teams, key=lambda team: team.name.lower())
+        ],
         allow_filtering=True,
         emoji="🏢",
     )
@@ -66,7 +69,10 @@ def _configure_app(
 
         selected_app = toolkit.ask(
             "Select the app you want to deploy to:",
-            options=[Option({"name": app.slug, "value": app}) for app in apps],
+            options=[
+                Option({"name": app.slug, "value": app})
+                for app in sorted(apps, key=lambda app: app.slug.lower())
+            ],
             allow_filtering=True,
             emoji="📦",
         )

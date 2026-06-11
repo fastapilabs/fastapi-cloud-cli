@@ -125,8 +125,9 @@ def _link_app_interactively(
             "Select the team:",
             options=[
                 Option({"name": t["name"], "value": {"id": t["id"], "name": t["name"]}})
-                for t in teams_data
+                for t in sorted(teams_data, key=lambda t: t["name"].lower())
             ],
+            allow_filtering=True,
             bullet=False,
         )
 
@@ -152,8 +153,9 @@ def _link_app_interactively(
         "Select the app to link:",
         options=[
             Option({"name": a["slug"], "value": {"id": a["id"], "slug": a["slug"]}})
-            for a in apps_data
+            for a in sorted(apps_data, key=lambda a: a["slug"].lower())
         ],
+        allow_filtering=True,
         bullet=False,
     )
 
