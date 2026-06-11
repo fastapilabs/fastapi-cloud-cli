@@ -38,6 +38,7 @@
 
 ### Internal
 
+* 👷 Add pre-commit hook to catch typos. PR [#208](https://github.com/fastapilabs/fastapi-cloud-cli/pull/208) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump the python-packages group across 1 directory with 7 updates. PR [#238](https://github.com/fastapilabs/fastapi-cloud-cli/pull/238) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.52.0 to 2.61.0. PR [#206](https://github.com/fastapilabs/fastapi-cloud-cli/pull/206) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump pytest from 8.4.2 to 9.0.3. PR [#186](https://github.com/fastapilabs/fastapi-cloud-cli/pull/186) by [@dependabot[bot]](https://github.com/apps/dependabot).
