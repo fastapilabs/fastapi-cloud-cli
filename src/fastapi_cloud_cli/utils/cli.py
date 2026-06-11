@@ -439,7 +439,7 @@ def get_rich_toolkit(
     theme = RichToolkitTheme(
         style=style,
         theme={
-            "tag.title": "white on #009485",
+            "tag.title": "#ffffff on #009485",
             "placeholder": "grey62",
             "text": "white",
             "selected": "#007166",

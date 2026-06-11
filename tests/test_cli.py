@@ -56,7 +56,7 @@ def style_with_recording_console(*, force_terminal: bool) -> FastAPIStyle:
         record=True,
         width=20,
         color_system=None,
-        theme=Theme({"tag.title": "white on #009485"}),
+        theme=Theme({"tag.title": "#ffffff on #009485"}),
     )
     return style
 
@@ -138,7 +138,7 @@ def test_fastapi_style_uses_child_metadata_from_container() -> None:
 
 
 def test_fastapi_style_renders_title_chip_and_tagged_title() -> None:
-    style = FastAPIStyle(theme={"tag.title": "white on #009485"})
+    style = FastAPIStyle(theme={"tag.title": "#ffffff on #009485"})
 
     assert render_plain(style.render_element("Deploy", title=True)) == "  Deploy \n"
     assert (
