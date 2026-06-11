@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,7 +39,7 @@ def test_shows_a_message_if_app_is_not_configured(logged_in_cli: None) -> None:
     result = runner.invoke(app, ["env", "set"])
 
     assert result.exit_code == 1
-    assert "No app found" in result.output
+    assert "App ID is required." in result.output
 
 
 @pytest.mark.respx
@@ -97,7 +98,6 @@ def test_asks_for_name_and_value(
 
     assert "Enter the name of the environment variable" in result.output
     assert "Enter the value of the environment variable" in result.output
-
     assert "Environment variable SOME_VAR set" in result.output
 
 
@@ -122,7 +122,6 @@ def test_asks_for_name_and_value_for_secret(
 
     assert "Enter the name of the secret" in result.output
     assert "Enter the secret value" in result.output
-
     assert "Secret environment variable SOME_VAR set" in result.output
 
     assert "*" * 6 in result.output
@@ -142,3 +141,172 @@ def test_sets_secret_flag(
 
     assert result.exit_code == 0
     assert "Secret environment variable SOME_VAR set" in result.output
+
+
+@pytest.mark.respx
+def test_sets_environment_variable_as_json(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.post(
+        f"/apps/{app_id}/environment-variables/",
+        json={"name": "LOG_LEVEL", "value": "info", "is_secret": False},
+    ).mock(return_value=Response(201))
+
+    result = runner.invoke(
+        app,
+        ["env", "set", "LOG_LEVEL", "info", "--app-id", app_id, "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "name": "LOG_LEVEL",
+            "is_secret": False,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_sets_secret_environment_variable_as_json(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.post(
+        f"/apps/{app_id}/environment-variables/",
+        json={"name": "DATABASE_URL", "value": "postgres://db", "is_secret": True},
+    ).mock(return_value=Response(201))
+
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "set",
+            "DATABASE_URL",
+            "postgres://db",
+            "--secret",
+            "--app-id",
+            app_id,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "name": "DATABASE_URL",
+            "is_secret": True,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_sets_environment_variable_as_json_reads_value_stdin(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    respx_mock.post(
+        f"/apps/{app_id}/environment-variables/",
+        json={"name": "DATABASE_URL", "value": "postgres://db", "is_secret": True},
+    ).mock(return_value=Response(201))
+
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "set",
+            "DATABASE_URL",
+            "--value-stdin",
+            "--secret",
+            "--app-id",
+            app_id,
+            "--json",
+        ],
+        input="postgres://db\n",
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": app_id,
+            "name": "DATABASE_URL",
+            "is_secret": True,
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_set_json_returns_missing_required_input_without_name(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        ["env", "set", "--app-id", "00000000-0000-4000-8000-000000000002", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Environment variable name is required.",
+            "hint": "Pass NAME to choose an environment variable.",
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_set_rejects_value_and_value_stdin(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "set",
+            "LOG_LEVEL",
+            "info",
+            "--value-stdin",
+            "--app-id",
+            "00000000-0000-4000-8000-000000000002",
+            "--json",
+        ],
+        input="debug\n",
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": "Only one environment variable value source can be used.",
+            "hint": "Pass either VALUE or --value-stdin.",
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_set_json_returns_missing_required_input_without_value(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "env",
+            "set",
+            "LOG_LEVEL",
+            "--app-id",
+            "00000000-0000-4000-8000-000000000002",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Environment variable value is required.",
+            "hint": "Pass VALUE or --value-stdin to set the environment variable.",
+        }
+    }
+    assert result.stderr == ""

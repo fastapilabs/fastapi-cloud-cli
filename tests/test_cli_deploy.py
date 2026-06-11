@@ -1,3 +1,4 @@
+import json
 import random
 import re
 import string
@@ -9,6 +10,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 import respx
+import typer
 from click.testing import Result
 from httpx import Response
 from rich_toolkit.progress import Progress
@@ -82,14 +84,12 @@ def _get_random_deployment(
 
 
 @pytest.mark.respx
-def test_chooses_login_option_when_not_logged_in(
+def test_starts_login_when_not_logged_in(
     logged_out_cli: None,
     tmp_path: Path,
     respx_mock: respx.MockRouter,
     settings: Settings,
 ) -> None:
-    steps = [Keys.ENTER]
-
     respx_mock.post(
         "/login/device/authorization", data={"client_id": settings.client_id}
     ).mock(
@@ -111,128 +111,45 @@ def test_chooses_login_option_when_not_logged_in(
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         },
     ).mock(return_value=Response(200, json={"access_token": "test_token_1234"}))
+    respx_mock.get("/teams/").mock(return_value=Response(500))
 
     with (
         changing_dir(tmp_path),
         patch("rich_toolkit.container.getchar") as mock_getchar,
         patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_launch,
     ):
-        mock_getchar.side_effect = steps
+        mock_getchar.side_effect = [Keys.ENTER]
 
         result = runner.invoke(app, ["deploy"])
 
     assert "Welcome to FastAPI Cloud!" in result.output
-    assert "What would you like to do?" in result.output
-    assert "Login to my existing account" in result.output
-    assert "Join the waiting list" in result.output
+    assert "You need to be logged in to deploy to FastAPI Cloud." in result.output
+    assert "Do you want to log in now?" in result.output
+    assert "Login to FastAPI Cloud" not in result.output
     assert "Now you are logged in!" in result.output
     assert mock_launch.called
 
 
-@pytest.mark.respx
-def test_chooses_waitlist_option_when_not_logged_in(
-    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+def test_cancels_deploy_when_user_declines_login(
+    logged_out_cli: None, tmp_path: Path
 ) -> None:
-    steps = [
-        Keys.DOWN_ARROW,
-        Keys.ENTER,
-        *"some@example.com",
-        Keys.ENTER,
-        Keys.RIGHT_ARROW,
-        Keys.ENTER,
-        Keys.ENTER,
-    ]
-
-    respx_mock.post(
-        "/users/waiting-list",
-        json={
-            "email": "some@example.com",
-            "location": None,
-            "name": None,
-            "organization": None,
-            "role": None,
-            "secret_code": None,
-            "team_size": None,
-            "use_case": None,
-        },
-    ).mock(return_value=Response(200))
-
     with (
         changing_dir(tmp_path),
         patch("rich_toolkit.container.getchar") as mock_getchar,
+        patch(
+            "fastapi_cloud_cli.commands.deploy.command._interactive_login"
+        ) as mock_login,
     ):
-        mock_getchar.side_effect = steps
-
+        mock_getchar.side_effect = [Keys.RIGHT_ARROW, Keys.ENTER]
         result = runner.invoke(app, ["deploy"])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     assert "Welcome to FastAPI Cloud!" in result.output
-    assert "What would you like to do?" in result.output
-    assert "Login to my existing account" in result.output
-    assert "Join the waiting list" in result.output
-    assert "We're currently in private beta" in result.output
-    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
-
-
-@pytest.mark.respx
-def test_shows_waitlist_form_when_not_logged_in_longer_flow(
-    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    steps = [
-        Keys.DOWN_ARROW,  # Select "Join the waiting list"
-        Keys.ENTER,
-        *"some@example.com",
-        Keys.ENTER,
-        Keys.ENTER,
-        # Name
-        *"Patrick",
-        Keys.TAB,
-        # Organization
-        *"FastAPI Cloud",
-        Keys.TAB,
-        # Team
-        *"Team A",
-        Keys.TAB,
-        # Role
-        *"Developer",
-        Keys.TAB,
-        # Location
-        *"London",
-        Keys.TAB,
-        # Use case
-        *"I want to build a web app",
-        Keys.TAB,
-        # Secret code
-        *"PyCon Italia",
-        Keys.ENTER,
-        Keys.ENTER,
-    ]
-
-    respx_mock.post(
-        "/users/waiting-list",
-        json={
-            "email": "some@example.com",
-            "name": "Patrick",
-            "organization": "FastAPI Cloud",
-            "role": "Developer",
-            "team_size": None,
-            "location": "London",
-            "use_case": "I want to build a web app",
-            "secret_code": "PyCon Italia",
-        },
-    ).mock(return_value=Response(200))
-
-    with (
-        changing_dir(tmp_path),
-        patch("rich_toolkit.container.getchar") as mock_getchar,
-    ):
-        mock_getchar.side_effect = steps
-
-        result = runner.invoke(app, ["deploy"])
-
-    assert result.exit_code == 1
-    assert "We're currently in private beta" in result.output
-    assert "Let's go! Thanks for your interest in FastAPI Cloud! 🚀" in result.output
+    assert "You need to be logged in to deploy to FastAPI Cloud." in result.output
+    assert "Do you want to log in now?" in result.output
+    assert "Deployment cancelled." in result.output
+    assert "Login to FastAPI Cloud" not in result.output
+    mock_login.assert_not_called()
 
 
 def test_shows_login_prompt_when_token_is_expired(
@@ -244,13 +161,163 @@ def test_shows_login_prompt_when_token_is_expired(
     with (
         changing_dir(tmp_path),
         patch("rich_toolkit.container.getchar") as mock_getchar,
+        patch(
+            "fastapi_cloud_cli.commands.deploy.command._interactive_login"
+        ) as mock_login,
     ):
-        mock_getchar.side_effect = [Keys.CTRL_C]
+        mock_getchar.side_effect = [Keys.ENTER]
+        mock_login.side_effect = typer.Exit(0)
         result = runner.invoke(app, ["deploy"])
 
     assert "Welcome to FastAPI Cloud!" in result.output
     assert "Your session has expired. Please log in again." in result.output
-    assert "What would you like to do?" in result.output
+    assert "Do you want to log in now?" in result.output
+    assert mock_login.called
+
+
+def test_fails_with_clear_error_when_running_on_ci_without_token(
+    logged_out_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"CI": "true"})
+
+    assert result.exit_code == 1
+    assert result.exception is not None
+    assert not isinstance(result.exception, OSError)
+    assert "FASTAPI_CLOUD_TOKEN is required to deploy from CI." in result.output
+    assert "fastapi cloud setup-ci" in result.output
+
+
+@pytest.mark.respx
+def test_deploy_json_uses_configured_app_and_skips_waiting_by_default(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(
+        app_id=app_id,
+        status="ready_for_build",
+    )
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "deployment_id": deployment_data["id"],
+            "app_id": app_id,
+            "slug": deployment_data["slug"],
+            "status": "ready_for_build",
+            "dashboard_url": deployment_data["dashboard_url"],
+            "url": deployment_data["url"],
+        },
+        "hint": (
+            "Check deployment status in the FastAPI Cloud dashboard: "
+            f"{deployment_data['dashboard_url']}"
+        ),
+    }
+
+
+def test_deploy_json_returns_missing_required_input_without_app_context(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "App ID is required.",
+            "hint": "Pass --app-id or run `fastapi cloud apps create --link` first.",
+        }
+    }
+
+
+def test_deploy_json_returns_not_logged_in_without_prompt(
+    logged_out_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "No credentials found.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+        }
+    }
+
+
+@pytest.mark.respx
+def test_deploy_json_includes_large_file_warnings(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    team_id = "some-team-id"
+    deployment_data = _get_random_deployment(
+        app_id=app_id,
+        status="ready_for_build",
+    )
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "{team_id}"}}')
+    _create_file(tmp_path / "model.bin", 12 * 1024 * 1024)
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(200)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["warnings"] == [
+        {
+            "code": "large_files",
+            "message": "1 uploaded file is larger than 10 MB.",
+            "files": [{"path": "model.bin", "size_bytes": 12 * 1024 * 1024}],
+        }
+    ]
 
 
 @pytest.mark.respx
@@ -1216,37 +1283,6 @@ def test_does_not_duplicate_entry_in_git_ignore(
 
 
 @pytest.mark.respx
-def test_shows_error_for_invalid_waitlist_form_data(
-    logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
-) -> None:
-    steps = [
-        Keys.DOWN_ARROW,  # Select "Join the waiting list"
-        Keys.ENTER,
-        *"test@example.com",
-        Keys.ENTER,
-        Keys.ENTER,  # Choose to provide more information
-        Keys.CTRL_C,  # Interrupt to avoid infinite loop
-    ]
-
-    with (
-        changing_dir(tmp_path),
-        patch("rich_toolkit.container.getchar") as mock_getchar,
-        patch("rich_toolkit.form.Form.run") as mock_form_run,
-    ):
-        mock_getchar.side_effect = steps
-        # Simulate form returning data with invalid email field to trigger ValidationError
-        mock_form_run.return_value = {
-            "email": "invalid-email-format",
-            "name": "John Doe",
-        }
-
-        result = runner.invoke(app, ["deploy"])
-
-        assert result.exit_code == 1
-        assert "Invalid form data. Please try again." in result.output
-
-
-@pytest.mark.respx
 def test_shows_no_apps_found_message_when_team_has_no_apps(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
@@ -1371,7 +1407,9 @@ def test_shows_error_message_on_build_log_http_error(
 
 
 @pytest.mark.respx
-@patch("fastapi_cloud_cli.commands.deploy.WAITING_MESSAGES", ["short wait message"])
+@patch(
+    "fastapi_cloud_cli.commands.deploy.wait.WAITING_MESSAGES", ["short wait message"]
+)
 def test_short_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1443,7 +1481,9 @@ def test_short_wait_messages(
 
 
 @pytest.mark.respx
-@patch("fastapi_cloud_cli.commands.deploy.LONG_WAIT_MESSAGES", ["long wait message"])
+@patch(
+    "fastapi_cloud_cli.commands.deploy.wait.LONG_WAIT_MESSAGES", ["long wait message"]
+)
 def test_long_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1541,7 +1581,7 @@ def test_calls_upload_cancelled_when_user_interrupts(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            "fastapi_cloud_cli.commands.deploy.command._upload_deployment",
             side_effect=KeyboardInterrupt(),
         ),
     ):
@@ -1576,7 +1616,7 @@ def test_cancel_upload_swallows_exceptions(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.commands.deploy._upload_deployment",
+            "fastapi_cloud_cli.commands.deploy.command._upload_deployment",
             side_effect=KeyboardInterrupt(),
         ),
     ):
@@ -1966,6 +2006,36 @@ def test_deploy_with_app_id_mismatch_fails(
         assert "FASTAPI_CLOUD_APP_ID" in result.output
 
 
+def test_deploy_json_with_app_id_mismatch_returns_invalid_input(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    local_app_id = "local-app-id"
+    team_id = "some-team-id"
+    cli_app_id = "different-app-id"
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{local_app_id}", "team_id": "{team_id}"}}')
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", cli_app_id, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": (
+                f"Provided app ID ({cli_app_id}) does not match "
+                f"the local config ({local_app_id})."
+            ),
+            "hint": (
+                "Run `fastapi cloud unlink` to remove the local config, "
+                "or remove --app-id / unset FASTAPI_CLOUD_APP_ID to use the configured app."
+            ),
+        }
+    }
+
+
 @pytest.mark.respx
 def test_deploy_with_app_id_arg_app_not_found(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
@@ -1981,6 +2051,27 @@ def test_deploy_with_app_id_arg_app_not_found(
         assert "App not found" in result.output
         # Should NOT show unlink tip when using --app-id
         assert "unlink" not in result.output
+
+
+@pytest.mark.respx
+def test_deploy_json_with_app_id_arg_app_not_found(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_id = "nonexistent-app-id"
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(404))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--app-id", app_id, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": "App not found. Make sure you're logged in the correct account.",
+            "hint": None,
+        }
+    }
 
 
 def _setup_deployment_mocks(

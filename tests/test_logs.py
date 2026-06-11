@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
@@ -25,7 +26,7 @@ def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
     result = runner.invoke(app, ["logs"])
 
     assert result.exit_code == 1
-    assert "No app linked to this directory" in result.output
+    assert "App ID is required." in result.output
 
 
 @pytest.mark.respx
@@ -65,31 +66,174 @@ def test_displays_logs(
 
 
 @pytest.mark.respx
+def test_displays_logs_with_explicit_app_id(
+    logged_in_cli: None, respx_mock: respx.MockRouter, tmp_path: Path
+) -> None:
+    app_id = "explicit-app"
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(url__regex=rf"/apps/{app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(200, content=response_content)
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["logs", "--no-follow", "--app-id", app_id])
+
+    assert result.exit_code == 0
+    assert "Fetching logs" in result.output
+    assert app_id in result.output
+    assert "Application startup complete" in result.output
+
+
+@pytest.mark.respx
+def test_apps_logs_displays_logs(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(200, content=response_content)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--no-follow"])
+
+    assert result.exit_code == 0
+    assert "Fetching logs" in result.output
+    assert configured_app.app_id in result.output
+    assert "Application startup complete" in result.output
+
+
+@pytest.mark.respx
+def test_apps_logs_no_follow_json_outputs_envelope(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    logs = [
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        },
+        {
+            "timestamp": "2025-12-05T14:32:05.456000Z",
+            "message": "GET /health 200",
+            "level": "info",
+        },
+    ]
+    response_content = "\n".join(json.dumps(log) for log in logs)
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "false"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--no-follow", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": configured_app.app_id,
+            "logs": logs,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_apps_logs_follow_json_outputs_ndjson(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    logs = [
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        },
+        {
+            "timestamp": "2025-12-05T14:32:05.456000Z",
+            "message": "GET /health 200",
+            "level": "info",
+        },
+    ]
+    response_content = "\n".join(json.dumps(log) for log in logs)
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "logs", "--json"])
+
+    assert result.exit_code == 0
+    assert [json.loads(line) for line in result.stdout.splitlines()] == [
+        {"type": "log", "app_id": configured_app.app_id, **log} for log in logs
+    ]
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
 def test_passes_default_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true", "tail": "100", "since": "5m"},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
         result = runner.invoke(app, ["logs"])
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert "follow=true" in url
-    assert "tail=100" in url
-    assert "since=5m" in url
     assert "Streaming logs" in result.output
     assert configured_app.app_id in result.output
+
+
+@pytest.mark.respx
+def test_streams_logs_in_human_output(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    response_content = json.dumps(
+        {
+            "timestamp": "2025-12-05T14:32:01.123000Z",
+            "message": "Application startup complete",
+            "level": "info",
+        }
+    )
+
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"follow": "true"},
+    ).mock(return_value=httpx.Response(200, content=response_content))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs"])
+
+    assert result.exit_code == 0
+    assert "Streaming logs" in result.output
+    assert "Application startup complete" in result.output
 
 
 @pytest.mark.respx
 def test_passes_custom_params(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"tail": "50", "since": "1h", "follow": "false"},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
@@ -98,10 +242,6 @@ def test_passes_custom_params(
         )
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert "tail=50" in url
-    assert "since=1h" in url
-    assert "follow=false" in url
 
 
 @pytest.mark.respx
@@ -379,13 +519,12 @@ def test_accepts_valid_since_format(
     configured_app: ConfiguredApp,
     valid_since: str,
 ) -> None:
-    route = respx_mock.get(
-        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*"
+    respx_mock.get(
+        url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*",
+        params={"since": valid_since},
     ).mock(return_value=httpx.Response(200, content=""))
 
     with changing_dir(configured_app.path):
         result = runner.invoke(app, ["logs", "--no-follow", "--since", valid_since])
 
     assert result.exit_code == 0
-    url = str(route.calls[0].request.url).lower()
-    assert f"since={valid_since}" in url

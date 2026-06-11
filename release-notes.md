@@ -2,8 +2,64 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add JSON support for env delete. PR [#235](https://github.com/fastapilabs/fastapi-cloud-cli/pull/235) by [@patrick91](https://github.com/patrick91).
+* ✨ Add JSON support for env set. PR [#234](https://github.com/fastapilabs/fastapi-cloud-cli/pull/234) by [@patrick91](https://github.com/patrick91).
+* ✨ Add env get command. PR [#233](https://github.com/fastapilabs/fastapi-cloud-cli/pull/233) by [@patrick91](https://github.com/patrick91).
+* ✨ Add JSON output for env list. PR [#231](https://github.com/fastapilabs/fastapi-cloud-cli/pull/231) by [@patrick91](https://github.com/patrick91).
+* ✨ Add build logs and json mode for logs. PR [#229](https://github.com/fastapilabs/fastapi-cloud-cli/pull/229) by [@patrick91](https://github.com/patrick91).
+* ✨ Add deployments get command. PR [#228](https://github.com/fastapilabs/fastapi-cloud-cli/pull/228) by [@patrick91](https://github.com/patrick91).
+* ✨ Add deployments list command. PR [#227](https://github.com/fastapilabs/fastapi-cloud-cli/pull/227) by [@patrick91](https://github.com/patrick91).
+* ✨ Add auth command group with json support. PR [#225](https://github.com/fastapilabs/fastapi-cloud-cli/pull/225) by [@patrick91](https://github.com/patrick91).
+* ✨ Add apps unlink command. PR [#224](https://github.com/fastapilabs/fastapi-cloud-cli/pull/224) by [@patrick91](https://github.com/patrick91).
+* ✨ Add apps link command. PR [#223](https://github.com/fastapilabs/fastapi-cloud-cli/pull/223) by [@patrick91](https://github.com/patrick91).
+* ✨ Add support for --json to the deploy command. PR [#222](https://github.com/fastapilabs/fastapi-cloud-cli/pull/222) by [@patrick91](https://github.com/patrick91).
+* ✨ Add app create command. PR [#221](https://github.com/fastapilabs/fastapi-cloud-cli/pull/221) by [@patrick91](https://github.com/patrick91).
+* ✨ Add get app command. PR [#220](https://github.com/fastapilabs/fastapi-cloud-cli/pull/220) by [@patrick91](https://github.com/patrick91).
+* ✨ Add app list command. PR [#219](https://github.com/fastapilabs/fastapi-cloud-cli/pull/219) by [@patrick91](https://github.com/patrick91).
+* ✨ Add get team command. PR [#218](https://github.com/fastapilabs/fastapi-cloud-cli/pull/218) by [@patrick91](https://github.com/patrick91).
+* ✨ Add teams list command. PR [#217](https://github.com/fastapilabs/fastapi-cloud-cli/pull/217) by [@patrick91](https://github.com/patrick91).
+* ✨ Add support for --json for whoami command. PR [#213](https://github.com/fastapilabs/fastapi-cloud-cli/pull/213) by [@patrick91](https://github.com/patrick91).
+
+### Fixes
+
+* 🩹 Fix cloud unlink JSON output and path scope. PR [#239](https://github.com/fastapilabs/fastapi-cloud-cli/pull/239) by [@patrick91](https://github.com/patrick91).
+* 🐛 Show a proper error when running on CI and auth is missing. PR [#215](https://github.com/fastapilabs/fastapi-cloud-cli/pull/215) by [@patrick91](https://github.com/patrick91).
+
+### Refactors
+
+* ♻️ Resolve app ID consistently across commands. PR [#236](https://github.com/fastapilabs/fastapi-cloud-cli/pull/236) by [@patrick91](https://github.com/patrick91).
+* ♻️ Split env command into package. PR [#232](https://github.com/fastapilabs/fastapi-cloud-cli/pull/232) by [@patrick91](https://github.com/patrick91).
+* 💄 Update CLI styles. PR [#230](https://github.com/fastapilabs/fastapi-cloud-cli/pull/230) by [@patrick91](https://github.com/patrick91).
+* 🔥 Remove waitlist prompt. PR [#226](https://github.com/fastapilabs/fastapi-cloud-cli/pull/226) by [@patrick91](https://github.com/patrick91).
+* 💄 Improve how we show the update message. PR [#216](https://github.com/fastapilabs/fastapi-cloud-cli/pull/216) by [@patrick91](https://github.com/patrick91).
+* ♻️ Refactor deploy command into multiple files. PR [#214](https://github.com/fastapilabs/fastapi-cloud-cli/pull/214) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
+* ⬆ Bump the python-packages group across 1 directory with 7 updates. PR [#238](https://github.com/fastapilabs/fastapi-cloud-cli/pull/238) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump sentry-sdk from 2.52.0 to 2.61.0. PR [#206](https://github.com/fastapilabs/fastapi-cloud-cli/pull/206) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump pytest from 8.4.2 to 9.0.3. PR [#186](https://github.com/fastapilabs/fastapi-cloud-cli/pull/186) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump pygments from 2.19.2 to 2.20.0. PR [#185](https://github.com/fastapilabs/fastapi-cloud-cli/pull/185) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump idna from 3.11 to 3.15. PR [#200](https://github.com/fastapilabs/fastapi-cloud-cli/pull/200) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump python-dotenv from 1.2.1 to 1.2.2. PR [#184](https://github.com/fastapilabs/fastapi-cloud-cli/pull/184) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump the github-actions group with 3 updates. PR [#237](https://github.com/fastapilabs/fastapi-cloud-cli/pull/237) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
+## 0.19.0 (2026-06-01)
+
+### Features
+
+* ✨ Improve `env list` output. PR [#203](https://github.com/fastapilabs/fastapi-cloud-cli/pull/203) by [@patrick91](https://github.com/patrick91).
+* 🔊 Add debug logging in `fastapi login` command. PR [#207](https://github.com/fastapilabs/fastapi-cloud-cli/pull/207) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+### Refactors
+
+* ♻️ Do not suggest `src` as a directory that could contain a `pyproject.toml`. PR [#211](https://github.com/fastapilabs/fastapi-cloud-cli/pull/211) by [@tiangolo](https://github.com/tiangolo).
+
+### Internal
+
+* 👷 Automate release preparation. PR [#210](https://github.com/fastapilabs/fastapi-cloud-cli/pull/210) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump the github-actions group with 2 updates. PR [#204](https://github.com/fastapilabs/fastapi-cloud-cli/pull/204) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 👷 Configure Dependabot to group updates and update weekly. PR [#199](https://github.com/fastapilabs/fastapi-cloud-cli/pull/199) by [@YuriiMotov](https://github.com/YuriiMotov).
 

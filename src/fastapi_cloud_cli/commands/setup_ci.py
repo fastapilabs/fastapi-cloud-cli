@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.apps import get_app_config
+from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 
@@ -163,6 +163,11 @@ def setup_ci(
             )
         ),
     ] = None,
+    app_id: str | None = typer.Option(
+        None,
+        "--app-id",
+        help="ID of the app to set up CI for (defaults to the app linked to the directory)",
+    ),
     branch: str | None = typer.Option(
         None,
         "--branch",
@@ -206,24 +211,20 @@ def setup_ci(
         if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
-                tag="auth",
             )
             raise typer.Exit(1)
 
-        app_path = path or Path.cwd()
-        app_config = get_app_config(app_path)
-
-        if not app_config:
-            toolkit.print(
-                "No app linked to this directory. Run [blue]`fastapi deploy`[/] first.",
-                tag="error",
-            )
-            raise typer.Exit(1)
+        target_app_id = resolve_app_id_or_fail(
+            toolkit,
+            app_id=app_id,
+            path=path,
+            hint="Pass --app-id or run `fastapi deploy` first.",
+        )
 
         if not _check_git_installed():
             toolkit.print(
                 "git is not installed. Please install git to use this command.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1)
 
@@ -232,7 +233,7 @@ def setup_ci(
         except subprocess.CalledProcessError:
             toolkit.print(
                 "Error retrieving git remote origin URL. Make sure you're in a git repository with a remote origin set.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1) from None
 
@@ -240,7 +241,7 @@ def setup_ci(
         if "github" not in origin.lower():
             toolkit.print(
                 "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
-                tag="error",
+                emoji="❌",
             )
             raise typer.Exit(1)
 
@@ -257,7 +258,7 @@ def setup_ci(
             )
             toolkit.print_line()
 
-        toolkit.print_title("Configuring CI", tag="FastAPI")
+        toolkit.print_title("Configuring CI")
         toolkit.print_line()
 
         toolkit.print(f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})")
@@ -288,23 +289,27 @@ def setup_ci(
 
         with (
             APIClient() as client,
-            toolkit.progress(title="Generating deploy token...") as progress,
+            toolkit.progress(
+                title="Generating deploy token...", done_emoji="🔑"
+            ) as progress,
             client.handle_http_errors(
                 progress, default_message="Error creating deploy token."
             ),
         ):
             token_data = _create_token(
-                client=client, app_id=app_config.app_id, token_name=token_name
+                client=client, app_id=target_app_id, token_name=token_name
             )
             progress.log(msg_token)
 
         toolkit.print_line()
 
         if has_gh:
-            with toolkit.progress(title="Setting repo secrets...") as progress:
+            with toolkit.progress(
+                title="Setting repo secrets...", done_emoji="🔒"
+            ) as progress:
                 try:
                     _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
-                    _set_github_secret("FASTAPI_CLOUD_APP_ID", app_config.app_id)
+                    _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
                 except GitHubSecretError:
                     progress.set_error("Failed to set GitHub secrets via gh CLI.")
                     raise typer.Exit(1) from None
@@ -313,13 +318,12 @@ def setup_ci(
             secrets_url = f"https://{github_host}/{repo_slug}/settings/secrets/actions"
             toolkit.print(
                 "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
-                tag="info",
             )
             toolkit.print_line()
             toolkit.print(f"  Repository: [blue]{secrets_url}[/]")
             toolkit.print_line()
             toolkit.print(f"  [bold]FASTAPI_CLOUD_TOKEN[/bold] = {token_data['value']}")
-            toolkit.print(f"  [bold]FASTAPI_CLOUD_APP_ID[/bold] = {app_config.app_id}")
+            toolkit.print(f"  [bold]FASTAPI_CLOUD_APP_ID[/bold] = {target_app_id}")
 
         toolkit.print_line()
 
@@ -333,13 +337,11 @@ def setup_ci(
             if not file and workflow_path.exists():
                 overwrite = toolkit.confirm(
                     f"Workflow file [bold]{workflow_path}[/bold] already exists. Overwrite?",
-                    tag="workflow",
                     default=False,
                 )
                 if not overwrite:
                     new_name = toolkit.input(
                         "Enter a new filename (without path) or leave blank to skip writing the workflow file:",
-                        tag="workflow",
                     ).strip()
                     if new_name:
                         workflow_path = Path(f".github/workflows/{new_name}")
@@ -350,13 +352,15 @@ def setup_ci(
                 toolkit.print_line()
             if write_workflow:
                 msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
-                with toolkit.progress(title="Writing workflow file...") as progress:
+                with toolkit.progress(
+                    title="Writing workflow file...", done_emoji="📄"
+                ) as progress:
                     _write_workflow_file(branch, workflow_path)
                     progress.log(msg_workflow)
 
                 toolkit.print_line()
 
-        toolkit.print(msg_done)
+        toolkit.print(msg_done, emoji="✅")
         toolkit.print_line()
         # Token expiration date is in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ), extract date portion
         toolkit.print(
