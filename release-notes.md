@@ -29,6 +29,7 @@
 
 ### Refactors
 
+* 💄 Improve help menus. PR [#245](https://github.com/fastapilabs/fastapi-cloud-cli/pull/245) by [@patrick91](https://github.com/patrick91).
 * 💄 Show deployments creation time. PR [#244](https://github.com/fastapilabs/fastapi-cloud-cli/pull/244) by [@patrick91](https://github.com/patrick91).
 * 💄 Use #ffffff for our titles' colour. PR [#243](https://github.com/fastapilabs/fastapi-cloud-cli/pull/243) by [@patrick91](https://github.com/patrick91).
 * 💄 Always show device login url. PR [#242](https://github.com/fastapilabs/fastapi-cloud-cli/pull/242) by [@patrick91](https://github.com/patrick91).
