@@ -33,11 +33,12 @@ def _interactive_login(
 
             if no_open:
                 toolkit.print(f"Open {url}")
-                toolkit.print_line()
             else:
                 launch_cmd_res = typer.launch(url)
                 logger.debug(f"Launch command result: {launch_cmd_res}")
-                progress.log(f"Opening [link={url}]{url}[/link]")
+                toolkit.print(f"Opening [link={url}]{url}[/link]")
+
+            toolkit.print_line()
 
         with toolkit.progress(
             "Waiting for user to authorize...", transient=True

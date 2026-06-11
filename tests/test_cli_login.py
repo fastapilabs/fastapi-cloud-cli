@@ -73,6 +73,7 @@ def test_full_login(
         assert result.exit_code == 0
         assert mock_open.called
         assert mock_open.call_args.args == ("http://test.com/device?code=query-code",)
+        assert "Opening http://test.com/device?code=query-code" in result.output
         assert "Now you are logged in!" in result.output
 
         # Verify auth file was created with correct content
