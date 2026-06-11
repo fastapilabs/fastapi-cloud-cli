@@ -15,7 +15,7 @@ def test_logout_with_existing_auth_file(temp_auth_config: Path) -> None:
     result = runner.invoke(app, ["logout"])
 
     assert result.exit_code == 0
-    assert "You are now logged out! 🚀" in result.output
+    assert "You are now logged out!" in result.output
 
     assert not temp_auth_config.exists()
 
@@ -26,6 +26,6 @@ def test_logout_with_no_auth_file(temp_auth_config: Path) -> None:
     result = runner.invoke(app, ["logout"])
 
     assert result.exit_code == 0
-    assert "You are now logged out! 🚀" in result.output
+    assert "You are now logged out!" in result.output
 
     assert not temp_auth_config.exists()

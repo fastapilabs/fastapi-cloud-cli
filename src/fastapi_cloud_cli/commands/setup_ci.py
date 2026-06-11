@@ -222,28 +222,25 @@ def setup_ci(
         )
 
         if not _check_git_installed():
-            toolkit.print(
+            toolkit.fail(
+                "not_found",
                 "git is not installed. Please install git to use this command.",
-                emoji="❌",
             )
-            raise typer.Exit(1)
 
         try:
             origin = _get_remote_origin()
         except subprocess.CalledProcessError:
-            toolkit.print(
-                "Error retrieving git remote origin URL. Make sure you're in a git repository with a remote origin set.",
-                emoji="❌",
+            toolkit.fail(
+                "not_found",
+                "Could not retrieve the git remote origin URL. Make sure you're in a git repository with a remote origin set.",
             )
-            raise typer.Exit(1) from None
 
         # Check if it's a GitHub host (github.com or GitHub Enterprise)
         if "github" not in origin.lower():
-            toolkit.print(
+            toolkit.fail(
+                "invalid_input",
                 "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
-                emoji="❌",
             )
-            raise typer.Exit(1)
 
         repo_slug = _repo_slug_from_origin(origin) or origin
         github_host = _get_github_host(origin)

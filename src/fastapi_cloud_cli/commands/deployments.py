@@ -190,7 +190,9 @@ def _print_build_log_line(toolkit: RichToolkit, message: str) -> None:
     toolkit.print(Text.from_ansi(message.rstrip()), emoji=BUILD_LOG_BULLET)
 
 
-def _render_build_logs_output(data: BuildLogsOutput, toolkit: RichToolkit) -> None:
+def _render_build_logs_output(
+    data: BuildLogsOutput, toolkit: FastAPIRichToolkit
+) -> None:
     if not data.logs:
         toolkit.print("No build logs found.")
         return
@@ -200,7 +202,7 @@ def _render_build_logs_output(data: BuildLogsOutput, toolkit: RichToolkit) -> No
 
     if data.failed:
         toolkit.print_line()
-        toolkit.print("[error]Build failed.[/]", emoji="❌")
+        toolkit.print_error("Build failed.")
 
 
 def _stream_build_logs(
@@ -240,7 +242,7 @@ def _stream_build_logs(
                 )
             else:
                 toolkit.print_line()
-                toolkit.print("[error]Build failed.[/]", emoji="❌")
+                toolkit.print_error("Build failed.")
 
     return failed
 
@@ -287,16 +289,16 @@ def _handle_build_log_error(
 
 
 def _render_build_log_error(
-    toolkit: RichToolkit,
+    toolkit: FastAPIRichToolkit,
     *,
     code: ErrorCode,
     message: str,
     hint: str,
 ) -> None:
-    toolkit.print(f"[error]{message}[/]", emoji="❌")
+    toolkit.print_error(message)
     if hint:
         toolkit.print_line()
-        toolkit.print(hint, emoji="💡")
+        toolkit.print_hint(hint)
 
 
 deployments_app = typer.Typer(no_args_is_help=True)

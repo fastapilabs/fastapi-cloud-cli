@@ -1408,7 +1408,8 @@ def test_shows_error_message_on_build_log_http_error(
 
 @pytest.mark.respx
 @patch(
-    "fastapi_cloud_cli.commands.deploy.wait.WAITING_MESSAGES", ["short wait message"]
+    "fastapi_cloud_cli.commands.deploy.wait.WAITING_MESSAGES",
+    [("⏳", "short wait message")],
 )
 def test_short_wait_messages(
     logged_in_cli: None,
@@ -1482,7 +1483,8 @@ def test_short_wait_messages(
 
 @pytest.mark.respx
 @patch(
-    "fastapi_cloud_cli.commands.deploy.wait.LONG_WAIT_MESSAGES", ["long wait message"]
+    "fastapi_cloud_cli.commands.deploy.wait.LONG_WAIT_MESSAGES",
+    [("⏳", "long wait message")],
 )
 def test_long_wait_messages(
     logged_in_cli: None,

@@ -80,7 +80,7 @@ def test_exits_with_error_when_no_remote_origin(
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 1
-    assert "Error retrieving git remote origin URL" in result.output
+    assert "Could not retrieve the git remote origin URL" in result.output
 
 
 def test_shows_error_when_origin_is_not_github(
