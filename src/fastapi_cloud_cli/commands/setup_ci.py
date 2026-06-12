@@ -292,7 +292,9 @@ def setup_ci(
                 title="Generating deploy token...", done_emoji="🔑"
             ) as progress,
             client.handle_http_errors(
-                progress, toolkit=toolkit, default_message="Error creating deploy token."
+                progress,
+                toolkit=toolkit,
+                default_message="Error creating deploy token.",
             ),
         ):
             token_data = _create_token(
@@ -361,13 +363,15 @@ def setup_ci(
 
         if json_output:
             workflow_was_written = write_workflow if not secrets_only else False
-            toolkit.success({
-                "app_id": target_app_id,
-                "branch": branch,
-                "token_expired_at": token_data['expired_at'],
-                "secrets_set_via_gh": has_gh,
-                "workflow_written": workflow_was_written,
-            })
+            toolkit.success(
+                {
+                    "app_id": target_app_id,
+                    "branch": branch,
+                    "token_expired_at": token_data["expired_at"],
+                    "secrets_set_via_gh": has_gh,
+                    "workflow_written": workflow_was_written,
+                }
+            )
             return
 
         toolkit.print(msg_done, emoji="✅")
