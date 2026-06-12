@@ -99,7 +99,7 @@ def list_variables(
             with toolkit.progress(
                 "Fetching environment variables...", transient=True
             ) as progress:
-                with client.handle_http_errors(progress):
+                with client.handle_http_errors(progress, toolkit=toolkit):
                     environment_variables = _get_environment_variables(
                         client=client, app_id=target_app_id
                     )

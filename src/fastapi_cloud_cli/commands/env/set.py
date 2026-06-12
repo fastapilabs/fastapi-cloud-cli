@@ -195,7 +195,7 @@ def set(
             with toolkit.progress(
                 "Setting environment variable", transient=True
             ) as progress:
-                with client.handle_http_errors(progress):
+                with client.handle_http_errors(progress, toolkit=toolkit):
                     _set_environment_variable(
                         client=client,
                         app_id=target_app_id,
