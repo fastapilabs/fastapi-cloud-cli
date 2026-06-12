@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -730,3 +731,77 @@ def test_shows_enterprise_secrets_url_when_gh_not_installed(
     # Should use enterprise host, not github.com
     assert "github.enterprise.com/owner/repo/settings/secrets/actions" in result.output
     assert "github.com/owner/repo" not in result.output
+
+
+@pytest.mark.respx
+def test_setup_ci_json_output(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = configured_app.app_id
+    _mock_token_api(respx_mock, app_id, token_value="test-token-value")
+
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+    ):
+        result = runner.invoke(app, ["setup-ci", "--json"])
+
+    assert result.exit_code == 0
+    output = json.loads(result.output)
+
+    assert output["data"]["app_id"] == app_id
+    assert output["data"]["branch"] == "main"
+    assert output["data"]["secrets_set_via_gh"] is True
+    assert output["data"]["workflow_written"] is True
+    assert output["data"]["token_expired_at"] == "2027-02-18T00:00:00Z"
+
+
+@pytest.mark.respx
+def test_setup_ci_json_output_secrets_only(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = configured_app.app_id
+    _mock_token_api(respx_mock, app_id, token_value="test-token-value")
+
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+    ):
+        result = runner.invoke(app, ["setup-ci", "--json", "--secrets-only"])
+
+    assert result.exit_code == 0
+    output = json.loads(result.output)
+
+    assert output["data"]["app_id"] == app_id
+    assert output["data"]["branch"] == "main"
+    assert output["data"]["secrets_set_via_gh"] is True
+    assert output["data"]["workflow_written"] is False
+    assert output["data"]["token_expired_at"] == "2027-02-18T00:00:00Z"

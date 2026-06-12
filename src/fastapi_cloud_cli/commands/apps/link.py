@@ -108,6 +108,7 @@ def _link_app_interactively(
         with toolkit.progress("Fetching teams...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
+                toolkit=toolkit,
                 default_message="Error fetching teams. Please try again later.",
             ):
                 response = client.get("/teams/")
@@ -136,6 +137,7 @@ def _link_app_interactively(
         with toolkit.progress("Fetching apps...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
+                toolkit=toolkit,
                 default_message="Error fetching apps. Please try again later.",
             ):
                 response = client.get("/apps/", params={"team_id": team["id"]})

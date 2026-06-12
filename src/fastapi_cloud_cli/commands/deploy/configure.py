@@ -29,6 +29,7 @@ def _configure_app(
     with toolkit.progress("Fetching teams...", transient=True) as progress:
         with client.handle_http_errors(
             progress,
+            toolkit=toolkit,
             default_message="Error fetching teams. Please try again later.",
         ):
             teams = _get_teams(client)
@@ -57,6 +58,7 @@ def _configure_app(
         with toolkit.progress("Fetching apps...", transient=True) as progress:
             with client.handle_http_errors(
                 progress,
+                toolkit=toolkit,
                 default_message="Error fetching apps. Please try again later.",
             ):
                 apps = _get_apps(client=client, team_id=team.id)
@@ -133,7 +135,7 @@ def _configure_app(
         if directory != selected_app.directory:
             with (
                 toolkit.progress(title="Updating app directory...") as progress,
-                client.handle_http_errors(progress),
+                client.handle_http_errors(progress, toolkit=toolkit),
             ):
                 app = _update_app(
                     client=client, app_id=selected_app.id, directory=directory
@@ -144,7 +146,7 @@ def _configure_app(
             app = selected_app
     else:
         with toolkit.progress(title="Creating app...") as progress:
-            with client.handle_http_errors(progress):
+            with client.handle_http_errors(progress, toolkit=toolkit):
                 app = _create_app(
                     client=client,
                     team_id=team.id,

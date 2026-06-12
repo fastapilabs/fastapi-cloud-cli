@@ -324,15 +324,12 @@ class APIClient(httpx.Client):
     def handle_http_errors(
         self,
         progress: Progress,
+        toolkit: ErrorToolkit,
         default_message: str | None = None,
         *,
         not_found_message: str | None = None,
-        toolkit: ErrorToolkit | None = None,
     ) -> Generator[None, None, None]:
-        # TODO: Once every command supports JSON output, require toolkit here
-        # and let it be the single human/JSON error rendering boundary.
-
-        mode = toolkit.mode if toolkit else "human"
+        mode = toolkit.mode
 
         try:
             yield
@@ -344,7 +341,7 @@ class APIClient(httpx.Client):
                 " Please try again later."
             )
 
-            if mode == "json" and toolkit:
+            if mode == "json":
                 toolkit.fail(
                     "network_error",
                     message,
@@ -365,7 +362,7 @@ class APIClient(httpx.Client):
             )
             code = get_http_error_code(e)
 
-            if mode == "json" and toolkit:
+            if mode == "json":
                 toolkit.fail(
                     code,
                     message,

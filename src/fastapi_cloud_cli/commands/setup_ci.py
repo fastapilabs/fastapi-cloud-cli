@@ -11,6 +11,7 @@ from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +195,7 @@ def setup_ci(
         "-f",
         help="Custom workflow filename (written to .github/workflows/)",
     ),
+    json_output: JsonOutputOption = False,
 ) -> None:
     """Configures a GitHub Actions workflow for deploying the app on push to the specified branch.
 
@@ -207,7 +209,7 @@ def setup_ci(
 
     identity = Identity()
 
-    with get_rich_toolkit() as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not identity.is_logged_in():
             toolkit.print(
                 "No credentials found. Use [blue]`fastapi login`[/] to login.",
@@ -290,7 +292,9 @@ def setup_ci(
                 title="Generating deploy token...", done_emoji="🔑"
             ) as progress,
             client.handle_http_errors(
-                progress, default_message="Error creating deploy token."
+                progress,
+                toolkit=toolkit,
+                default_message="Error creating deploy token.",
             ),
         ):
             token_data = _create_token(
@@ -356,6 +360,19 @@ def setup_ci(
                     progress.log(msg_workflow)
 
                 toolkit.print_line()
+
+        if json_output:
+            workflow_was_written = write_workflow if not secrets_only else False
+            toolkit.success(
+                {
+                    "app_id": target_app_id,
+                    "branch": branch,
+                    "token_expired_at": token_data["expired_at"],
+                    "secrets_set_via_gh": has_gh,
+                    "workflow_written": workflow_was_written,
+                }
+            )
+            return
 
         toolkit.print(msg_done, emoji="✅")
         toolkit.print_line()
