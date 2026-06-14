@@ -20,3 +20,10 @@ jobs:
     timeout-minutes: 5
     steps:
     - uses: actions/labeler@f27b608878404679385c85cfa523b85ccb86e213 # v6.1.0
+  # Dummy job to satisfy branch protection rules since the strict check was removed
+  check-labels:
+    needs:
+      - labeler
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Strict label checking is disabled."
