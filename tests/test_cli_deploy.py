@@ -22,6 +22,8 @@ from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
+from fastapi_cloud_cli.commands.deploy.archive import _project_name_from_pyproject
+
 
 runner = CliRunner()
 
@@ -2494,3 +2496,70 @@ def test_invalid_large_file_threshold(
 
     assert result.exit_code == 2
     assert "Invalid value for '--large-file-threshold'" in result.output
+
+def test_project_name_from_pyproject_project_section(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project]
+name = "my-app"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == "my-app"
+
+
+def test_project_name_from_pyproject_poetry_section(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[tool.poetry]
+name = "my-poetry-app"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == "my-poetry-app"
+
+
+def test_project_name_from_pyproject_missing_file(tmp_path: Path) -> None:
+    pyproject = tmp_path / "missing.toml"
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
+
+
+def test_project_name_from_pyproject_missing_name(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project]
+version = "0.1.0"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
+
+
+def test_project_name_from_pyproject_invalid_toml(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project
+name = "invalid"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
