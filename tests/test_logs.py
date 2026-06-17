@@ -340,6 +340,44 @@ def test_handles_404(
 
 
 @pytest.mark.respx
+def test_handles_retention_limit_error(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(
+            400, json={"detail": "Cannot fetch logs older than 14 days"}
+        )
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow", "--since", "30d"])
+
+    assert result.exit_code == 1
+    assert "Cannot fetch logs older than 14 days" in result.output
+    assert "Try a shorter time range" in result.output
+
+
+@pytest.mark.respx
+def test_handles_retention_limit_error_json(
+    logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
+) -> None:
+    respx_mock.get(url__regex=rf"/apps/{configured_app.app_id}/logs/stream.*").mock(
+        return_value=httpx.Response(
+            400, json={"detail": "Cannot fetch logs older than 14 days"}
+        )
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--no-follow", "--since", "30d", "--json"])
+
+    assert result.exit_code == 1
+    error = json.loads(result.stdout)["error"]
+    assert error["code"] == "invalid_input"
+    assert error["message"] == "Cannot fetch logs older than 14 days"
+    assert "Try a shorter time range" in error["hint"]
+
+
+@pytest.mark.respx
 def test_shows_message_when_no_logs_found(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:

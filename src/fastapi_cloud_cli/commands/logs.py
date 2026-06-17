@@ -131,6 +131,12 @@ def _handle_stream_log_error(
         message = handle_http_error(error.__cause__)
         hint = get_http_error_hint(code)
 
+        if error.status_code == 400 and hint is None:
+            hint = (
+                "Try a shorter time range (e.g. `--since 1d`). "
+                "Log retention depends on your plan."
+            )
+
     else:
         code = "api_error"
         message = f"[red]Error:[/] {escape(str(error))}"
@@ -215,7 +221,10 @@ def logs(
         "5m",
         "--since",
         "-s",
-        help="Show logs since a specific time (e.g., '5m', '1h', '2d').",
+        help=(
+            "Show logs since a specific time (e.g., '5m', '1h', '2d'). "
+            "Limited by your plan's log retention."
+        ),
         show_default=True,
         callback=_validate_since,
     ),
