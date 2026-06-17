@@ -1,3 +1,4 @@
+import importlib
 import logging
 import re
 from pathlib import Path, PurePosixPath
@@ -8,10 +9,6 @@ import rignore
 from pydantic import AfterValidator
 
 logger = logging.getLogger(__name__)
-import sys
-
-if sys.version_info >= (3, 11):
-    import tomllib  # type: ignore[import-not-found]
 
 
 def validate_app_directory(v: str | None) -> str | None:
@@ -48,7 +45,12 @@ AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
 
 def _project_name_from_pyproject(path: Path) -> str:
-    if sys.version_info < (3, 11):
+    try:
+        tomllib = importlib.import_module("tomllib")
+    except ImportError:
+        return ""
+
+    if tomllib is None:
         return ""
 
     if not path.exists():

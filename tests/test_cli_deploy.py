@@ -2,9 +2,9 @@ import json
 import random
 import re
 import string
+import sys
 from datetime import timedelta
 from pathlib import Path
-import sys
 from typing import TypedDict
 from unittest.mock import patch
 
@@ -19,9 +19,9 @@ from time_machine import TimeMachineFixture
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.commands.deploy.archive import _project_name_from_pyproject
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
-from fastapi_cloud_cli.commands.deploy.archive import _project_name_from_pyproject
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
 
