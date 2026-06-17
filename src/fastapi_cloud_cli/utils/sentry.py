@@ -7,10 +7,10 @@ SENTRY_DSN = "https://230250605ea4b58a0b69c768e9ec1168@o4506985151856640.ingest.
 
 
 def init_sentry() -> None:
-    """Initialize Sentry error tracking only if user is logged in."""
+    """Initialize Sentry error tracking only if user is logged in or has a deploy token."""
     identity = Identity()
 
-    if not identity.is_logged_in():
+    if not (identity.is_logged_in() or identity.has_deploy_token()):
         return
 
     sentry_sdk.init(

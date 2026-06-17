@@ -1,115 +1,120 @@
 import logging
-import time
-from typing import Any
+from typing import Annotated, Any
 
-import httpx
 import typer
-from pydantic import BaseModel
 
-from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.commands._flow import (
+    DEFAULT_LOGIN_TIMEOUT_SECONDS,
+    complete_device_login,
+    device_authorization_output,
+    render_login_output,
+    start_device_authorization,
+)
 from fastapi_cloud_cli.utils.api import APIClient
-from fastapi_cloud_cli.utils.auth import AuthConfig, Identity, write_auth_config
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit, handle_http_errors
+from fastapi_cloud_cli.utils.auth import Identity
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
 
 
-class AuthorizationData(BaseModel):
-    user_code: str
-    device_code: str
-    verification_uri: str
-    verification_uri_complete: str
-    interval: int = 5
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-
-
-def _start_device_authorization(
-    client: httpx.Client,
-) -> AuthorizationData:
-    settings = Settings.get()
-
-    response = client.post(
-        "/login/device/authorization", data={"client_id": settings.client_id}
-    )
-
-    response.raise_for_status()
-
-    return AuthorizationData.model_validate_json(response.text)
-
-
-def _fetch_access_token(client: httpx.Client, device_code: str, interval: int) -> str:
-    settings = Settings.get()
-
-    while True:
-        response = client.post(
-            "/login/device/token",
-            data={
-                "device_code": device_code,
-                "client_id": settings.client_id,
-                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            },
-        )
-
-        if response.status_code not in (200, 400):
-            response.raise_for_status()
-
-        if response.status_code == 400:
-            data = response.json()
-
-            if data.get("error") != "authorization_pending":
-                response.raise_for_status()
-
-        if response.status_code == 200:
-            break
-
-        time.sleep(interval)
-
-    response_data = TokenResponse.model_validate_json(response.text)
-
-    return response_data.access_token
-
-
-def login() -> Any:
-    """
-    Login to FastAPI Cloud. 🚀
-    """
-    identity = Identity()
-
-    if identity.is_logged_in():
-        with get_rich_toolkit(minimal=True) as toolkit:
-            toolkit.print("You are already logged in.")
-            toolkit.print(
-                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts."
-            )
-
-        return
-
-    with get_rich_toolkit() as toolkit, APIClient() as client:
-        toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI")
-
-        toolkit.print_line()
-
-        with toolkit.progress("Starting authorization") as progress:
-            with handle_http_errors(progress):
-                authorization_data = _start_device_authorization(client)
+def _interactive_login(
+    toolkit: FastAPIRichToolkit,
+    *,
+    no_open: bool = False,
+    timeout: int = DEFAULT_LOGIN_TIMEOUT_SECONDS,
+) -> Any:
+    with APIClient() as client:
+        with toolkit.progress("Starting authorization", transient=True) as progress:
+            with client.handle_http_errors(progress, toolkit=toolkit):
+                authorization_data = start_device_authorization(client)
 
             url = authorization_data.verification_uri_complete
 
-            progress.log(f"Opening [link={url}]{url}[/link]")
+            if no_open:
+                toolkit.print(f"Open {url}")
+            else:
+                launch_cmd_res = typer.launch(url)
+                logger.debug(f"Launch command result: {launch_cmd_res}")
+                toolkit.print(f"Opening [link={url}]{url}[/link]")
 
+            toolkit.print_line()
+
+        with toolkit.progress(
+            "Waiting for user to authorize...", transient=True
+        ) as progress:
+            result = complete_device_login(
+                client=client,
+                progress=progress,
+                toolkit=toolkit,
+                device_code=authorization_data.device_code,
+                interval=authorization_data.interval,
+                timeout=timeout,
+                cancel_hint="Run `fastapi cloud login` again to retry.",
+            )
+
+        toolkit.success(
+            result,
+            render_output=render_login_output,
+        )
+
+
+def login(
+    no_open: Annotated[
+        bool,
+        typer.Option(
+            "--no-open",
+            help="Do not open the browser automatically.",
+        ),
+    ] = False,
+    timeout: Annotated[
+        int,
+        typer.Option(
+            "--timeout",
+            help="Maximum seconds to wait for authorization.",
+            min=10,
+        ),
+    ] = DEFAULT_LOGIN_TIMEOUT_SECONDS,
+    json_output: JsonOutputOption = False,
+) -> Any:
+    """
+    Login to FastAPI Cloud.
+    """
+    if json_output:
+        with get_rich_toolkit(json_output=json_output, minimal=True) as toolkit:
+            with APIClient() as client:
+                with toolkit.progress(
+                    "Starting authorization", transient=True
+                ) as progress:
+                    with client.handle_http_errors(progress, toolkit=toolkit):
+                        authorization_data = start_device_authorization(client)
+
+                toolkit.success(device_authorization_output(authorization_data))
+
+        return
+    identity = Identity()
+
+    with get_rich_toolkit() as toolkit:
+        toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud", emoji="🔐")
         toolkit.print_line()
 
-        with toolkit.progress("Waiting for user to authorize...") as progress:
-            typer.launch(url)
+        if identity.is_logged_in():
+            toolkit.print("You are already logged in.")
+            toolkit.print_line()
+            toolkit.print(
+                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts.",
+                emoji="💡",
+            )
 
-            with handle_http_errors(progress):
-                access_token = _fetch_access_token(
-                    client, authorization_data.device_code, authorization_data.interval
-                )
+            return
 
-            write_auth_config(AuthConfig(access_token=access_token))
+        if identity.has_deploy_token():
+            toolkit.print(
+                "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"
+                "This token will take precedence over the user token for "
+                "[blue]`fastapi deploy`[/] command.",
+                emoji="⚠️",
+            )
+            toolkit.print_line()
 
-            progress.log("Now you are logged in! 🚀")
+        _interactive_login(toolkit, no_open=no_open, timeout=timeout)

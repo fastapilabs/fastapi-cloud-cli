@@ -21,6 +21,8 @@ on:
         required: false
         default: 'false'
 
+permissions: {}
+
 jobs:
   test:
     strategy:
@@ -47,24 +49,31 @@ jobs:
     env:
       UV_PYTHON: ${{ matrix.python-version }}
       UV_RESOLUTION: ${{ matrix.uv-resolution }}
+    timeout-minutes: 7
     steps:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
           # Issue ref: https://github.com/actions/setup-python/issues/436
           # cache: "pip"
           # cache-dependency-path: pyproject.toml
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.
+          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837
+          version: "0.11.4"
       # Allow debugging with tmate
       - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
         with:
           limit-access-to-actor: true
@@ -77,7 +86,7 @@ jobs:
           COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
           CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}
       - name: Store coverage files
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-${{ runner.os }}-${{ matrix.python-version }}
           path: coverage
@@ -86,22 +95,29 @@ jobs:
   coverage-combine:
     needs: [test]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version-file: "pyproject.toml"
           # Issue ref: https://github.com/actions/setup-python/issues/436
           # cache: "pip"
           # cache-dependency-path: pyproject.toml
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.
+          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837
+          version: "0.11.4"
       - name: Get coverage files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-*
           path: coverage
@@ -111,7 +127,7 @@ jobs:
       - run: uv run coverage combine coverage
       - run: uv run coverage html --title "Coverage for ${{ github.sha }}"
       - name: Store coverage HTML
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-html
           path: htmlcov
@@ -124,12 +140,13 @@ jobs:
     needs:
       - coverage-combine
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
       - name: Decide whether the needed jobs succeeded or failed
-        uses: re-actors/alls-green@release/v1
+        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
         with:
           jobs: ${{ toJSON(needs) }}

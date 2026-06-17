@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -47,7 +48,7 @@ def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
     result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 1
-    assert "No app linked to this directory" in result.output
+    assert "App ID is required." in result.output
 
 
 def test_shows_error_when_git_not_installed(
@@ -79,7 +80,7 @@ def test_exits_with_error_when_no_remote_origin(
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 1
-    assert "Error retrieving git remote origin URL" in result.output
+    assert "Could not retrieve the git remote origin URL" in result.output
 
 
 def test_shows_error_when_origin_is_not_github(
@@ -126,6 +127,37 @@ def test_detects_github_origin_and_completes_successfully(
 
     assert result.exit_code == 0
     assert "owner/repo" in result.output
+    assert "Done" in result.output
+
+
+@pytest.mark.respx
+def test_app_id_option_works_without_linked_directory(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "explicit-app"
+    _mock_token_api(respx_mock, app_id)
+
+    with (
+        changing_dir(tmp_path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+    ):
+        result = runner.invoke(app, ["setup-ci", "--app-id", app_id])
+
+    assert result.exit_code == 0
     assert "Done" in result.output
 
 

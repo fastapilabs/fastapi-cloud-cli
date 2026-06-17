@@ -13,13 +13,16 @@ from typing import (
 )
 
 import httpx
+import typer
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from rich_toolkit.progress import Progress
 from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.errors import ErrorCode, ErrorToolkit
 
-from .auth import Identity
+from .auth import AuthMode, Identity, delete_auth_config
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +97,10 @@ def attempt(attempt_number: int) -> Generator[None, None, None]:
             )
             _backoff()
         else:
-            # Try to get response text, but handle streaming responses gracefully
-            try:
-                error_detail = error.response.text
-            except Exception:
-                error_detail = "(response body unavailable)"
+            # The streaming callers read the body before raising, so the
+            # server's error detail is available here.
             raise StreamLogError(
-                f"HTTP {error.response.status_code}: {error_detail}",
+                f"HTTP {error.response.status_code}: {error.response.text}",
                 status_code=error.response.status_code,
             ) from error
 
@@ -141,6 +141,7 @@ def attempts(
 
 class DeploymentStatus(str, Enum):
     waiting_upload = "waiting_upload"
+    upload_cancelled = "upload_cancelled"
     ready_for_build = "ready_for_build"
     building = "building"
     extracting = "extracting"
@@ -153,24 +154,27 @@ class DeploymentStatus(str, Enum):
     verifying_failed = "verifying_failed"
     verifying_skipped = "verifying_skipped"
     success = "success"
+    expired = "expired"
     failed = "failed"
 
     @classmethod
     def to_human_readable(cls, status: "DeploymentStatus") -> str:
         return {
-            cls.waiting_upload: "Waiting for upload",
-            cls.ready_for_build: "Ready for build",
+            cls.waiting_upload: "Awaiting Upload",
+            cls.upload_cancelled: "Upload Cancelled",
+            cls.ready_for_build: "Build Queued",
             cls.building: "Building",
-            cls.extracting: "Extracting",
-            cls.extracting_failed: "Extracting failed",
-            cls.building_image: "Building image",
-            cls.building_image_failed: "Build failed",
-            cls.deploying: "Deploying",
-            cls.deploying_failed: "Deploying failed",
-            cls.verifying: "Verifying",
-            cls.verifying_failed: "Verifying failed",
-            cls.verifying_skipped: "Verification skipped",
-            cls.success: "Success",
+            cls.extracting: "Extracting Upload",
+            cls.extracting_failed: "Extraction Failed",
+            cls.building_image: "Building Image",
+            cls.building_image_failed: "Build Failed",
+            cls.deploying: "Deploying Image",
+            cls.deploying_failed: "Deployment Failed",
+            cls.verifying: "Verifying Readiness",
+            cls.verifying_failed: "Verification Failed",
+            cls.verifying_skipped: "Verification Skipped",
+            cls.success: "Ready",
+            cls.expired: "Expired",
             cls.failed: "Failed",
         }[status]
 
@@ -190,23 +194,194 @@ POLL_TIMEOUT = timedelta(seconds=120)
 POLL_MAX_RETRIES = 5
 
 
+def _handle_unauthorized(auth_mode: AuthMode) -> str:
+    message = "The specified token is not valid. "
+
+    if auth_mode == "user":
+        delete_auth_config()
+
+        message += "Use `fastapi login` to generate a new token."
+    else:
+        message += "Make sure to use a valid token."
+
+    return message
+
+
+def _get_response_error_message(response: httpx.Response) -> str | None:
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, httpx.ResponseNotRead):
+        return None
+
+    if not isinstance(data, dict):
+        return None  # pragma: no cover
+
+    detail = data.get("detail")
+    if not isinstance(detail, str):
+        return None  # pragma: no cover
+
+    return detail
+
+
+def handle_http_error(
+    error: httpx.HTTPError,
+    default_message: str | None = None,
+    not_found_message: str | None = None,
+    auth_mode: AuthMode = "user",
+) -> str:
+    message: str | None = None
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+
+        # Handle validation errors from Pydantic models, this should make it easier to debug :)
+        if status_code == 422:
+            logger.debug(error.response.json())  # pragma: no cover
+
+        elif status_code == 400:
+            message = _get_response_error_message(error.response)
+
+        elif status_code == 401:
+            message = _handle_unauthorized(auth_mode=auth_mode)
+
+        elif status_code == 403:
+            message = (
+                _get_response_error_message(error.response)
+                or "You don't have permissions for this resource"
+            )
+
+        elif status_code == 404:
+            message = (
+                _get_response_error_message(error.response)
+                or not_found_message
+                or "Resource not found."
+            )
+
+    if not message:
+        message = (
+            default_message
+            or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{error}"
+        )
+
+    return message
+
+
+def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
+    if isinstance(error, httpx.TimeoutException | httpx.NetworkError):
+        return "network_error"
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code
+
+        if status_code == 400:
+            return "invalid_input"
+
+        if status_code == 401:
+            return "invalid_token"
+
+        if status_code == 403:
+            return "permission_denied"
+
+        if status_code == 404:
+            return "not_found"
+
+    return "api_error"
+
+
+def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str | None:
+    if code == "invalid_token":
+        if auth_mode == "user":
+            return "Run `fastapi cloud login` to generate a new token."
+
+        return "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
+
+    return None
+
+
 class APIClient(httpx.Client):
-    def __init__(self) -> None:
+    auth_mode: AuthMode
+
+    def __init__(self, use_deploy_token: bool = False) -> None:
         settings = Settings.get()
         identity = Identity()
+
+        token: str | None
+        if use_deploy_token and identity.deploy_token:
+            token = identity.deploy_token
+            self.auth_mode = "token"
+        else:
+            token = identity.user_token
+            self.auth_mode = "user"
+
+        headers = {"User-Agent": f"fastapi-cloud-cli/{__version__}"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
         super().__init__(
             base_url=settings.base_api_url,
             timeout=httpx.Timeout(20),
-            headers={
-                "Authorization": f"Bearer {identity.token}",
-                "User-Agent": f"fastapi-cloud-cli/{__version__}",
-            },
+            headers=headers,
         )
+
+    @contextmanager
+    def handle_http_errors(
+        self,
+        progress: Progress,
+        default_message: str | None = None,
+        *,
+        not_found_message: str | None = None,
+        toolkit: ErrorToolkit | None = None,
+    ) -> Generator[None, None, None]:
+        # TODO: Once every command supports JSON output, require toolkit here
+        # and let it be the single human/JSON error rendering boundary.
+
+        mode = toolkit.mode if toolkit else "human"
+
+        try:
+            yield
+        except httpx.ReadTimeout as e:
+            logger.debug(e)
+
+            message = (
+                "The request to the FastAPI Cloud server timed out."
+                " Please try again later."
+            )
+
+            if mode == "json" and toolkit:
+                toolkit.fail(
+                    "network_error",
+                    message,
+                    hint="Please try again later.",
+                )
+
+            progress.set_error(message)
+
+            raise typer.Exit(1) from None  # pragma: no cover
+        except httpx.HTTPError as e:
+            logger.debug(e)
+
+            message = handle_http_error(
+                e,
+                default_message,
+                not_found_message=not_found_message,
+                auth_mode=self.auth_mode,
+            )
+            code = get_http_error_code(e)
+
+            if mode == "json" and toolkit:
+                toolkit.fail(
+                    code,
+                    message,
+                    hint=get_http_error_hint(code, auth_mode=self.auth_mode),
+                )
+            else:
+                progress.set_error(message)
+
+            raise typer.Exit(1) from None
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
-        self, deployment_id: str
+        self, deployment_id: str, *, follow: bool = True
     ) -> Generator[BuildLogLine, None, None]:
         last_id = None
 
@@ -219,6 +394,10 @@ class APIClient(httpx.Client):
                 timeout=60,
                 params=params,
             ) as response:
+                if response.is_error:
+                    # Load the body while the stream is open so error handlers
+                    # can surface the server's error detail.
+                    response.read()
                 response.raise_for_status()
 
                 for line in response.iter_lines():
@@ -238,8 +417,13 @@ class APIClient(httpx.Client):
 
                         if log_line.type == "timeout":
                             logger.debug("Received timeout; reconnecting")
+                            if not follow:
+                                return
                             break  # Breaks for loop to reconnect
                 else:
+                    if not follow:
+                        return
+
                     logger.debug("Connection closed by server unexpectedly; will retry")
 
                     raise httpx.NetworkError("Connection closed without terminal state")
@@ -272,6 +456,10 @@ class APIClient(httpx.Client):
             },
             timeout=timeout,
         ) as response:
+            if response.is_error:
+                # Load the body while the stream is open so error handlers
+                # can surface the server's error detail.
+                response.read()
             response.raise_for_status()
             for line in response.iter_lines():
                 if not line or not line.strip():  # pragma: no cover
