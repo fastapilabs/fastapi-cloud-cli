@@ -8,7 +8,9 @@ import rignore
 from pydantic import AfterValidator
 
 logger = logging.getLogger(__name__)
-
+import sys
+if sys.version_info >= (3, 11):
+    import tomllib
 
 def validate_app_directory(v: str | None) -> str | None:
     if v is None:
@@ -42,9 +44,35 @@ def validate_app_directory(v: str | None) -> str | None:
 
 AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
+def _project_name_from_pyproject(path: Path) -> str:
+    if sys.version_info < (3, 11):
+        return ""
+
+    if not path.exists():
+        return ""
+
+    try:
+        with path.open("rb") as f:
+            data = tomllib.load(f)
+
+        project_name = data.get("project", {}).get("name")
+        if project_name:
+            return str(project_name)
+
+        poetry_name = data.get("tool", {}).get("poetry", {}).get("name")
+        if poetry_name:
+            return str(poetry_name)
+
+    except Exception:
+        return ""
+
+    return ""
 
 def _get_app_name(path: Path) -> str:
-    # TODO: use pyproject.toml to get the app name
+    pyproject_path = path / "pyproject.toml"
+    name = _project_name_from_pyproject(pyproject_path)
+    if name:
+        return name
     return path.name
 
 

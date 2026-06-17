@@ -4,6 +4,7 @@ import re
 import string
 from datetime import timedelta
 from pathlib import Path
+import sys
 from typing import TypedDict
 from unittest.mock import patch
 
@@ -20,6 +21,7 @@ from typer.testing import CliRunner
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
+from fastapi_cloud_cli.commands.deploy.archive import _project_name_from_pyproject
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
 
@@ -2494,3 +2496,86 @@ def test_invalid_large_file_threshold(
 
     assert result.exit_code == 2
     assert "Invalid value for '--large-file-threshold'" in result.output
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_project_name_from_pyproject_project_section(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project]
+name = "my-app"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == "my-app"
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_project_name_from_pyproject_poetry_section(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[tool.poetry]
+name = "my-poetry-app"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == "my-poetry-app"
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_project_name_from_pyproject_missing_file(tmp_path: Path) -> None:
+    pyproject = tmp_path / "missing.toml"
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_project_name_from_pyproject_missing_name(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project]
+version = "0.1.0"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_project_name_from_pyproject_invalid_toml(tmp_path: Path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project
+name = "invalid"
+""",
+        encoding="utf-8",
+    )
+
+    result = _project_name_from_pyproject(pyproject)
+
+    assert result == ""
