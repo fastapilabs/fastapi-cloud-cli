@@ -43,6 +43,150 @@ def test_creates_token_json_returns_not_logged_in_when_logged_out(
     assert result.stderr == ""
 
 
+def test_deletes_token_json_returns_not_logged_in_when_logged_out(
+    logged_out_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "tokens",
+            "delete",
+            "00000000-0000-4000-8000-000000000004",
+            "--app-id",
+            "00000000-0000-4000-8000-000000000002",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "No credentials found.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_deletes_token_as_json_with_app_id(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    token_id = "00000000-0000-4000-8000-000000000004"
+    respx_mock.delete(f"/apps/{app_id}/tokens/{token_id}").mock(
+        return_value=Response(204)
+    )
+
+    result = runner.invoke(
+        app,
+        ["tokens", "delete", token_id, "--app-id", app_id, "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "token_id": token_id,
+            "deleted": True,
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_deletes_token_as_json_uses_linked_app(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    configured_app: ConfiguredApp,
+) -> None:
+    token_id = "00000000-0000-4000-8000-000000000004"
+    respx_mock.delete(f"/apps/{configured_app.app_id}/tokens/{token_id}").mock(
+        return_value=Response(204)
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["tokens", "delete", token_id, "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "token_id": token_id,
+            "deleted": True,
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_deletes_token_json_returns_missing_required_input_without_app_context(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "tokens",
+            "delete",
+            "00000000-0000-4000-8000-000000000004",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "App ID is required.",
+            "hint": "Pass --app-id or run `fastapi cloud apps create --link` first.",
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_delete_token_json_returns_not_found_when_token_is_missing(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    token_id = "00000000-0000-4000-8000-000000000004"
+    respx_mock.delete(f"/apps/{app_id}/tokens/{token_id}").mock(
+        return_value=Response(404)
+    )
+
+    result = runner.invoke(
+        app,
+        ["tokens", "delete", token_id, "--app-id", app_id, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": f"Deploy token {token_id} not found.",
+            "hint": "Run `fastapi cloud tokens list` to see available deploy tokens.",
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_delete_token_human_output(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    token_id = "00000000-0000-4000-8000-000000000004"
+    respx_mock.delete(f"/apps/{app_id}/tokens/{token_id}").mock(
+        return_value=Response(204)
+    )
+
+    result = runner.invoke(app, ["tokens", "delete", token_id, "--app-id", app_id])
+
+    assert result.exit_code == 0
+    assert f"Deleted deploy token {token_id}" in result.output
+
+
 def test_creates_token_json_returns_missing_required_input_without_name(
     logged_in_cli: None,
 ) -> None:
