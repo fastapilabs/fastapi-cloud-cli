@@ -331,7 +331,7 @@ def deploy(
                             f"Deployment created successfully! Deployment slug: {deployment.slug}"
                         )
 
-                        _upload_deployment(
+                        deployment = _upload_deployment(
                             fastapi_client=client,
                             deployment_id=deployment.id,
                             archive_path=archive_path,

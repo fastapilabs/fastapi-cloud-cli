@@ -6,6 +6,7 @@ from httpx import Client
 from pydantic import BaseModel
 from rich_toolkit.progress import Progress
 
+from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
@@ -43,7 +44,7 @@ def _upload_deployment(
     deployment_id: str,
     archive_path: Path,
     progress: Progress,
-) -> None:
+) -> CreateDeploymentResponse:
     archive_size = archive_path.stat().st_size
     archive_size_str = _format_size(archive_size)
 
@@ -88,3 +89,5 @@ def _upload_deployment(
 
     notify_response.raise_for_status()
     logger.debug("Upload notification sent successfully")
+
+    return CreateDeploymentResponse.model_validate(notify_response.json())
