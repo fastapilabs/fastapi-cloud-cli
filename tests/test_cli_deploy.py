@@ -2497,6 +2497,7 @@ def test_invalid_large_file_threshold(
     assert result.exit_code == 2
     assert "Invalid value for '--large-file-threshold'" in result.output
 
+
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="tomllib is only available on Python 3.11+",
@@ -2514,6 +2515,7 @@ name = "my-app"
     result = _project_name_from_pyproject(pyproject)
 
     assert result == "my-app"
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
@@ -2533,6 +2535,7 @@ name = "my-poetry-app"
 
     assert result == "my-poetry-app"
 
+
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="tomllib is only available on Python 3.11+",
@@ -2543,6 +2546,7 @@ def test_project_name_from_pyproject_missing_file(tmp_path: Path) -> None:
     result = _project_name_from_pyproject(pyproject)
 
     assert result == ""
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
@@ -2561,6 +2565,7 @@ version = "0.1.0"
     result = _project_name_from_pyproject(pyproject)
 
     assert result == ""
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 11),

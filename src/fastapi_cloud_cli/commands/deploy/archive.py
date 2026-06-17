@@ -9,8 +9,10 @@ from pydantic import AfterValidator
 
 logger = logging.getLogger(__name__)
 import sys
+
 if sys.version_info >= (3, 11):
-    import tomllib
+    import tomllib  # type: ignore[import-not-found]
+
 
 def validate_app_directory(v: str | None) -> str | None:
     if v is None:
@@ -44,6 +46,7 @@ def validate_app_directory(v: str | None) -> str | None:
 
 AppDirectory = Annotated[str | None, AfterValidator(validate_app_directory)]
 
+
 def _project_name_from_pyproject(path: Path) -> str:
     if sys.version_info < (3, 11):
         return ""
@@ -67,6 +70,7 @@ def _project_name_from_pyproject(path: Path) -> str:
         return ""
 
     return ""
+
 
 def _get_app_name(path: Path) -> str:
     pyproject_path = path / "pyproject.toml"
