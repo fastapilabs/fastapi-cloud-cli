@@ -50,9 +50,6 @@ def _project_name_from_pyproject(path: Path) -> str:
     except ImportError:
         return ""
 
-    if tomllib is None:
-        return ""
-
     if not path.exists():
         return ""
 

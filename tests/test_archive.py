@@ -1,9 +1,10 @@
+import sys
 from pathlib import Path
 
 import fastar
 import pytest
 
-from fastapi_cloud_cli.commands.deploy.archive import archive
+from fastapi_cloud_cli.commands.deploy.archive import _get_app_name, archive
 
 
 @pytest.fixture
@@ -163,3 +164,28 @@ def test_archive_includes_hidden_files_but_excludes_env(
         dst_path / ".config",
         dst_path / ".config" / "settings.json",
     }
+
+
+def test_get_app_name_uses_directory_name_when_pyproject_is_missing(
+    tmp_path: Path,
+) -> None:
+    assert _get_app_name(tmp_path) == tmp_path.name
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="tomllib is only available on Python 3.11+",
+)
+def test_get_app_name_uses_project_name_from_pyproject(
+    tmp_path: Path,
+) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        """
+[project]
+name = "my-app"
+""",
+        encoding="utf-8",
+    )
+
+    assert _get_app_name(tmp_path) == "my-app"
