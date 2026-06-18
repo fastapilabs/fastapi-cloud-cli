@@ -7,6 +7,10 @@
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
 * ♻️ Improve error messages for logs. PR [#249](https://github.com/fastapilabs/fastapi-cloud-cli/pull/249) by [@patrick91](https://github.com/patrick91).
 
+### Internal
+
+* ⬆ Bump https://github.com/crate-ci/typos from v1.46.0 to v1.47.2 in the pre-commit group. PR [#251](https://github.com/fastapilabs/fastapi-cloud-cli/pull/251) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.20.0 (2026-06-11)
 
 ### Features
