@@ -9,6 +9,7 @@
 
 ### Internal
 
+* ⬆ Bump the python-packages group across 1 directory with 3 updates. PR [#252](https://github.com/fastapilabs/fastapi-cloud-cli/pull/252) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.23.1 to 0.26.7. PR [#254](https://github.com/fastapilabs/fastapi-cloud-cli/pull/254) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.61.0 to 2.62.0. PR [#253](https://github.com/fastapilabs/fastapi-cloud-cli/pull/253) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump https://github.com/crate-ci/typos from v1.46.0 to v1.47.2 in the pre-commit group. PR [#251](https://github.com/fastapilabs/fastapi-cloud-cli/pull/251) by [@dependabot[bot]](https://github.com/apps/dependabot).
