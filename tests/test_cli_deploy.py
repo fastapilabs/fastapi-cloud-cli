@@ -11,11 +11,10 @@ import httpx
 import pytest
 import respx
 import typer
-from click.testing import Result
 from httpx import Response
 from rich_toolkit.progress import Progress
 from time_machine import TimeMachineFixture
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
