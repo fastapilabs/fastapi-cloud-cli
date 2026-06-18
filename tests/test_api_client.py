@@ -366,7 +366,7 @@ def test_stream_build_logs_retry_timeout(
     client: APIClient,
     deployment_id: str,
 ) -> None:
-    clock = [0.0]  # Value to use as a result of time.monotonic() mock
+    clock = [0.0]  # Container with a value to use as a result of time.monotonic() mock
 
     def responses(request: httpx.Request, route: respx.Route) -> Response:
         clock[0] += timedelta(hours=1).total_seconds()  # Simulate time passing
