@@ -1,3 +1,4 @@
+import itertools
 import json
 import random
 import re
@@ -5,7 +6,7 @@ import string
 from datetime import timedelta
 from pathlib import Path
 from typing import TypedDict
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import httpx
 import pytest
@@ -17,6 +18,7 @@ from time_machine import TimeMachineFixture
 from typer.testing import CliRunner, Result
 
 from fastapi_cloud_cli.cli import app
+from fastapi_cloud_cli.commands.deploy import wait
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
@@ -1434,10 +1436,6 @@ def test_shows_error_message_on_build_log_http_error(
 
 
 @pytest.mark.respx
-@patch(
-    "fastapi_cloud_cli.commands.deploy.wait.WAITING_MESSAGES",
-    [("⏳", "short wait message")],
-)
 def test_short_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1503,18 +1501,22 @@ def test_short_wait_messages(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
-    with changing_dir(tmp_path), patch("time.sleep"):
+    with (
+        changing_dir(tmp_path),
+        patch("time.sleep"),
+        patch.object(wait, "cycle", wraps=itertools.cycle) as cycle_spy,
+    ):
         result = runner.invoke(app, ["deploy"])
 
         assert result.exit_code == 0
         assert "Ready the chicken!" in result.output
 
+        # This is a short wait, so LONG_WAIT_MESSAGES should not be accessed by the
+        # `cycle` function.
+        assert call(wait.LONG_WAIT_MESSAGES) not in cycle_spy.call_args_list
+
 
 @pytest.mark.respx
-@patch(
-    "fastapi_cloud_cli.commands.deploy.wait.LONG_WAIT_MESSAGES",
-    [("⏳", "long wait message")],
-)
 def test_long_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
@@ -1581,11 +1583,19 @@ def test_long_wait_messages(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
-    with changing_dir(tmp_path), patch("time.sleep"):
+    with (
+        changing_dir(tmp_path),
+        patch("time.sleep"),
+        patch.object(wait, "cycle", wraps=itertools.cycle) as cycle_spy,
+    ):
         result = runner.invoke(app, ["deploy"])
 
         assert result.exit_code == 0
         assert "Ready the chicken!" in result.output
+
+        # This is a long wait, so LONG_WAIT_MESSAGES should be accessed by the `cycle`
+        # function.
+        assert call(wait.LONG_WAIT_MESSAGES) in cycle_spy.call_args_list
 
 
 @pytest.mark.respx
