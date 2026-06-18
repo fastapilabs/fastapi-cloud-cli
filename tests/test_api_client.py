@@ -5,7 +5,6 @@ import httpx
 import pytest
 import respx
 from httpx import Response
-from time_machine import TimeMachineFixture
 
 from fastapi_cloud_cli.utils.api import (
     STREAM_LOGS_MAX_RETRIES,
@@ -365,13 +364,12 @@ def test_stream_build_logs_connection_closed_without_complete_failed_or_timeout(
 def test_stream_build_logs_retry_timeout(
     logs_route: respx.Route,
     client: APIClient,
-    time_machine: TimeMachineFixture,
     deployment_id: str,
 ) -> None:
-    time_machine.move_to("2025-11-01 13:00:00", tick=False)
+    clock = [0.0]  # Value to use as a result of time.monotonic() mock
 
     def responses(request: httpx.Request, route: respx.Route) -> Response:
-        time_machine.shift(timedelta(hours=1))
+        clock[0] += timedelta(hours=1).total_seconds()  # Simulate time passing
 
         return Response(
             200,
@@ -382,7 +380,11 @@ def test_stream_build_logs_retry_timeout(
 
     logs_route.mock(side_effect=responses)
 
-    with patch("time.sleep"), pytest.raises(TimeoutError, match="timed out"):
+    with (
+        patch("time.monotonic", side_effect=lambda: clock[0]),
+        patch("time.sleep"),
+        pytest.raises(TimeoutError, match="timed out"),
+    ):
         list(client.stream_build_logs(deployment_id))
 
 
