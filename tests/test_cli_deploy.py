@@ -3,7 +3,6 @@ import json
 import random
 import re
 import string
-from datetime import timedelta
 from pathlib import Path
 from typing import TypedDict
 from unittest.mock import call, patch
@@ -14,7 +13,6 @@ import respx
 import typer
 from httpx import Response
 from rich_toolkit.progress import Progress
-from time_machine import TimeMachineFixture
 from typer.testing import CliRunner, Result
 
 from fastapi_cloud_cli.cli import app
@@ -1524,10 +1522,7 @@ def test_long_wait_messages(
     logged_in_cli: None,
     tmp_path: Path,
     respx_mock: respx.MockRouter,
-    time_machine: TimeMachineFixture,
 ) -> None:
-    time_machine.move_to("2025-11-01 13:00:00", tick=False)
-
     app_data = _get_random_app()
     team_data = _get_random_team()
     app_id = app_data["id"]
@@ -1556,9 +1551,13 @@ def test_long_wait_messages(
         )
     )
 
+    # Each build-log request advances the fake monotonic clock so the elapsed
+    # time determines which message pool is used.
+    clock = [0.0]
+
     def build_logs_handler(request: httpx.Request, route: respx.Route) -> Response:
         if route.call_count <= 2:
-            time_machine.shift(timedelta(seconds=35))
+            clock[0] += 35
             return Response(
                 200,
                 content=build_logs_response(
@@ -1589,6 +1588,7 @@ def test_long_wait_messages(
     with (
         changing_dir(tmp_path),
         patch("time.sleep"),
+        patch("time.monotonic", side_effect=lambda: clock[0]),
         patch.object(wait, "cycle", wraps=itertools.cycle) as cycle_spy,
     ):
         result = runner.invoke(app, ["deploy"])
