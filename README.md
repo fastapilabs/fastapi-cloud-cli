@@ -4,7 +4,6 @@
     <img src="https://github.com/fastapilabs/fastapi-cloud-cli/actions/workflows/test.yml/badge.svg" alt="Test">
 </a>
 <a href="https://github.com/fastapilabs/fastapi-cloud-cli/actions/workflows/publish.yml" target="_blank">
-    <img src="https://github.com/fastapilabs/fastapi-cloud-cli/actions/workflows/publish.yml/badge.svg" alt="Publish">
 </a>
 <a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/fastapilabs/fastapi-cloud-cli" target="_blank">
     <img src="https://coverage-badge.samuelcolvin.workers.dev/fastapilabs/fastapi-cloud-cli.svg" alt="Coverage">
