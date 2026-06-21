@@ -9,6 +9,7 @@
 
 ### Internal
 
+* 👷 Fix alls-green test dependency. PR [#259](https://github.com/fastapilabs/fastapi-cloud-cli/pull/259) by [@tiangolo](https://github.com/tiangolo).
 * 🔧 Enable checking `release-notes.md` for typos. PR [#258](https://github.com/fastapilabs/fastapi-cloud-cli/pull/258) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump the python-packages group across 1 directory with 3 updates. PR [#252](https://github.com/fastapilabs/fastapi-cloud-cli/pull/252) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.23.1 to 0.26.7. PR [#254](https://github.com/fastapilabs/fastapi-cloud-cli/pull/254) by [@dependabot[bot]](https://github.com/apps/dependabot).
