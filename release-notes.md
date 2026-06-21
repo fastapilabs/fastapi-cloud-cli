@@ -7,6 +7,10 @@
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
 * ♻️ Improve error messages for logs. PR [#249](https://github.com/fastapilabs/fastapi-cloud-cli/pull/249) by [@patrick91](https://github.com/patrick91).
 
+### Docs
+
+* 📝 Update docs badges: remove Publish badge, it doesn't give extra information. PR [#260](https://github.com/fastapilabs/fastapi-cloud-cli/pull/260) by [@tiangolo](https://github.com/tiangolo).
+
 ### Internal
 
 * 👷 Fix alls-green test dependency. PR [#259](https://github.com/fastapilabs/fastapi-cloud-cli/pull/259) by [@tiangolo](https://github.com/tiangolo).
