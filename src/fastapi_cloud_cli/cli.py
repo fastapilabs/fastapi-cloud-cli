@@ -16,6 +16,7 @@ from .commands.logout import logout
 from .commands.logs import logs
 from .commands.setup_ci import setup_ci
 from .commands.teams import teams_app
+from .commands.tokens import tokens_app
 from .commands.whoami import whoami
 from .logging import setup_logging
 from .utils.sentry import init_sentry
@@ -71,6 +72,7 @@ cloud_app.add_typer(auth_app, name="auth")
 cloud_app.add_typer(apps_app, name="apps")
 cloud_app.add_typer(deployments_app, name="deployments")
 cloud_app.add_typer(teams_app, name="teams")
+cloud_app.add_typer(tokens_app, name="tokens")
 
 # fastapi [command]
 app.command()(deploy)
