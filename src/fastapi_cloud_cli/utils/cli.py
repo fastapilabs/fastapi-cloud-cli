@@ -253,8 +253,11 @@ class FastAPIStyle(BaseStyle):
             self.console.show_cursor(True)
 
     def _get_progress_status_emoji(self, element: Progress, done: bool) -> str:
-        if element._cancelled or element.is_error:
+        if element._cancelled:
             return "🟡"
+
+        if element.is_error:
+            return ERROR_BULLET
 
         if done:
             return cast(str, element.metadata.get("done_emoji", "🐔"))

@@ -241,6 +241,9 @@ def handle_http_error(
         elif status_code == 400:
             message = _get_response_error_message(error.response)
 
+        elif status_code == 409:
+            message = _get_response_error_message(error.response)
+
         elif status_code == 401:
             message = _handle_unauthorized(auth_mode=auth_mode)
 
@@ -273,7 +276,7 @@ def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
     if isinstance(error, httpx.HTTPStatusError):
         status_code = error.response.status_code
 
-        if status_code == 400:
+        if status_code in {400, 409}:
             return "invalid_input"
 
         if status_code == 401:
