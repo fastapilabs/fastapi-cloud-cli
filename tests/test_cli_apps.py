@@ -322,6 +322,36 @@ def test_creates_app_json_rejects_path_without_link(
     assert result.stderr == ""
 
 
+def test_creates_app_json_rejects_invalid_directory(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "create",
+            "--team-id",
+            "00000000-0000-4000-8000-000000000001",
+            "--name",
+            "API",
+            "--directory",
+            "/tmp/api",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": ("Invalid app directory: must be a relative path, not absolute"),
+            "hint": (
+                "Pass a relative app directory such as `src` or `backend`; "
+                "use --path with --link to choose a local filesystem path."
+            ),
+        }
+    }
+    assert result.stderr == ""
+
+
 @pytest.mark.respx
 def test_links_existing_app_to_path_as_json(
     logged_in_cli: None,
