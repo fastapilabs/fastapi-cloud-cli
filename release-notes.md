@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add tokens list command. PR [#262](https://github.com/fastapilabs/fastapi-cloud-cli/pull/262) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
