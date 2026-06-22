@@ -75,7 +75,10 @@ def create_app(
         str | None,
         typer.Option(
             "--directory",
-            help="Directory containing the app's pyproject.toml.",
+            help=(
+                "Relative app directory containing the pyproject.toml "
+                "(for example: src or backend)."
+            ),
         ),
     ] = None,
     link: Annotated[
@@ -146,7 +149,17 @@ def create_app(
                 )
                 toolkit.print_line()
 
-            directory = validate_app_directory(directory)
+            try:
+                directory = validate_app_directory(directory)
+            except ValueError as e:
+                toolkit.fail(
+                    "invalid_input",
+                    f"Invalid app directory: {e}",
+                    hint=(
+                        "Pass a relative app directory such as `src` or `backend`; "
+                        "use --path with --link to choose a local filesystem path."
+                    ),
+                )
 
             with toolkit.progress(
                 title="Creating app",
