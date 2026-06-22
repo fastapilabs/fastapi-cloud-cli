@@ -206,7 +206,8 @@ def test_fastapi_style_progress_status_emoji_states() -> None:
 
     progress._cancelled = False
     progress.is_error = True
-    assert style._get_progress_status_emoji(progress, done=False) == "🟡"
+    assert style._get_progress_status_emoji(progress, done=False) == ERROR_BULLET
+    assert render_plain(style.render_element(progress)) == "  ✗ Working\n"
 
 
 def test_fastapi_style_gets_cursor_offset_with_and_without_bullet_column() -> None:

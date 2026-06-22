@@ -2,13 +2,25 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add tokens create command. PR [#263](https://github.com/fastapilabs/fastapi-cloud-cli/pull/263) by [@patrick91](https://github.com/patrick91).
+* ✨ Add tokens list command. PR [#262](https://github.com/fastapilabs/fastapi-cloud-cli/pull/262) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
 * ♻️ Improve error messages for logs. PR [#249](https://github.com/fastapilabs/fastapi-cloud-cli/pull/249) by [@patrick91](https://github.com/patrick91).
 
+### Docs
+
+* 📝 Update docs badges: remove Publish badge, it doesn't give extra information. PR [#260](https://github.com/fastapilabs/fastapi-cloud-cli/pull/260) by [@tiangolo](https://github.com/tiangolo).
+
 ### Internal
 
+* 🔒️ Update zizmor workflow security checks. PR [#261](https://github.com/fastapilabs/fastapi-cloud-cli/pull/261) by [@tiangolo](https://github.com/tiangolo).
+* 👷 Fix alls-green test dependency. PR [#259](https://github.com/fastapilabs/fastapi-cloud-cli/pull/259) by [@tiangolo](https://github.com/tiangolo).
+* 🔧 Enable checking `release-notes.md` for typos. PR [#258](https://github.com/fastapilabs/fastapi-cloud-cli/pull/258) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump the python-packages group across 1 directory with 3 updates. PR [#252](https://github.com/fastapilabs/fastapi-cloud-cli/pull/252) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.23.1 to 0.26.7. PR [#254](https://github.com/fastapilabs/fastapi-cloud-cli/pull/254) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.61.0 to 2.62.0. PR [#253](https://github.com/fastapilabs/fastapi-cloud-cli/pull/253) by [@dependabot[bot]](https://github.com/apps/dependabot).
