@@ -8,6 +8,10 @@
 * ✨ Add tokens create command. PR [#263](https://github.com/fastapilabs/fastapi-cloud-cli/pull/263) by [@patrick91](https://github.com/patrick91).
 * ✨ Add tokens list command. PR [#262](https://github.com/fastapilabs/fastapi-cloud-cli/pull/262) by [@patrick91](https://github.com/patrick91).
 
+### Fixes
+
+* 🐛 Handle invalid apps create --directory input. PR [#265](https://github.com/fastapilabs/fastapi-cloud-cli/pull/265) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
