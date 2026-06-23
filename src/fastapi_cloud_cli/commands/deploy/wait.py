@@ -46,7 +46,6 @@ LONG_WAIT_MESSAGES = [
 def _verify_deployment(
     toolkit: RichToolkit,
     client: APIClient,
-    app_id: str,
     deployment: CreateDeploymentResponse,
 ) -> None:
     failed_status: str | None = None
@@ -57,7 +56,7 @@ def _verify_deployment(
         done_emoji="✅",
     ) as progress:
         try:
-            final_status = client.poll_deployment_status(app_id, deployment.id)
+            final_status = client.poll_deployment_status(deployment.id)
         except (TimeoutError, TooManyRetriesError, StreamLogError):
             progress.metadata["done_emoji"] = "⚠️"
             progress.current_message = (
@@ -168,6 +167,4 @@ def _wait_for_deployment(
     if build_complete:
         toolkit.print_line()
 
-        _verify_deployment(
-            toolkit=toolkit, client=client, app_id=app_id, deployment=deployment
-        )
+        _verify_deployment(toolkit=toolkit, client=client, deployment=deployment)
