@@ -95,10 +95,8 @@ def _get_deployments(
     )
 
 
-def _get_deployment(
-    client: APIClient, *, app_id: str, deployment_id: str
-) -> DeploymentGetOutput:
-    response = client.get(f"/apps/{app_id}/deployments/{deployment_id}")
+def _get_deployment(client: APIClient, *, deployment_id: str) -> DeploymentGetOutput:
+    response = client.get(f"/deployments/{deployment_id}")
     response.raise_for_status()
 
     return DeploymentGetOutput(deployment=Deployment.model_validate(response.json()))
@@ -344,7 +342,7 @@ def get_deployment(
                 hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
 
-        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
+        resolve_app_id_or_fail(toolkit, app_id=app_id)
 
         with APIClient() as client:
             with toolkit.progress(
@@ -359,7 +357,6 @@ def get_deployment(
                 ):
                     result = _get_deployment(
                         client,
-                        app_id=target_app_id,
                         deployment_id=deployment_id,
                     )
 

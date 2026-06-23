@@ -844,7 +844,7 @@ def test_updates_app_directory_via_api_when_changed(
         )
     )
 
-    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -917,7 +917,7 @@ def test_does_not_update_app_directory_when_unchanged(
         )
     )
 
-    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -999,7 +999,7 @@ def test_exits_successfully_when_deployment_is_done(
         )
     )
 
-    respx_mock.get(f"/apps/{app_data['id']}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1065,7 +1065,7 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
         )
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1497,7 +1497,7 @@ def test_short_wait_messages(
         side_effect=build_logs_handler
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1581,7 +1581,7 @@ def test_long_wait_messages(
         side_effect=build_logs_handler
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1733,7 +1733,7 @@ def test_deploy_successfully_with_token(
     )
 
     respx_mock.get(
-        f"/apps/{app_id}/deployments/{deployment_data['id']}",
+        f"/deployments/{deployment_data['id']}",
         headers={"Authorization": "Bearer hello"},
     ).mock(return_value=Response(200, json={**deployment_data, "status": "success"}))
 
@@ -1856,7 +1856,7 @@ def test_upload_deployment_progress(
             ),
         )
     )
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_id}").mock(
+    respx_mock.get(f"/deployments/{deployment_id}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1919,7 +1919,7 @@ def test_deploy_with_app_id_arg(
         )
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -1971,7 +1971,7 @@ def test_deploy_with_app_id_from_env_var(
         )
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2028,7 +2028,7 @@ def test_deploy_with_app_id_matching_local_config(
         )
     )
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2186,7 +2186,7 @@ def test_verification_failure_after_build_complete(
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(
             200, json={**deployment_data, "status": "verifying_failed"}
         )
@@ -2221,7 +2221,7 @@ def test_polling_with_intermediate_states(
             return Response(200, json={**deployment_data, "status": "verifying"})
         return Response(200, json={**deployment_data, "status": "success"})
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         side_effect=poll_handler
     )
 
@@ -2268,7 +2268,7 @@ def test_verifying_skipped_treated_as_success(
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
 
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(
             200, json={**deployment_data, "status": "verifying_skipped"}
         )
@@ -2369,7 +2369,7 @@ def test_large_file_threshold_warning(
     deployment_data = _get_random_deployment(app_id=app_id)
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2397,7 +2397,7 @@ def test_large_file_threshold_only_top_three_files_with_more_indicator(
     deployment_data = _get_random_deployment(app_id=app_id)
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2429,7 +2429,7 @@ def test_large_file_threshold_does_not_warn_when_no_large_files(
     deployment_data = _get_random_deployment(app_id=app_id)
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2455,7 +2455,7 @@ def test_large_file_threshold_custom_threshold(
     deployment_data = _get_random_deployment(app_id=app_id)
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 
@@ -2480,7 +2480,7 @@ def test_large_file_threshold_custom_threshold_envvar(
     deployment_data = _get_random_deployment(app_id=app_id)
 
     _setup_deployment_mocks(respx_mock, app_id, team_id, deployment_data, tmp_path)
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment_data['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
         return_value=Response(200, json={**deployment_data, "status": "success"})
     )
 

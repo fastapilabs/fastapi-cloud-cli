@@ -232,7 +232,7 @@ def test_gets_deployment_as_json_with_app_id(
         "url": "https://api.fastapicloud.app",
         "dashboard_url": "https://dashboard.fastapicloud.com/acme/apps/api/deployments/api-20260522",
     }
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment['id']}").mock(
         return_value=Response(200, json=deployment)
     )
 
@@ -268,9 +268,9 @@ def test_gets_deployment_as_json_uses_linked_app(
         "url": "https://api.fastapicloud.app",
         "dashboard_url": "https://dashboard.fastapicloud.com/acme/apps/api/deployments/api-20260522",
     }
-    respx_mock.get(
-        f"/apps/{configured_app.app_id}/deployments/{deployment['id']}"
-    ).mock(return_value=Response(200, json=deployment))
+    respx_mock.get(f"/deployments/{deployment['id']}").mock(
+        return_value=Response(200, json=deployment)
+    )
 
     with changing_dir(configured_app.path):
         result = runner.invoke(app, ["deployments", "get", deployment["id"], "--json"])
@@ -315,7 +315,7 @@ def test_gets_deployment_in_human_output(
         "url": "https://api.fastapicloud.app",
         "dashboard_url": "https://dashboard.example.com/d/api-20260522",
     }
-    respx_mock.get(f"/apps/{app_id}/deployments/{deployment['id']}").mock(
+    respx_mock.get(f"/deployments/{deployment['id']}").mock(
         return_value=Response(200, json=deployment)
     )
 

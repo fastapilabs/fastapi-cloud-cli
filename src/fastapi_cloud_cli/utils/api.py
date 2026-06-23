@@ -487,7 +487,6 @@ class APIClient(httpx.Client):
 
     def poll_deployment_status(
         self,
-        app_id: str,
         deployment_id: str,
     ) -> DeploymentStatus:
         start = time.monotonic()
@@ -498,7 +497,7 @@ class APIClient(httpx.Client):
                 raise TimeoutError("Deployment verification timed out")
 
             with attempt(error_count):
-                response = self.get(f"/apps/{app_id}/deployments/{deployment_id}")
+                response = self.get(f"/deployments/{deployment_id}")
                 response.raise_for_status()
                 status = DeploymentStatus(response.json()["status"])
                 error_count = 0
