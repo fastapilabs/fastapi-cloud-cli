@@ -1,5 +1,6 @@
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -12,10 +13,13 @@ from fastapi_cloud_cli.commands.setup_ci import (
     GitHubSecretError,
     _check_gh_cli_installed,
     _check_git_installed,
+    _format_workflow_path,
     _get_default_branch,
     _get_remote_origin,
+    _resolve_existing_workflow_path,
     _set_github_secret,
 )
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
@@ -49,6 +53,15 @@ def test_shows_message_if_app_not_configured(logged_in_cli: None) -> None:
 
     assert result.exit_code == 1
     assert "App ID is required." in result.output
+
+
+def test_shows_error_when_secrets_only_and_workflow_only_conflict(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(app, ["setup-ci", "--secrets-only", "--workflow-only"])
+
+    assert result.exit_code == 1
+    assert "--secrets-only and --workflow-only cannot be used together" in result.output
 
 
 def test_shows_error_when_git_not_installed(
@@ -122,6 +135,7 @@ def test_detects_github_origin_and_completes_successfully(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci"])
 
@@ -154,6 +168,7 @@ def test_app_id_option_works_without_linked_directory(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci", "--app-id", app_id])
 
@@ -184,6 +199,7 @@ def test_detects_non_main_default_branch(
             return_value="develop",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci"])
 
@@ -229,6 +245,33 @@ def test_check_gh_cli_installed_returns_true() -> None:
 def test_check_gh_cli_installed_returns_false_when_missing() -> None:
     with patch("fastapi_cloud_cli.commands.setup_ci.shutil.which", return_value=None):
         assert _check_gh_cli_installed() is False
+
+
+def test_format_workflow_path_uses_forward_slashes() -> None:
+    assert (
+        _format_workflow_path(PureWindowsPath(".github/workflows/deploy.yml"))
+        == ".github/workflows/deploy.yml"
+    )
+
+
+def test_existing_workflow_prompt_uses_forward_slashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    labels: list[str] = []
+    workflow_path = cast(Path, PureWindowsPath(".github/workflows/deploy.yml"))
+
+    def confirm(label: str, **metadata: object) -> bool:
+        labels.append(label)
+        return True
+
+    with get_rich_toolkit(minimal=True) as toolkit:
+        monkeypatch.setattr(toolkit, "confirm", confirm)
+
+        assert _resolve_existing_workflow_path(toolkit, workflow_path) == workflow_path
+
+    assert labels == [
+        "Workflow file [bold].github/workflows/deploy.yml[/bold] already exists. Overwrite?"
+    ]
 
 
 def test_get_remote_origin_returns_url() -> None:
@@ -359,11 +402,13 @@ def test_secrets_only_skips_workflow_file(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci", "--secrets-only"])
 
     assert result.exit_code == 0
     assert "FASTAPI_CLOUD_TOKEN" in result.output
+    assert "FASTAPI_CLOUD_APP_ID" in result.output
     assert "Done" in result.output
     assert not (configured_app.path / ".github" / "workflows" / "deploy.yml").exists()
 
@@ -391,6 +436,7 @@ def test_branch_flag_overrides_detected_branch(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci", "--branch", "production"])
 
@@ -426,6 +472,7 @@ def test_creates_token_sets_secrets_and_writes_workflow(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci"])
 
@@ -436,6 +483,7 @@ def test_creates_token_sets_secrets_and_writes_workflow(
     assert "deploy.yml" in result.output
     assert "Done" in result.output
     assert "2027-02-18" in result.output
+    assert "test-token-value" not in result.output
 
     mock_secret.assert_any_call("FASTAPI_CLOUD_TOKEN", "test-token-value")
     mock_secret.assert_any_call("FASTAPI_CLOUD_APP_ID", app_id)
@@ -447,15 +495,112 @@ def test_creates_token_sets_secrets_and_writes_workflow(
     assert "branches: [main]" in content
 
 
+def test_declining_token_creation_skips_token_and_secret_setup(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+) -> None:
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=False),
+        patch("fastapi_cloud_cli.commands.setup_ci._create_token") as mock_create_token,
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
+    ):
+        result = runner.invoke(app, ["setup-ci"])
+
+    assert result.exit_code == 0
+    assert "Skipped creating deploy token and GitHub secrets" in result.output
+    mock_create_token.assert_not_called()
+    mock_secret.assert_not_called()
+    workflow_file = configured_app.path / ".github" / "workflows" / "deploy.yml"
+    assert workflow_file.exists()
+
+
+def test_declining_token_creation_for_secrets_only_finishes_without_setup(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+) -> None:
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=False),
+        patch("fastapi_cloud_cli.commands.setup_ci._create_token") as mock_create_token,
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
+    ):
+        result = runner.invoke(app, ["setup-ci", "--secrets-only"])
+
+    assert result.exit_code == 0
+    assert "Skipped creating deploy token and GitHub secrets" in result.output
+    assert "Done" in result.output
+    mock_create_token.assert_not_called()
+    mock_secret.assert_not_called()
+
+
+@pytest.mark.respx
+def test_declining_github_secret_setup_keeps_created_token(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    _mock_token_api(respx_mock, configured_app.app_id)
+
+    with (
+        changing_dir(configured_app.path),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_remote_origin",
+            return_value=GITHUB_ORIGIN,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._check_gh_cli_installed",
+            return_value=True,
+        ),
+        patch(
+            "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
+            return_value="main",
+        ),
+        patch.object(FastAPIRichToolkit, "confirm", side_effect=[True, False]),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
+    ):
+        result = runner.invoke(app, ["setup-ci"])
+
+    assert result.exit_code == 0
+    assert "Created deploy token" in result.output
+    assert "Skipped setting GitHub Actions secrets" in result.output
+    assert "2027-02-18" in result.output
+    mock_secret.assert_not_called()
+    workflow_file = configured_app.path / ".github" / "workflows" / "deploy.yml"
+    assert workflow_file.exists()
+
+
 @pytest.mark.respx
 def test_shows_manual_instructions_when_gh_not_installed(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
     respx_mock: respx.MockRouter,
 ) -> None:
-    app_id = configured_app.app_id
-
-    _mock_token_api(respx_mock, app_id)
+    _mock_token_api(respx_mock, configured_app.app_id)
 
     with (
         changing_dir(configured_app.path),
@@ -471,17 +616,19 @@ def test_shows_manual_instructions_when_gh_not_installed(
             "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
             return_value="main",
         ),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
     ):
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 0
     assert "gh CLI not found" in result.output
-    assert "github.com/owner/repo/settings/secrets/actions" in result.output
-    assert "FASTAPI_CLOUD_TOKEN" in result.output
-    assert "test-token" in result.output
-    assert "FASTAPI_CLOUD_APP_ID" in result.output
-    assert app_id in result.output
+    assert "https://github.com/owner/repo/settings/secrets/actions" in result.output
+    assert "FASTAPI_CLOUD_TOKEN = test-token" in result.output
+    assert f"FASTAPI_CLOUD_APP_ID = {configured_app.app_id}" in result.output
     assert "Done" in result.output
+    assert "2027-02-18" in result.output
+    mock_secret.assert_not_called()
 
 
 @pytest.mark.respx
@@ -512,6 +659,7 @@ def test_handles_gh_command_errors_gracefully(
                 "Failed to set GitHub secret 'FASTAPI_CLOUD_TOKEN'"
             ),
         ),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci"])
 
@@ -542,6 +690,7 @@ def test_file_flag_uses_custom_filename(
             return_value="main",
         ),
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
     ):
         result = runner.invoke(app, ["setup-ci", "--file", "ci.yml"])
 
@@ -579,7 +728,7 @@ def test_overwrites_existing_workflow_when_confirmed(
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
         patch("rich_toolkit.container.getchar") as mock_getchar,
     ):
-        mock_getchar.side_effect = [Keys.ENTER]
+        mock_getchar.side_effect = [Keys.ENTER, Keys.ENTER, Keys.ENTER]
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 0
@@ -616,7 +765,13 @@ def test_skips_writing_workflow_when_declined(
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
         patch("rich_toolkit.container.getchar") as mock_getchar,
     ):
-        mock_getchar.side_effect = [Keys.RIGHT_ARROW, Keys.ENTER, Keys.ENTER]
+        mock_getchar.side_effect = [
+            Keys.ENTER,
+            Keys.ENTER,
+            Keys.RIGHT_ARROW,
+            Keys.ENTER,
+            Keys.ENTER,
+        ]
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 0
@@ -654,6 +809,8 @@ def test_renames_workflow_when_declined_and_new_name_given(
         patch("rich_toolkit.container.getchar") as mock_getchar,
     ):
         mock_getchar.side_effect = [
+            Keys.ENTER,
+            Keys.ENTER,
             Keys.RIGHT_ARROW,
             Keys.ENTER,
             *"ci-deploy.yml",
@@ -698,14 +855,12 @@ def test_get_github_host_extracts_from_enterprise_https_url() -> None:
 
 
 @pytest.mark.respx
-def test_shows_enterprise_secrets_url_when_gh_not_installed(
+def test_shows_enterprise_manual_secrets_url_when_gh_not_installed(
     logged_in_cli: None,
     configured_app: ConfiguredApp,
     respx_mock: respx.MockRouter,
 ) -> None:
-    """Verify that GitHub Enterprise URLs are built correctly for manual setup."""
     _mock_token_api(respx_mock, configured_app.app_id)
-
     enterprise_origin = "git@github.enterprise.com:owner/repo.git"
 
     with (
@@ -722,11 +877,16 @@ def test_shows_enterprise_secrets_url_when_gh_not_installed(
             "fastapi_cloud_cli.commands.setup_ci._get_default_branch",
             return_value="main",
         ),
+        patch.object(FastAPIRichToolkit, "confirm", return_value=True),
+        patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret") as mock_secret,
     ):
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 0
-    assert "gh CLI not found" in result.output
-    # Should use enterprise host, not github.com
-    assert "github.enterprise.com/owner/repo/settings/secrets/actions" in result.output
+    assert (
+        "https://github.enterprise.com/owner/repo/settings/secrets/actions"
+        in result.output
+    )
+    assert "FASTAPI_CLOUD_TOKEN = test-token" in result.output
     assert "github.com/owner/repo" not in result.output
+    mock_secret.assert_not_called()

@@ -4,6 +4,7 @@ ErrorCode = Literal[
     "already_linked",
     "api_error",
     "cancelled",
+    "dependency_missing",
     "invalid_token",
     "invalid_input",
     "missing_required_input",
