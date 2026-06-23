@@ -14,6 +14,7 @@
 
 ### Refactors
 
+* ♻️ Use new deployment route to fetch deployment. PR [#266](https://github.com/fastapilabs/fastapi-cloud-cli/pull/266) by [@patrick91](https://github.com/patrick91).
 * ♻️ Update deployment data when triggering upload complete. PR [#250](https://github.com/fastapilabs/fastapi-cloud-cli/pull/250) by [@patrick91](https://github.com/patrick91).
 * ♻️ Improve error messages for logs. PR [#249](https://github.com/fastapilabs/fastapi-cloud-cli/pull/249) by [@patrick91](https://github.com/patrick91).
 
