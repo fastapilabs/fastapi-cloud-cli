@@ -132,8 +132,8 @@ def _get_default_branch() -> str:
         return "main"
 
 
-def _write_workflow_file(branch: str, workflow_path: Path) -> None:
-    workflow_content = f"""\
+def _get_workflow_content(branch: str) -> str:
+    return f"""\
 name: Deploy to FastAPI Cloud
 on:
   push:
@@ -149,6 +149,10 @@ jobs:
           FASTAPI_CLOUD_TOKEN: ${{{{ secrets.FASTAPI_CLOUD_TOKEN }}}}
           FASTAPI_CLOUD_APP_ID: ${{{{ secrets.FASTAPI_CLOUD_APP_ID }}}}
 """
+
+
+def _write_workflow_file(branch: str, workflow_path: Path) -> None:
+    workflow_content = _get_workflow_content(branch)
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(workflow_content)
 
