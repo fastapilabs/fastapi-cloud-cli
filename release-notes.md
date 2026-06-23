@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add cloud ci print-workflow command. PR [#267](https://github.com/fastapilabs/fastapi-cloud-cli/pull/267) by [@patrick91](https://github.com/patrick91).
 * ✨ Add tokens delete command. PR [#264](https://github.com/fastapilabs/fastapi-cloud-cli/pull/264) by [@patrick91](https://github.com/patrick91).
 * ✨ Add tokens create command. PR [#263](https://github.com/fastapilabs/fastapi-cloud-cli/pull/263) by [@patrick91](https://github.com/patrick91).
 * ✨ Add tokens list command. PR [#262](https://github.com/fastapilabs/fastapi-cloud-cli/pull/262) by [@patrick91](https://github.com/patrick91).
