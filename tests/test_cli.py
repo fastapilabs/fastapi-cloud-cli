@@ -1,7 +1,11 @@
 import json
 import subprocess
 import sys
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
+from inspect import signature
+from types import FunctionType
+from typing import Any
 
 import pytest
 import typer
@@ -32,6 +36,43 @@ from fastapi_cloud_cli.utils.execution import JsonOutputOption
 from fastapi_cloud_cli.utils.version_check import write_latest_version_cache
 
 runner = CliRunner()
+
+
+def _get_command_name(callback: FunctionType, configured_name: str | None) -> str:
+    if configured_name is not None:
+        return configured_name
+
+    return callback.__name__.replace("_", "-")
+
+
+def _iter_cli_commands(
+    typer_app: typer.Typer, path: tuple[str, ...] = ()
+) -> Iterator[tuple[str, FunctionType]]:
+    for command_info in typer_app.registered_commands:
+        assert isinstance(command_info.callback, FunctionType)
+        callback = command_info.callback
+        command_path = (
+            *path,
+            _get_command_name(callback, command_info.name),
+        )
+
+        yield " ".join(command_path), callback
+
+    for group_info in typer_app.registered_groups:
+        group_name = group_info.name
+        group_app = group_info.typer_instance
+
+        assert isinstance(group_name, str)
+        assert isinstance(group_app, typer.Typer)
+
+        yield from _iter_cli_commands(group_app, (*path, group_name))
+
+
+def _has_json_output_option(callback: Callable[..., Any]) -> bool:
+    return any(
+        parameter.annotation == JsonOutputOption
+        for parameter in signature(callback).parameters.values()
+    )
 
 
 class AuthStatus(BaseModel):
@@ -88,6 +129,21 @@ def test_version() -> None:
     result = runner.invoke(app, ["cloud", "--version"])
     assert result.exit_code == 0, result.output
     assert "FastAPI Cloud CLI version:" in result.output
+
+
+@pytest.mark.parametrize(
+    ("command_path", "callback"),
+    [
+        pytest.param(command_path, callback, id=command_path)
+        for command_path, callback in _iter_cli_commands(app)
+    ],
+)
+def test_cli_commands_include_json_output_option(
+    command_path: str, callback: Callable[..., Any]
+) -> None:
+    assert _has_json_output_option(callback), (
+        f"{command_path} is missing JsonOutputOption"
+    )
 
 
 def test_uses_header_style() -> None:
