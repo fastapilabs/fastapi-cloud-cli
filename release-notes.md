@@ -27,6 +27,7 @@
 
 ### Internal
 
+* ✅ Add test to make sure all commands support --json. PR [#270](https://github.com/fastapilabs/fastapi-cloud-cli/pull/270) by [@patrick91](https://github.com/patrick91).
 * ⬆️ Update issue-manager to 0.7.0. PR [#271](https://github.com/fastapilabs/fastapi-cloud-cli/pull/271) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump time-machine to 3.2.0. PR [#257](https://github.com/fastapilabs/fastapi-cloud-cli/pull/257) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 🔒️ Update zizmor workflow security checks. PR [#261](https://github.com/fastapilabs/fastapi-cloud-cli/pull/261) by [@tiangolo](https://github.com/tiangolo).
