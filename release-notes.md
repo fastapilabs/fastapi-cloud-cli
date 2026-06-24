@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.21.0 (2026-06-24)
+
 ### Features
 
 * ✨ Add --json support for logout command. PR [#269](https://github.com/fastapilabs/fastapi-cloud-cli/pull/269) by [@patrick91](https://github.com/patrick91).
