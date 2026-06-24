@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 👷 Simplify pull request workflow triggers. PR [#278](https://github.com/fastapilabs/fastapi-cloud-cli/pull/278) by [@tiangolo](https://github.com/tiangolo).
+
 ## 0.21.0 (2026-06-24)
 
 ### Features
