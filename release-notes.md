@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add --json support for logout command. PR [#269](https://github.com/fastapilabs/fastapi-cloud-cli/pull/269) by [@patrick91](https://github.com/patrick91).
 * ✨ Add cloud ci setup command. PR [#268](https://github.com/fastapilabs/fastapi-cloud-cli/pull/268) by [@patrick91](https://github.com/patrick91).
 * ✨ Add cloud ci print-workflow command. PR [#267](https://github.com/fastapilabs/fastapi-cloud-cli/pull/267) by [@patrick91](https://github.com/patrick91).
 * ✨ Add tokens delete command. PR [#264](https://github.com/fastapilabs/fastapi-cloud-cli/pull/264) by [@patrick91](https://github.com/patrick91).
