@@ -2,20 +2,55 @@ import logging
 import re
 import shutil
 import subprocess
-from pathlib import Path
-from typing import Annotated
+from datetime import datetime, timezone
+from pathlib import Path, PurePath
+from typing import Annotated, Any
 
 import typer
+from pydantic import BaseModel
 
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
 
 TOKEN_EXPIRES_DAYS = 365
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/deploy.yml")
+
+
+class CISetupOutput(BaseModel):
+    app_id: str
+    repo: str
+    branch: str
+    workflow_path: str
+    created_token: bool
+    set_github_secrets: bool
+    wrote_workflow: bool
+    token_expired_at: str | None = None
+
+
+def _render_ci_setup_output(data: CISetupOutput, toolkit: FastAPIRichToolkit) -> None:
+    if data.wrote_workflow and data.set_github_secrets:
+        toolkit.print("Done! Commit and push to start deploying.", emoji="✅")
+    elif data.wrote_workflow:
+        toolkit.print(
+            "Done — workflow file is ready, but GitHub secrets were not set.",
+            emoji="✅",
+        )
+    elif data.set_github_secrets:
+        toolkit.print("Done! GitHub Actions secrets are configured.", emoji="✅")
+    else:
+        toolkit.print("Done!", emoji="✅")
+
+    if data.token_expired_at:
+        toolkit.print_line()
+        toolkit.print(
+            f"Your deploy token expires on [bold]{data.token_expired_at[:10]}[/bold]. "
+            "Regenerate it from the dashboard or re-run this command before then.",
+        )
 
 
 class GitHubSecretError(Exception):
@@ -25,15 +60,6 @@ class GitHubSecretError(Exception):
 
 
 def _get_github_host(origin: str) -> str:
-    """Extract the GitHub host from a git remote URL.
-
-    Supports both github.com and GitHub Enterprise hosts.
-    Examples:
-        git@github.com:owner/repo.git -> github.com
-        https://github.com/owner/repo.git -> github.com
-        git@enterprise.github.com:owner/repo.git -> enterprise.github.com
-    """
-    # Match git@HOST:owner/repo or https://HOST/owner/repo
     match = re.search(r"(?:git@|https://)([^:/]+)", origin)
     return match.group(1) if match else "github.com"
 
@@ -157,6 +183,46 @@ def _write_workflow_file(branch: str, workflow_path: Path) -> None:
     workflow_path.write_text(workflow_content)
 
 
+def _get_workflow_path(file: str | None) -> Path:
+    if file:
+        return Path(f".github/workflows/{file}")
+
+    return DEFAULT_WORKFLOW_PATH
+
+
+def _format_workflow_path(workflow_path: PurePath) -> str:
+    return workflow_path.as_posix()
+
+
+def _resolve_existing_workflow_path(
+    toolkit: FastAPIRichToolkit, workflow_path: Path
+) -> Path | None:
+    if toolkit.confirm(
+        f"Workflow file [bold]{_format_workflow_path(workflow_path)}[/bold] already exists. Overwrite?",
+        default=False,
+        emoji="🗂️",
+    ):
+        toolkit.print_line()
+
+        return workflow_path
+
+    toolkit.print_line()
+
+    if new_name := toolkit.input(
+        "Enter a new filename (without path) or leave blank to skip writing the workflow file:",
+        emoji="✏️",
+    ).strip():
+        toolkit.print_line()
+
+        return Path(f".github/workflows/{new_name}")
+
+    toolkit.print_line()
+    toolkit.print("Skipped writing workflow file.", emoji="⏭️")
+    toolkit.print_line()
+
+    return None
+
+
 def setup_ci(
     path: Annotated[
         Path | None,
@@ -185,6 +251,12 @@ def setup_ci(
         help="Provisions token and sets secrets, skips writing the workflow file",
         show_default=True,
     ),
+    workflow_only: bool = typer.Option(
+        False,
+        "--workflow-only",
+        help="Writes the workflow file without creating a token or setting secrets",
+        show_default=True,
+    ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -198,25 +270,34 @@ def setup_ci(
         "-f",
         help="Custom workflow filename (written to .github/workflows/)",
     ),
-) -> None:
+    json_output: JsonOutputOption = False,
+) -> Any:
     """Configures a GitHub Actions workflow for deploying the app on push to the specified branch.
 
     Examples:
         fastapi cloud setup-ci                      # Provisions token, sets secrets, and writes workflow file for the 'main' branch
         fastapi cloud setup-ci --branch develop     # Same as above but for the 'develop' branch
         fastapi cloud setup-ci --secrets-only       # Only provisions token and sets secrets, does not write workflow file
+        fastapi cloud setup-ci --workflow-only      # Only writes the workflow file
         fastapi cloud setup-ci --dry-run            # Prints the steps that would be taken without performing them
         fastapi cloud setup-ci --file ci.yml        # Writes workflow to .github/workflows/ci.yml
     """
 
     identity = Identity()
 
-    with get_rich_toolkit() as toolkit:
+    with get_rich_toolkit(json_output=json_output) as toolkit:
         if not identity.is_logged_in():
-            toolkit.print(
-                "No credentials found. Use [blue]`fastapi login`[/] to login.",
+            toolkit.fail(
+                "not_logged_in",
+                "No credentials found.",
+                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
             )
-            raise typer.Exit(1)
+
+        if secrets_only and workflow_only:
+            toolkit.fail(
+                "invalid_input",
+                "--secrets-only and --workflow-only cannot be used together.",
+            )
 
         target_app_id = resolve_app_id_or_fail(
             toolkit,
@@ -247,11 +328,34 @@ def setup_ci(
             )
 
         repo_slug = _repo_slug_from_origin(origin) or origin
-        github_host = _get_github_host(origin)
-        has_gh = _check_gh_cli_installed()
 
         if not branch:
             branch = _get_default_branch()
+
+        workflow_path = _get_workflow_path(file)
+        needs_secrets = not workflow_only
+        needs_workflow = not secrets_only
+        has_gh = _check_gh_cli_installed() if needs_secrets and not dry_run else True
+
+        if (
+            toolkit.mode == "json"
+            and needs_workflow
+            and not dry_run
+            and not file
+            and workflow_path.exists()
+        ):
+            toolkit.fail(
+                "invalid_input",
+                f"Workflow file {_format_workflow_path(workflow_path)} already exists.",
+                hint="Pass --file to choose another workflow file or remove the existing file.",
+            )
+
+        if needs_secrets and not dry_run and toolkit.mode == "json" and not has_gh:
+            toolkit.fail(
+                "dependency_missing",
+                "GitHub CLI (`gh`) is required to set GitHub Actions secrets.",
+                hint="Install gh or use --workflow-only to write only the workflow file.",
+            )
 
         if dry_run:
             toolkit.print(
@@ -262,109 +366,171 @@ def setup_ci(
         toolkit.print_title("Configuring CI")
         toolkit.print_line()
 
-        toolkit.print(f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})")
+        toolkit.print(
+            f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})",
+            emoji="⚙️",
+        )
         toolkit.print_line()
 
         msg_token = "Created deploy token"
         msg_secrets = (
-            "Set [bold]FASTAPI_CLOUD_TOKEN[/bold] and [bold]FASTAPI_CLOUD_APP_ID[/bold]"
+            "Set GitHub Actions secrets [bold blue]FASTAPI_CLOUD_TOKEN[/] "
+            "and [bold blue]FASTAPI_CLOUD_APP_ID[/]"
         )
-        workflow_file = file or DEFAULT_WORKFLOW_PATH.name
-        msg_workflow = (
-            f"Wrote [bold].github/workflows/{workflow_file}[/bold] (branch: {branch})"
-        )
-        msg_done = "Done — commit and push to start deploying."
+        msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
 
         if dry_run:
-            toolkit.print(msg_token)
-            toolkit.print(msg_secrets)
-            if not secrets_only:
+            if needs_secrets:
+                toolkit.print(msg_token)
+                toolkit.print(msg_secrets)
+
+            if needs_workflow:
                 toolkit.print(msg_workflow)
+
+            toolkit.success(
+                CISetupOutput(
+                    app_id=target_app_id,
+                    repo=repo_slug,
+                    branch=branch,
+                    workflow_path=_format_workflow_path(workflow_path),
+                    created_token=False,
+                    set_github_secrets=False,
+                    wrote_workflow=False,
+                ),
+                render_output=lambda _data, _toolkit: None,
+            )
             return
 
-        from datetime import datetime, timezone
+        token_expired_at: str | None = None
+        created_token = False
+        set_github_secrets = False
+        wrote_workflow = False
 
-        # Create unique token name with timestamp to avoid duplicates
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
-
-        with (
-            APIClient() as client,
-            toolkit.progress(
-                title="Generating deploy token...", done_emoji="🔑"
-            ) as progress,
-            client.handle_http_errors(
-                progress, default_message="Error creating deploy token."
-            ),
-        ):
-            token_data = _create_token(
-                client=client, app_id=target_app_id, token_name=token_name
-            )
-            progress.log(msg_token)
-
-        toolkit.print_line()
-
-        if has_gh:
-            with toolkit.progress(
-                title="Setting repo secrets...", done_emoji="🔒"
-            ) as progress:
-                try:
-                    _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
-                    _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
-                except GitHubSecretError:
-                    progress.set_error("Failed to set GitHub secrets via gh CLI.")
-                    raise typer.Exit(1) from None
-                progress.log(msg_secrets)
-        else:
-            secrets_url = f"https://{github_host}/{repo_slug}/settings/secrets/actions"
-            toolkit.print(
-                "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
-            )
-            toolkit.print_line()
-            toolkit.print(f"  Repository: [blue]{secrets_url}[/]")
-            toolkit.print_line()
-            toolkit.print(f"  [bold]FASTAPI_CLOUD_TOKEN[/bold] = {token_data['value']}")
-            toolkit.print(f"  [bold]FASTAPI_CLOUD_APP_ID[/bold] = {target_app_id}")
-
-        toolkit.print_line()
-
-        if not secrets_only:
-            if file:
-                workflow_path = Path(f".github/workflows/{file}")
-            else:
-                workflow_path = DEFAULT_WORKFLOW_PATH
-
-            write_workflow = True
-            if not file and workflow_path.exists():
-                overwrite = toolkit.confirm(
-                    f"Workflow file [bold]{workflow_path}[/bold] already exists. Overwrite?",
-                    default=False,
+        if needs_secrets:
+            should_create_token = (
+                True
+                if toolkit.mode == "json"
+                else toolkit.confirm(
+                    "Create a FastAPI Cloud deploy token for GitHub Actions?",
+                    default=True,
                 )
-                if not overwrite:
-                    new_name = toolkit.input(
-                        "Enter a new filename (without path) or leave blank to skip writing the workflow file:",
-                    ).strip()
-                    if new_name:
-                        workflow_path = Path(f".github/workflows/{new_name}")
-                    else:
-                        toolkit.print("Skipped writing workflow file.")
+            )
+            if toolkit.mode != "json":
+                toolkit.print_line()
+
+            if should_create_token:
+                # Create unique token name with timestamp to avoid duplicates
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
+
+                with (
+                    APIClient() as client,
+                    toolkit.progress(
+                        title="Generating deploy token...", done_emoji="🔑"
+                    ) as progress,
+                    client.handle_http_errors(
+                        progress, default_message="Error creating deploy token."
+                    ),
+                ):
+                    token_data = _create_token(
+                        client=client, app_id=target_app_id, token_name=token_name
+                    )
+                    token_expired_at = token_data["expired_at"]
+                    created_token = True
+                    progress.log(msg_token)
+
+                toolkit.print_line()
+
+                if has_gh:
+                    should_set_secrets = (
+                        True
+                        if toolkit.mode == "json"
+                        else toolkit.confirm(
+                            "Set GitHub Actions secrets "
+                            "[bold blue]FASTAPI_CLOUD_TOKEN[/] and "
+                            "[bold blue]FASTAPI_CLOUD_APP_ID[/] via gh?",
+                            default=True,
+                        )
+                    )
+                    if toolkit.mode != "json":
                         toolkit.print_line()
-                        write_workflow = False
-                toolkit.print_line()
-            if write_workflow:
-                msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
-                with toolkit.progress(
-                    title="Writing workflow file...", done_emoji="📄"
-                ) as progress:
-                    _write_workflow_file(branch, workflow_path)
-                    progress.log(msg_workflow)
+                else:
+                    should_set_secrets = False
+                    secrets_url = (
+                        f"https://{_get_github_host(origin)}/{repo_slug}"
+                        "/settings/secrets/actions"
+                    )
+                    toolkit.print(
+                        "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
+                    )
+                    toolkit.print_line()
+                    toolkit.print(f"Repository: [blue]{secrets_url}[/]")
+                    toolkit.print_line()
+                    toolkit.print(
+                        f"[bold blue]FASTAPI_CLOUD_TOKEN[/] = {token_data['value']}"
+                    )
+                    toolkit.print(
+                        f"[bold blue]FASTAPI_CLOUD_APP_ID[/] = {target_app_id}"
+                    )
 
-                toolkit.print_line()
+                if should_set_secrets:
+                    with toolkit.progress(
+                        title="Setting repo secrets...", done_emoji="🔒"
+                    ) as progress:
+                        try:
+                            _set_github_secret(
+                                "FASTAPI_CLOUD_TOKEN", token_data["value"]
+                            )
+                            _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
 
-        toolkit.print(msg_done, emoji="✅")
+                            progress.log(msg_secrets)
+                        except GitHubSecretError:
+                            progress.set_error(
+                                "Failed to set GitHub secrets via gh CLI."
+                            )
+                            toolkit.fail(
+                                "api_error",
+                                "Failed to set GitHub secrets via gh CLI.",
+                            )
+                        set_github_secrets = True
+                else:
+                    toolkit.print("Skipped setting GitHub Actions secrets.", emoji="⏭️")
+            else:
+                toolkit.print(
+                    "Skipped creating deploy token and GitHub secrets.", emoji="⏭️"
+                )
+
         toolkit.print_line()
-        # Token expiration date is in ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ), extract date portion
-        toolkit.print(
-            f"Your deploy token expires on [bold]{token_data['expired_at'][:10]}[/bold]. "
-            "Regenerate it from the dashboard or re-run this command before then.",
+
+        if needs_workflow:
+            if not file and workflow_path.exists():
+                resolved_workflow_path = _resolve_existing_workflow_path(
+                    toolkit, workflow_path
+                )
+
+                if resolved_workflow_path is None:
+                    needs_workflow = False
+                else:
+                    workflow_path = resolved_workflow_path
+
+            if needs_workflow:
+                msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
+
+                _write_workflow_file(branch, workflow_path)
+                wrote_workflow = True
+
+                toolkit.print(msg_workflow)
+                toolkit.print_line()
+
+        output = CISetupOutput(
+            app_id=target_app_id,
+            repo=repo_slug,
+            branch=branch,
+            workflow_path=_format_workflow_path(workflow_path),
+            created_token=created_token,
+            set_github_secrets=set_github_secrets,
+            wrote_workflow=wrote_workflow,
+            token_expired_at=token_expired_at,
         )
+
+        toolkit.success(output, render_output=_render_ci_setup_output)
