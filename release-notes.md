@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Remove `src` from `directory` option description and error message. PR [#279](https://github.com/fastapilabs/fastapi-cloud-cli/pull/279) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ### Internal
 
 * 👷 Simplify pull request workflow triggers. PR [#278](https://github.com/fastapilabs/fastapi-cloud-cli/pull/278) by [@tiangolo](https://github.com/tiangolo).
