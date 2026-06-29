@@ -344,7 +344,7 @@ def test_creates_app_json_rejects_invalid_directory(logged_in_cli: None) -> None
             "code": "invalid_input",
             "message": ("Invalid app directory: must be a relative path, not absolute"),
             "hint": (
-                "Pass a relative app directory such as `src` or `backend`; "
+                "Pass a relative app directory such as `backend` or `webserver`; "
                 "use --path with --link to choose a local filesystem path."
             ),
         }

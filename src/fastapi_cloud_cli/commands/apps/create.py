@@ -77,7 +77,7 @@ def create_app(
             "--directory",
             help=(
                 "Relative app directory containing the pyproject.toml "
-                "(for example: src or backend)."
+                "(for example: backend or webserver)."
             ),
         ),
     ] = None,
@@ -156,7 +156,7 @@ def create_app(
                     "invalid_input",
                     f"Invalid app directory: {e}",
                     hint=(
-                        "Pass a relative app directory such as `src` or `backend`; "
+                        "Pass a relative app directory such as `backend` or `webserver`; "
                         "use --path with --link to choose a local filesystem path."
                     ),
                 )
