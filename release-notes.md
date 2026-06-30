@@ -10,6 +10,10 @@
 
 * ♻️ Remove `src` from `directory` option description and error message. PR [#279](https://github.com/fastapilabs/fastapi-cloud-cli/pull/279) by [@YuriiMotov](https://github.com/YuriiMotov).
 
+### Upgrades
+
+* ⬆ Bump sentry-sdk from 2.62.0 to 2.63.0. PR [#277](https://github.com/fastapilabs/fastapi-cloud-cli/pull/277) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ### Internal
 
 * 👷 Simplify pull request workflow triggers. PR [#278](https://github.com/fastapilabs/fastapi-cloud-cli/pull/278) by [@tiangolo](https://github.com/tiangolo).
