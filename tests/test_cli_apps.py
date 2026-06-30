@@ -353,6 +353,115 @@ def test_creates_app_json_rejects_invalid_directory(logged_in_cli: None) -> None
 
 
 @pytest.mark.respx
+def test_updates_app_directory_as_json(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    app_id = "00000000-0000-4000-8000-000000000002"
+    app_data = {
+        "id": app_id,
+        "team_id": "00000000-0000-4000-8000-000000000001",
+        "slug": "api",
+        "name": "API",
+        "directory": "backend",
+    }
+    respx_mock.patch(
+        f"/apps/{app_id}",
+        json={"directory": "backend"},
+    ).mock(return_value=Response(200, json=app_data))
+
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "update",
+            app_id,
+            "--directory",
+            "backend",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {"data": {"app": app_data}}
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_updates_linked_app_directory_in_human_output(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+    configured_app: ConfiguredApp,
+) -> None:
+    app_data = {
+        "id": configured_app.app_id,
+        "team_id": configured_app.team_id,
+        "slug": "api",
+        "name": "API",
+        "directory": "src",
+    }
+    respx_mock.patch(
+        f"/apps/{configured_app.app_id}",
+        json={"directory": "src"},
+    ).mock(return_value=Response(200, json=app_data))
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["apps", "update", "--directory", "src"])
+
+    assert result.exit_code == 0
+    assert "Updated app API" in result.output
+    assert "Directory: src" in result.output
+
+
+def test_updates_app_json_returns_missing_required_input_without_update_flags(
+    logged_in_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "update",
+            "00000000-0000-4000-8000-000000000002",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "No updates provided.",
+            "hint": "Pass --directory to update the app directory.",
+        }
+    }
+    assert result.stderr == ""
+
+
+def test_updates_app_json_rejects_invalid_directory(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "update",
+            "00000000-0000-4000-8000-000000000002",
+            "--directory",
+            "/tmp/api",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": ("Invalid app directory: must be a relative path, not absolute"),
+            "hint": "Pass a relative app directory such as `src` or `backend`.",
+        }
+    }
+    assert result.stderr == ""
+
+
+@pytest.mark.respx
 def test_links_existing_app_to_path_as_json(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
