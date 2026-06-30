@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.22.0 (2026-06-30)
+
 ### Features
 
 * ✨ Add cloud apps update command. PR [#280](https://github.com/fastapilabs/fastapi-cloud-cli/pull/280) by [@patrick91](https://github.com/patrick91).
