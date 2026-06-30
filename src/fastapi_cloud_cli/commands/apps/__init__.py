@@ -5,6 +5,7 @@ from fastapi_cloud_cli.commands.apps.get import get_app
 from fastapi_cloud_cli.commands.apps.link import link_app
 from fastapi_cloud_cli.commands.apps.list import list_apps
 from fastapi_cloud_cli.commands.apps.unlink import unlink_app
+from fastapi_cloud_cli.commands.apps.update import update_app
 from fastapi_cloud_cli.commands.logs import logs
 
 apps_app = typer.Typer(
@@ -17,5 +18,6 @@ apps_app.command("link")(link_app)
 apps_app.command("list")(list_apps)
 apps_app.command("logs")(logs)
 apps_app.command("unlink")(unlink_app)
+apps_app.command("update")(update_app)
 
 __all__ = ["apps_app"]
