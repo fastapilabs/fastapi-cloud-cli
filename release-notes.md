@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add cloud apps update command. PR [#280](https://github.com/fastapilabs/fastapi-cloud-cli/pull/280) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Remove `src` from `directory` option description and error message. PR [#279](https://github.com/fastapilabs/fastapi-cloud-cli/pull/279) by [@YuriiMotov](https://github.com/YuriiMotov).
