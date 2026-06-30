@@ -12,6 +12,7 @@
 
 ### Upgrades
 
+* ⬆ Bump the python-packages group with 4 updates. PR [#276](https://github.com/fastapilabs/fastapi-cloud-cli/pull/276) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.62.0 to 2.63.0. PR [#277](https://github.com/fastapilabs/fastapi-cloud-cli/pull/277) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
 ### Internal
