@@ -17,6 +17,7 @@
 
 ### Internal
 
+* ⬆ Bump actions/checkout from 6.0.3 to 7.0.0 in the github-actions group. PR [#275](https://github.com/fastapilabs/fastapi-cloud-cli/pull/275) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 👷 Simplify pull request workflow triggers. PR [#278](https://github.com/fastapilabs/fastapi-cloud-cli/pull/278) by [@tiangolo](https://github.com/tiangolo).
 
 ## 0.21.0 (2026-06-24)
