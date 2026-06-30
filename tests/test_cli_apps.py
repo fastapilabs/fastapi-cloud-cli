@@ -352,6 +352,32 @@ def test_creates_app_json_rejects_invalid_directory(logged_in_cli: None) -> None
     assert result.stderr == ""
 
 
+def test_updates_app_json_returns_not_logged_in_when_logged_out(
+    logged_out_cli: None,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "apps",
+            "update",
+            "00000000-0000-4000-8000-000000000002",
+            "--directory",
+            "backend",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "No credentials found.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+        }
+    }
+    assert result.stderr == ""
+
+
 @pytest.mark.respx
 def test_updates_app_directory_as_json(
     logged_in_cli: None,
