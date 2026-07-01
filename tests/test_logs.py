@@ -540,6 +540,19 @@ def test_rejects_invalid_since_format(
     assert "Invalid format" in result.output
 
 
+@pytest.mark.parametrize("invalid_tail", [0, 1001])
+def test_rejects_invalid_tail(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    invalid_tail: int,
+) -> None:
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["logs", "--tail", str(invalid_tail)])
+
+    assert result.exit_code == 2
+    assert "between 1 and 1000" in result.output
+
+
 @pytest.mark.respx
 @pytest.mark.parametrize(
     "valid_since",

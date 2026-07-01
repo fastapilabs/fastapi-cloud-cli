@@ -40,6 +40,8 @@ LOG_LEVEL_COLORS = {
 }
 
 SINCE_PATTERN = re.compile(r"^\d+[smhd]$")
+MIN_LOG_TAIL = 1
+MAX_LOG_TAIL = 1000
 
 
 class AppLogsOutput(BaseModel):
@@ -52,6 +54,15 @@ def _validate_since(value: str) -> str:
     if not SINCE_PATTERN.match(value):
         raise typer.BadParameter(
             "Invalid format. Use a number followed by s, m, h, or d (e.g., '5m', '1h', '2d')."
+        )
+
+    return value
+
+
+def _validate_tail(value: int) -> int:
+    if not MIN_LOG_TAIL <= value <= MAX_LOG_TAIL:
+        raise typer.BadParameter(
+            f"Invalid value. Use a number between {MIN_LOG_TAIL} and {MAX_LOG_TAIL}."
         )
 
     return value
@@ -214,8 +225,9 @@ def logs(
         100,
         "--tail",
         "-t",
-        help="Number of log lines to show before streaming.",
+        help=f"Number of log lines to show before streaming (max {MAX_LOG_TAIL}).",
         show_default=True,
+        callback=_validate_tail,
     ),
     since: str = typer.Option(
         "5m",
