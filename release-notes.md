@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.22.1 (2026-07-01)
+
 ### Fixes
 
 * 🐛 Validate app logs tail limit before request. PR [#287](https://github.com/fastapilabs/fastapi-cloud-cli/pull/287) by [@patrick91](https://github.com/patrick91).
