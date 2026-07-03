@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆️ Update issue-manager to 0.8.1. PR [#290](https://github.com/fastapilabs/fastapi-cloud-cli/pull/290) by [@tiangolo](https://github.com/tiangolo).
 * ⬆️ Update latest-changes to 0.6.1. PR [#289](https://github.com/fastapilabs/fastapi-cloud-cli/pull/289) by [@tiangolo](https://github.com/tiangolo).
 
 ## 0.22.1 (2026-07-01)
