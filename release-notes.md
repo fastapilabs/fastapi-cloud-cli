@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.22.2 (2026-07-14)
+
 ### Upgrades
 
 * ⬆️ Bump to rich-toolkit 0.20.3 to fix logs not being preserved in CI. PR [#299](https://github.com/fastapilabs/fastapi-cloud-cli/pull/299) by [@patrick91](https://github.com/patrick91).
