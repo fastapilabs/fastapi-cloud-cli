@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆ Bump the python-packages group across 1 directory with 2 updates. PR [#294](https://github.com/fastapilabs/fastapi-cloud-cli/pull/294) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.26.7 to 0.26.8. PR [#295](https://github.com/fastapilabs/fastapi-cloud-cli/pull/295) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 👷 Add GH workflow to bump pre-commit hook versions. PR [#282](https://github.com/fastapilabs/fastapi-cloud-cli/pull/282) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 🔧 Set Dependabot schedule interval to "monthly". PR [#283](https://github.com/fastapilabs/fastapi-cloud-cli/pull/283) by [@YuriiMotov](https://github.com/YuriiMotov).
