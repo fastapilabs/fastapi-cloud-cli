@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump pre-commit hooks. PR [#300](https://github.com/fastapilabs/fastapi-cloud-cli/pull/300) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump the github-actions group across 1 directory with 4 updates. PR [#298](https://github.com/fastapilabs/fastapi-cloud-cli/pull/298) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.63.0 to 2.64.0. PR [#296](https://github.com/fastapilabs/fastapi-cloud-cli/pull/296) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the python-packages group across 1 directory with 2 updates. PR [#294](https://github.com/fastapilabs/fastapi-cloud-cli/pull/294) by [@dependabot[bot]](https://github.com/apps/dependabot).
