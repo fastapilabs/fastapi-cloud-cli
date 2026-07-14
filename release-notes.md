@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Add GH workflow to bump pre-commit hook versions. PR [#282](https://github.com/fastapilabs/fastapi-cloud-cli/pull/282) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 🔧 Set Dependabot schedule interval to "monthly". PR [#283](https://github.com/fastapilabs/fastapi-cloud-cli/pull/283) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump the python-packages group across 1 directory with 4 updates. PR [#285](https://github.com/fastapilabs/fastapi-cloud-cli/pull/285) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * 👷 Fix latest-changes checkout target. PR [#292](https://github.com/fastapilabs/fastapi-cloud-cli/pull/292) by [@tiangolo](https://github.com/tiangolo).
