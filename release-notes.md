@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆️ Bump to rich-toolkit 0.20.3 to fix logs not being preserved in CI. PR [#299](https://github.com/fastapilabs/fastapi-cloud-cli/pull/299) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * ⬆ Bump the python-packages group across 1 directory with 2 updates. PR [#294](https://github.com/fastapilabs/fastapi-cloud-cli/pull/294) by [@dependabot[bot]](https://github.com/apps/dependabot).
