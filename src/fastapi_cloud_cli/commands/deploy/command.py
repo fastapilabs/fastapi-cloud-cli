@@ -1,20 +1,25 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, NoReturn, cast
 
 import typer
 from pydantic import BaseModel
+from rich_toolkit.progress import Progress
 
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
     AppResponse,
+    ArchiveTooLargeError,
     CreateDeploymentResponse,
     _create_deployment,
     _get_app,
 )
 from fastapi_cloud_cli.commands.deploy.configure import _configure_app
-from fastapi_cloud_cli.commands.deploy.upload import _cancel_upload, _upload_deployment
+from fastapi_cloud_cli.commands.deploy.upload import (
+    _cancel_upload,
+    _upload_deployment,
+)
 from fastapi_cloud_cli.commands.deploy.wait import _wait_for_deployment
 from fastapi_cloud_cli.commands.login import _interactive_login
 from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
@@ -45,6 +50,18 @@ def _get_deploy_output(deployment: CreateDeploymentResponse) -> DeployOutput:
         dashboard_url=deployment.dashboard_url,
         url=deployment.url,
     )
+
+
+def _fail_archive_too_large(
+    toolkit: FastAPIRichToolkit, progress: Progress, message: str
+) -> NoReturn:
+    hint = "You can exclude files from the deployment with a .fastapicloudignore file."
+
+    if toolkit.mode == "json":
+        toolkit.fail("invalid_input", message, hint=hint)
+
+    progress.set_error(f"{message}\n\n[dim]hint: {hint}[/]")
+    raise typer.Exit(1) from None
 
 
 def _get_large_file_warnings(
@@ -313,6 +330,7 @@ def deploy(
                 logger.debug("Creating archive for deployment")
                 archive_path = Path(temp_dir) / "archive.tar"
                 archive(path_to_deploy, archive_path)
+                archive_size = archive_path.stat().st_size
 
                 with (
                     toolkit.progress(
@@ -324,7 +342,15 @@ def deploy(
                     client.handle_http_errors(progress, toolkit=toolkit),
                 ):
                     logger.debug("Creating deployment for app: %s", app.id)
-                    deployment = _create_deployment(client=client, app_id=app.id)
+
+                    try:
+                        deployment = _create_deployment(
+                            client=client,
+                            app_id=app.id,
+                            archive_size_bytes=archive_size,
+                        )
+                    except ArchiveTooLargeError as e:
+                        _fail_archive_too_large(toolkit, progress, str(e))
 
                     try:
                         progress.log(
@@ -335,6 +361,7 @@ def deploy(
                             fastapi_client=client,
                             deployment_id=deployment.id,
                             archive_path=archive_path,
+                            archive_size=archive_size,
                             progress=progress,
                         )
 
@@ -342,6 +369,9 @@ def deploy(
                     except KeyboardInterrupt:
                         _cancel_upload(client=client, deployment_id=deployment.id)
                         raise
+                    except ArchiveTooLargeError as e:
+                        _cancel_upload(client=client, deployment_id=deployment.id)
+                        _fail_archive_too_large(toolkit, progress, str(e))
 
             if will_wait:
                 logger.debug("Waiting for deployment to complete")

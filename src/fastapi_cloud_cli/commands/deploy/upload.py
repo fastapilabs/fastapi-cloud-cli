@@ -1,12 +1,16 @@
 import logging
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import BinaryIO, cast
 
-from httpx import Client
+from httpx import Client, Response
 from pydantic import BaseModel
 from rich_toolkit.progress import Progress
 
-from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
+from fastapi_cloud_cli.commands.deploy.cloud import (
+    ArchiveTooLargeError,
+    CreateDeploymentResponse,
+)
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
@@ -39,13 +43,23 @@ def _format_size(size_in_bytes: int) -> str:
         return f"{size_in_bytes} bytes"
 
 
+def _get_s3_error_code(response: Response) -> str | None:
+    """Extract the error code from an S3 XML error response."""
+    try:
+        root = ET.fromstring(response.text)
+    except ET.ParseError:
+        return None
+
+    return root.findtext("Code")
+
+
 def _upload_deployment(
     fastapi_client: APIClient,
     deployment_id: str,
     archive_path: Path,
+    archive_size: int,
     progress: Progress,
 ) -> CreateDeploymentResponse:
-    archive_size = archive_path.stat().st_size
     archive_size_str = _format_size(archive_size)
 
     progress.log(f"Uploading deployment ({archive_size_str})...")
@@ -77,6 +91,15 @@ def _upload_deployment(
                 upload_data.url,
                 data=upload_data.fields,
                 files={"file": cast(BinaryIO, archive_file_with_progress)},
+            )
+
+    if upload_response.is_error:
+        logger.debug("File upload failed with response: %s", upload_response.text)
+
+        if _get_s3_error_code(upload_response) == "EntityTooLarge":
+            raise ArchiveTooLargeError(
+                f"The deployment archive is {archive_size_str}, "
+                "which exceeds the maximum allowed size."
             )
 
     upload_response.raise_for_status()
