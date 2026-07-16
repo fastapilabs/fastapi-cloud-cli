@@ -208,7 +208,11 @@ def test_deploy_json_uses_configured_app_and_skips_waiting_by_default(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -294,7 +298,11 @@ def test_deploy_json_includes_large_file_warnings(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -823,7 +831,11 @@ def test_updates_app_directory_via_api_when_changed(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
@@ -896,7 +908,11 @@ def test_does_not_update_app_directory_when_unchanged(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
@@ -972,6 +988,7 @@ def test_exits_successfully_when_deployment_is_done(
             json={
                 "url": "http://test.com",
                 "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
             },
         )
     )
@@ -1038,7 +1055,11 @@ def test_exits_successfully_when_deployment_is_done_when_app_is_configured(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -1105,7 +1126,11 @@ def test_exits_with_error_when_deployment_fails_to_build(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -1161,7 +1186,11 @@ def test_shows_error_when_deployment_build_fails(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -1246,6 +1275,7 @@ def _deploy_without_waiting(respx_mock: respx.MockRouter, tmp_path: Path) -> Res
             json={
                 "url": "http://test.com",
                 "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
             },
         )
     )
@@ -1363,7 +1393,12 @@ def test_shows_error_message_on_build_exception(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -1409,7 +1444,12 @@ def test_shows_error_message_on_build_log_http_error(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -1455,7 +1495,12 @@ def test_short_wait_messages(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -1539,7 +1584,12 @@ def test_long_wait_messages(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -1672,6 +1722,175 @@ def test_cancel_upload_swallows_exceptions(
         assert "HTTPStatusError" not in result.output
 
 
+S3_ENTITY_TOO_LARGE_RESPONSE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    "<Error><Code>EntityTooLarge</Code>"
+    "<Message>Your proposed upload exceeds the maximum allowed size</Message>"
+    "<ProposedSize>1048580024</ProposedSize>"
+    "<MaxSizeAllowed>1048576000</MaxSizeAllowed>"
+    "<RequestId>M4MJM31KD5AHTGJE</RequestId><HostId>abc123</HostId></Error>"
+)
+
+
+def _mock_deploy_until_upload(
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+    app_data: RandomApp,
+    deployment_data: dict[str, str],
+    upload_response: Response,
+) -> None:
+    app_id = app_data["id"]
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "some-team-id"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=upload_response
+    )
+
+
+@pytest.mark.respx
+def test_deploy_shows_error_when_archive_is_too_large(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    _mock_deploy_until_upload(
+        respx_mock,
+        tmp_path,
+        app_data,
+        deployment_data,
+        Response(400, text=S3_ENTITY_TOO_LARGE_RESPONSE),
+    )
+    upload_cancelled_route = respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-cancelled"
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    output = " ".join(result.output.split())
+
+    assert result.exit_code == 1
+    assert "exceeds the maximum allowed size of 1000.00 MB" in output
+    assert ".fastapicloudignore" in output
+    assert "Something went wrong" not in output
+    assert upload_cancelled_route.called
+
+
+@pytest.mark.respx
+def test_deploy_json_shows_error_when_archive_is_too_large(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    _mock_deploy_until_upload(
+        respx_mock,
+        tmp_path,
+        app_data,
+        deployment_data,
+        Response(400, text=S3_ENTITY_TOO_LARGE_RESPONSE),
+    )
+    upload_cancelled_route = respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-cancelled"
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+
+    error = json.loads(result.stdout)["error"]
+    assert error["code"] == "invalid_input"
+    assert "exceeds the maximum allowed size of 1000.00 MB" in error["message"]
+    assert error["hint"] == (
+        "You can exclude files from the deployment with a .fastapicloudignore file."
+    )
+    assert upload_cancelled_route.called
+
+
+@pytest.mark.respx
+def test_deploy_skips_upload_when_archive_exceeds_max_size(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    app_id = app_data["id"]
+    deployment_data = _get_random_deployment(app_id=app_id)
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "some-team-id"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    # a 10 bytes limit, so any archive is over it; no S3 route is mocked,
+    # any upload attempt would fail the test
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 10,
+            },
+        )
+    )
+    upload_cancelled_route = respx_mock.post(
+        f"/deployments/{deployment_data['id']}/upload-cancelled"
+    ).mock(return_value=Response(200))
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    output = " ".join(result.output.split())
+
+    assert result.exit_code == 1
+    assert "exceeds the maximum allowed size of 10 bytes" in output
+    assert ".fastapicloudignore" in output
+    assert upload_cancelled_route.called
+
+
+@pytest.mark.respx
+def test_deploy_shows_generic_error_for_other_upload_failures(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    _mock_deploy_until_upload(
+        respx_mock,
+        tmp_path,
+        app_data,
+        deployment_data,
+        Response(400, text="not an xml body"),
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "Something went wrong" in result.output
+
+
 @pytest.mark.respx
 def test_deploy_successfully_with_token(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
@@ -1701,7 +1920,11 @@ def test_deploy_successfully_with_token(
     ).mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -1836,7 +2059,11 @@ def test_upload_deployment_progress(
     respx_mock.post(f"/deployments/{deployment_id}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -1895,7 +2122,11 @@ def test_deploy_with_app_id_arg(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -1947,7 +2178,11 @@ def test_deploy_with_app_id_from_env_var(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -2004,7 +2239,11 @@ def test_deploy_with_app_id_matching_local_config(
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
             200,
-            json={"url": "http://test.com", "fields": {"key": "value"}},
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
 
@@ -2153,7 +2392,12 @@ def _setup_deployment_mocks(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(
@@ -2325,7 +2569,12 @@ def test_ctrl_c_during_build_streaming_shows_cancelled(
     )
     respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
         return_value=Response(
-            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+            200,
+            json={
+                "url": "http://test.com",
+                "fields": {"key": "value"},
+                "max_size_bytes": 1048576000,
+            },
         )
     )
     respx_mock.post("http://test.com", data={"key": "value"}).mock(

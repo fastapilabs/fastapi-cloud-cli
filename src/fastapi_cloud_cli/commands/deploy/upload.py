@@ -1,8 +1,9 @@
 import logging
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import BinaryIO, cast
 
-from httpx import Client
+from httpx import Client, Response
 from pydantic import BaseModel
 from rich_toolkit.progress import Progress
 
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 class RequestUploadResponse(BaseModel):
     url: str
     fields: dict[str, str]
+    max_size_bytes: int
 
 
 def _cancel_upload(client: APIClient, deployment_id: str) -> None:
@@ -37,6 +39,32 @@ def _format_size(size_in_bytes: int) -> str:
         return f"{size_in_bytes / 1024:.2f} KB"
     else:
         return f"{size_in_bytes} bytes"
+
+
+class DeploymentTooLargeError(Exception):
+    def __init__(self, archive_size: int, max_size: int | None) -> None:
+        message = (
+            f"The deployment archive is {_format_size(archive_size)}, "
+            "which exceeds the maximum allowed size"
+        )
+
+        if max_size is not None:
+            message += f" of {_format_size(max_size)}"
+
+        super().__init__(f"{message}.")
+
+
+def _get_s3_error(response: Response) -> tuple[str | None, int | None]:
+    """Extract the error code and max allowed size from an S3 XML error response."""
+    try:
+        root = ET.fromstring(response.text)
+    except ET.ParseError:
+        return None, None
+
+    max_size_text = root.findtext("MaxSizeAllowed") or ""
+    max_size = int(max_size_text) if max_size_text.isdigit() else None
+
+    return root.findtext("Code"), max_size
 
 
 def _upload_deployment(
@@ -67,6 +95,14 @@ def _upload_deployment(
     upload_data = RequestUploadResponse.model_validate(response.json())
     logger.debug("Received upload URL: %s", upload_data.url)
 
+    if archive_size > upload_data.max_size_bytes:
+        logger.debug(
+            "Archive size %s exceeds the maximum allowed size %s, skipping upload",
+            archive_size,
+            upload_data.max_size_bytes,
+        )
+        raise DeploymentTooLargeError(archive_size, upload_data.max_size_bytes)
+
     logger.debug("Starting file upload to S3")
     with Client() as s3_client:
         with open(archive_path, "rb") as archive_file:
@@ -78,6 +114,13 @@ def _upload_deployment(
                 data=upload_data.fields,
                 files={"file": cast(BinaryIO, archive_file_with_progress)},
             )
+
+    if upload_response.is_error:
+        logger.debug("File upload failed with response: %s", upload_response.text)
+
+        error_code, max_size = _get_s3_error(upload_response)
+        if error_code == "EntityTooLarge":
+            raise DeploymentTooLargeError(archive_size, max_size)
 
     upload_response.raise_for_status()
     logger.debug("File upload completed successfully")
