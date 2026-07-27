@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* ⬆️ Upgrade latest-changes to 0.7.1. PR [#304](https://github.com/fastapilabs/fastapi-cloud-cli/pull/304) by [@tiangolo](https://github.com/tiangolo).
+
 ## 0.22.2 (2026-07-14)
 
 ### Upgrades
