@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.23.0 (2026-07-28)
+
 ### Features
 
 * ✨ Handle archive size limit. PR [#305](https://github.com/fastapilabs/fastapi-cloud-cli/pull/305) by [@buurro](https://github.com/buurro).
