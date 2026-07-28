@@ -1672,6 +1672,142 @@ def test_cancel_upload_swallows_exceptions(
         assert "HTTPStatusError" not in result.output
 
 
+def _mock_deploy_until_upload(
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+    app_data: RandomApp,
+    deployment_data: dict[str, str],
+    upload_response: Response,
+) -> None:
+    app_id = app_data["id"]
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "some-team-id"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+    respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200,
+            json={"url": "http://test.com", "fields": {"key": "value"}},
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=upload_response
+    )
+
+
+def _mock_deploy_until_deployment_creation(
+    respx_mock: respx.MockRouter,
+    tmp_path: Path,
+    app_data: RandomApp,
+    creation_response: Response,
+) -> respx.Route:
+    app_id = app_data["id"]
+
+    config_path = tmp_path / ".fastapicloud" / "cloud.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(f'{{"app_id": "{app_id}", "team_id": "some-team-id"}}')
+
+    respx_mock.get(f"/apps/{app_id}").mock(return_value=Response(200, json=app_data))
+
+    return respx_mock.post(f"/apps/{app_id}/deployments/").mock(
+        return_value=creation_response
+    )
+
+
+@pytest.mark.respx
+def test_deploy_shows_error_when_creation_rejects_archive_size(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+
+    # no upload routes are mocked, any upload attempt would fail the test
+    create_deployment_route = _mock_deploy_until_deployment_creation(
+        respx_mock,
+        tmp_path,
+        app_data,
+        Response(
+            413,
+            json={
+                "detail": "App source code exceeds the maximum allowed size of 1000.0 MB"
+            },
+        ),
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    output = " ".join(result.output.split())
+
+    assert result.exit_code == 1
+    assert "App source code exceeds the maximum allowed size of 1000.0 MB" in output
+    assert ".fastapicloudignore" in output
+    assert "Something went wrong" not in output
+
+    request_body = json.loads(create_deployment_route.calls.last.request.content)
+    assert request_body["archive_size_bytes"] > 0
+
+
+@pytest.mark.respx
+def test_deploy_json_shows_error_when_creation_rejects_archive_size(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+
+    _mock_deploy_until_deployment_creation(
+        respx_mock,
+        tmp_path,
+        app_data,
+        Response(
+            413,
+            json={
+                "detail": "App source code exceeds the maximum allowed size of 1000.0 MB"
+            },
+        ),
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+
+    error = json.loads(result.stdout)["error"]
+    assert error["code"] == "invalid_input"
+    assert (
+        error["message"]
+        == "App source code exceeds the maximum allowed size of 1000.0 MB"
+    )
+    assert error["hint"] == (
+        "You can exclude files from the deployment with a .fastapicloudignore file."
+    )
+
+
+@pytest.mark.respx
+def test_deploy_shows_error_when_upload_fails(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    _mock_deploy_until_upload(
+        respx_mock,
+        tmp_path,
+        app_data,
+        deployment_data,
+        Response(400, text="not an xml body"),
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "Something went wrong" in result.output
+
+
 @pytest.mark.respx
 def test_deploy_successfully_with_token(
     logged_out_cli: None, tmp_path: Path, respx_mock: respx.MockRouter

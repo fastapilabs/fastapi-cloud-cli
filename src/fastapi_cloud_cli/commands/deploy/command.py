@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
     AppResponse,
+    ArchiveTooLargeError,
     CreateDeploymentResponse,
     _create_deployment,
     _get_app,
@@ -313,6 +314,7 @@ def deploy(
                 logger.debug("Creating archive for deployment")
                 archive_path = Path(temp_dir) / "archive.tar"
                 archive(path_to_deploy, archive_path)
+                archive_size = archive_path.stat().st_size
 
                 with (
                     toolkit.progress(
@@ -324,7 +326,22 @@ def deploy(
                     client.handle_http_errors(progress, toolkit=toolkit),
                 ):
                     logger.debug("Creating deployment for app: %s", app.id)
-                    deployment = _create_deployment(client=client, app_id=app.id)
+
+                    try:
+                        deployment = _create_deployment(
+                            client=client,
+                            app_id=app.id,
+                            archive_size_bytes=archive_size,
+                        )
+                    except ArchiveTooLargeError as e:
+                        toolkit.fail(
+                            "invalid_input",
+                            str(e),
+                            hint=(
+                                "You can exclude files from the deployment "
+                                "with a .fastapicloudignore file."
+                            ),
+                        )
 
                     try:
                         progress.log(
@@ -335,6 +352,7 @@ def deploy(
                             fastapi_client=client,
                             deployment_id=deployment.id,
                             archive_path=archive_path,
+                            archive_size=archive_size,
                             progress=progress,
                         )
 

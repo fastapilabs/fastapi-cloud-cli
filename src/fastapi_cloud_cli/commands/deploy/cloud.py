@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 
-from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
+from fastapi_cloud_cli.utils.api import (
+    APIClient,
+    DeploymentStatus,
+    _get_response_error_message,
+)
+
+
+class ArchiveTooLargeError(Exception):
+    pass
 
 
 class Team(BaseModel):
@@ -57,8 +65,20 @@ def _create_app(
     return AppResponse.model_validate(response.json())
 
 
-def _create_deployment(client: APIClient, app_id: str) -> CreateDeploymentResponse:
-    response = client.post(f"/apps/{app_id}/deployments/")
+def _create_deployment(
+    client: APIClient, app_id: str, archive_size_bytes: int
+) -> CreateDeploymentResponse:
+    response = client.post(
+        f"/apps/{app_id}/deployments/",
+        json={"archive_size_bytes": archive_size_bytes},
+    )
+
+    if response.status_code == 413:
+        raise ArchiveTooLargeError(
+            _get_response_error_message(response)
+            or "The app source code exceeds the maximum allowed size."
+        )
+
     response.raise_for_status()
 
     return CreateDeploymentResponse.model_validate(response.json())

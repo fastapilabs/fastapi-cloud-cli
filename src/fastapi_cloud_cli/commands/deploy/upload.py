@@ -43,9 +43,9 @@ def _upload_deployment(
     fastapi_client: APIClient,
     deployment_id: str,
     archive_path: Path,
+    archive_size: int,
     progress: Progress,
 ) -> CreateDeploymentResponse:
-    archive_size = archive_path.stat().st_size
     archive_size_str = _format_size(archive_size)
 
     progress.log(f"Uploading deployment ({archive_size_str})...")
@@ -78,6 +78,9 @@ def _upload_deployment(
                 data=upload_data.fields,
                 files={"file": cast(BinaryIO, archive_file_with_progress)},
             )
+
+    if upload_response.is_error:
+        logger.debug("File upload failed with response: %s", upload_response.text)
 
     upload_response.raise_for_status()
     logger.debug("File upload completed successfully")
