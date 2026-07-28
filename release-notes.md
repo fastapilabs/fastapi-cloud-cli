@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Handle archive size limit. PR [#305](https://github.com/fastapilabs/fastapi-cloud-cli/pull/305) by [@buurro](https://github.com/buurro).
+
 ### Internal
 
 * ⬆️ Upgrade latest-changes to 0.7.1. PR [#304](https://github.com/fastapilabs/fastapi-cloud-cli/pull/304) by [@tiangolo](https://github.com/tiangolo).
