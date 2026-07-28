@@ -146,6 +146,7 @@ class DeploymentStatus(str, Enum):
     building = "building"
     extracting = "extracting"
     extracting_failed = "extracting_failed"
+    extracting_failed_archive_too_large = "extracting_failed_archive_too_large"
     building_image = "building_image"
     building_image_failed = "building_image_failed"
     deploying = "deploying"
@@ -166,6 +167,7 @@ class DeploymentStatus(str, Enum):
             cls.building: "Building",
             cls.extracting: "Extracting Upload",
             cls.extracting_failed: "Extraction Failed",
+            cls.extracting_failed_archive_too_large: "Archive Too Large",
             cls.building_image: "Building Image",
             cls.building_image_failed: "Build Failed",
             cls.deploying: "Deploying Image",
@@ -186,6 +188,7 @@ FAILED_STATUSES = {
     DeploymentStatus.deploying_failed,
     DeploymentStatus.building_image_failed,
     DeploymentStatus.extracting_failed,
+    DeploymentStatus.extracting_failed_archive_too_large,
 }
 TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES
 
