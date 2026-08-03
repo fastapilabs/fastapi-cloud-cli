@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆ Bump sentry-sdk from 2.64.0 to 2.66.1. PR [#311](https://github.com/fastapilabs/fastapi-cloud-cli/pull/311) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump rignore from 0.7.6 to 0.8.0. PR [#309](https://github.com/fastapilabs/fastapi-cloud-cli/pull/309) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the github-actions group with 5 updates. PR [#307](https://github.com/fastapilabs/fastapi-cloud-cli/pull/307) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
