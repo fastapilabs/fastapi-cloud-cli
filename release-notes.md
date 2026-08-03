@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* ⬆ Bump the github-actions group with 5 updates. PR [#307](https://github.com/fastapilabs/fastapi-cloud-cli/pull/307) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.23.0 (2026-07-28)
 
 ### Features
