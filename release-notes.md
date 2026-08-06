@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 🔥 Remove the old latest-changes workflow. PR [#313](https://github.com/fastapilabs/fastapi-cloud-cli/pull/313) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump the python-packages group with 5 updates. PR [#308](https://github.com/fastapilabs/fastapi-cloud-cli/pull/308) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.26.8 to 0.27.0. PR [#310](https://github.com/fastapilabs/fastapi-cloud-cli/pull/310) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.64.0 to 2.66.1. PR [#311](https://github.com/fastapilabs/fastapi-cloud-cli/pull/311) by [@dependabot[bot]](https://github.com/apps/dependabot).
