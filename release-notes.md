@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Use PR Push commit identity. PR [#316](https://github.com/fastapilabs/fastapi-cloud-cli/pull/316) by [@tiangolo](https://github.com/tiangolo).
 * 🔒 Replace pre-commit PAT with PR Push. PR [#314](https://github.com/fastapilabs/fastapi-cloud-cli/pull/314) by [@tiangolo](https://github.com/tiangolo).
 * 🔥 Remove the old latest-changes workflow. PR [#313](https://github.com/fastapilabs/fastapi-cloud-cli/pull/313) by [@tiangolo](https://github.com/tiangolo).
 * ⬆ Bump the python-packages group with 5 updates. PR [#308](https://github.com/fastapilabs/fastapi-cloud-cli/pull/308) by [@dependabot[bot]](https://github.com/apps/dependabot).
