@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Migrate automatic labels to Latest Changes. PR [#320](https://github.com/fastapilabs/fastapi-cloud-cli/pull/320) by [@tiangolo](https://github.com/tiangolo).
 * 👷 Remove legacy label check. PR [#319](https://github.com/fastapilabs/fastapi-cloud-cli/pull/319) by [@tiangolo](https://github.com/tiangolo).
 * 🔐 Use PR Submit for pull requests. PR [#318](https://github.com/fastapilabs/fastapi-cloud-cli/pull/318) by [@tiangolo](https://github.com/tiangolo).
 * 👷 Use GitHub CLI for Git authentication. PR [#317](https://github.com/fastapilabs/fastapi-cloud-cli/pull/317) by [@tiangolo](https://github.com/tiangolo).
