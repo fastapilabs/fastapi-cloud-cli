@@ -9,6 +9,15 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "agent-detector"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/51/2d6a4580f8a1ad26eca1f3849207e08d65a0df318188fe1a5b56cd868a1e/agent_detector-1.1.0.tar.gz", hash = "sha256:3428dc45713f93a115bd0b05c9dbbfdc72af70246064c07bd837a9a95cf016bc", size = 53720, upload-time = "2026-08-19T10:24:41.338Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/26/43b02c1cf72b12597dd7a3b49023918bded80edd733e00222f5a3ce42d85/agent_detector-1.1.0-py3-none-any.whl", hash = "sha256:c605af97afb894737dd798721b117d9bbc7aa491e02a676cd5916c79dc39a46d", size = 7966, upload-time = "2026-08-19T10:24:40.276Z" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -276,6 +285,7 @@ wheels = [
 name = "fastapi-cloud-cli"
 source = { editable = "." }
 dependencies = [
+    { name = "agent-detector" },
     { name = "detect-installer" },
     { name = "fastar" },
     { name = "httpx" },
@@ -310,6 +320,7 @@ github-actions = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agent-detector", specifier = ">=1.1.0" },
     { name = "detect-installer", specifier = ">=0.1.0" },
     { name = "fastar", specifier = ">=0.10.0" },
     { name = "httpx", specifier = ">=0.27.0" },

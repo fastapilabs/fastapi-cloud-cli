@@ -4,8 +4,10 @@ from unittest.mock import patch
 import httpx
 import pytest
 import respx
+from agent_detector import DetectionResult
 from httpx import Response
 
+from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.utils.api import (
     STREAM_LOGS_MAX_RETRIES,
     APIClient,
@@ -28,6 +30,30 @@ def client() -> httpx.Client:
 @pytest.fixture
 def deployment_id() -> str:
     return "test-deployment-123"
+
+
+def test_api_client_reports_high_confidence_agent() -> None:
+    detection = DetectionResult("codex", "high", "environment", "CODEX_THREAD_ID")
+
+    with (
+        patch(
+            "fastapi_cloud_cli.utils.api.detect_agent", return_value=detection
+        ) as mock_detect_agent,
+        APIClient() as client,
+    ):
+        assert client.headers["User-Agent"] == (
+            f"fastapi-cloud-cli/{__version__} AI-Agent/codex"
+        )
+
+    mock_detect_agent.assert_called_once_with(minimum_confidence="high")
+
+
+def test_api_client_omits_unattributed_agent() -> None:
+    with (
+        patch("fastapi_cloud_cli.utils.api.detect_agent", return_value=None),
+        APIClient() as client,
+    ):
+        assert client.headers["User-Agent"] == f"fastapi-cloud-cli/{__version__}"
 
 
 @pytest.fixture
