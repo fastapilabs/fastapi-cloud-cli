@@ -14,6 +14,7 @@ from typing import (
 
 import httpx
 import typer
+from agent_detector import detect_agent
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from rich_toolkit.progress import Progress
 from typing_extensions import ParamSpec
@@ -304,6 +305,15 @@ def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str
     return None
 
 
+def _get_user_agent() -> str:
+    user_agent = f"fastapi-cloud-cli/{__version__}"
+
+    if detection := detect_agent(minimum_confidence="high"):
+        user_agent = f"{user_agent} AI-Agent/{detection.agent}"
+
+    return user_agent
+
+
 class APIClient(httpx.Client):
     auth_mode: AuthMode
 
@@ -319,7 +329,7 @@ class APIClient(httpx.Client):
             token = identity.user_token
             self.auth_mode = "user"
 
-        headers = {"User-Agent": f"fastapi-cloud-cli/{__version__}"}
+        headers = {"User-Agent": _get_user_agent()}
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
