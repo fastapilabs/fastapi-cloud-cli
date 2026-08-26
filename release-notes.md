@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add `fastapi cloud integrations resources get`. PR [#326](https://github.com/fastapilabs/fastapi-cloud-cli/pull/326) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud integrations resources list`. PR [#325](https://github.com/fastapilabs/fastapi-cloud-cli/pull/325) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud integrations providers list`. PR [#322](https://github.com/fastapilabs/fastapi-cloud-cli/pull/322) by [@patrick91](https://github.com/patrick91).
 * ✨ Detect when user is using agents. PR [#323](https://github.com/fastapilabs/fastapi-cloud-cli/pull/323) by [@patrick91](https://github.com/patrick91).
