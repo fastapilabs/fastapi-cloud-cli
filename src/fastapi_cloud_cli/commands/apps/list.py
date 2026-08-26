@@ -6,13 +6,13 @@ from pydantic import BaseModel, Field
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
-from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
+from fastapi_cloud_cli.utils.teams import Team, select_team
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +29,6 @@ class App(BaseModel):
     url: str | None = None
     region: str | None = None
     updated_at: str | None = None
-
-
-class Team(BaseModel):
-    id: str
-    slug: str
-    name: str
 
 
 class AppsListAPIResponse(BaseModel):
@@ -82,15 +76,6 @@ def _get_apps_list_table(
         )
 
     return table
-
-
-def _get_teams(client: APIClient) -> list[Team]:
-    response = client.get("/teams/")
-    response.raise_for_status()
-
-    data = response.json()["data"]
-
-    return [Team.model_validate(team) for team in data]
 
 
 def _get_team(client: APIClient, team_id: str) -> Team:
@@ -149,36 +134,6 @@ def _render_apps_list_output(data: AppsListOutput, toolkit: RichToolkit) -> None
     )
 
 
-def _prompt_for_team(toolkit: FastAPIRichToolkit, client: APIClient) -> Team:
-    with toolkit.progress(
-        title="Fetching teams",
-        transient=True,
-    ) as progress:
-        with client.handle_http_errors(
-            progress,
-            default_message="Error fetching teams. Please try again later.",
-            toolkit=toolkit,
-        ):
-            teams = _get_teams(client)
-
-    if not teams:
-        toolkit.fail(
-            "missing_required_input",
-            "No teams found.",
-            hint="Create a team before listing apps.",
-        )
-
-    return toolkit.ask(
-        "Select the team:",
-        options=[
-            Option({"name": team.name, "value": team})
-            for team in sorted(teams, key=lambda team: team.name.lower())
-        ],
-        allow_filtering=True,
-        bullet=False,
-    )
-
-
 def list_apps(
     team_id: Annotated[
         str | None,
@@ -229,7 +184,11 @@ def list_apps(
                         hint="Pass --team-id to choose a team.",
                     )
 
-                team = _prompt_for_team(toolkit, client)
+                team = select_team(
+                    toolkit,
+                    client,
+                    empty_hint="Create a team before listing apps.",
+                )
                 team_id = team.id
                 team_slug = team.slug
 
