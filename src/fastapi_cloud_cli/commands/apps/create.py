@@ -6,7 +6,6 @@ import typer
 from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.commands.apps.list import _prompt_for_team
 from fastapi_cloud_cli.commands.deploy.archive import (
     _get_app_name,
     validate_app_directory,
@@ -16,6 +15,7 @@ from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
+from fastapi_cloud_cli.utils.teams import select_team
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,11 @@ def create_app(
                         hint="Pass --team-id to choose a team.",
                     )
 
-                team = _prompt_for_team(toolkit, client)
+                team = select_team(
+                    toolkit,
+                    client,
+                    empty_hint="Create a team before listing apps.",
+                )
                 team_id = team.id
                 toolkit.print_line()
 
