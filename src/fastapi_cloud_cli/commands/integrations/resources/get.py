@@ -6,10 +6,7 @@ from rich.console import RenderableType
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.commands.integrations.resources.providers import (
-    PROVIDER_NAMES,
-    Provider,
-)
+from fastapi_cloud_cli.commands.integrations.models import PROVIDER_NAMES, Provider
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
