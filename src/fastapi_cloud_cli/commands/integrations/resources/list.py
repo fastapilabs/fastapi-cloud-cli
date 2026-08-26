@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 import typer
 from pydantic import AliasPath, BaseModel, Field
@@ -6,20 +6,15 @@ from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.commands.integrations.resources.providers import (
+    PROVIDER_NAMES,
+    Provider,
+)
 from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
-
-Provider = Literal["neon", "redis", "supabase", "logfire"]
-
-PROVIDER_NAMES: dict[Provider, str] = {
-    "neon": "Neon",
-    "redis": "Redis Cloud",
-    "supabase": "Supabase",
-    "logfire": "Logfire",
-}
 
 
 class ConnectedResource(BaseModel):
