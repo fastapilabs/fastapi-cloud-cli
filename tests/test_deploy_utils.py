@@ -96,9 +96,11 @@ def test_deployment_status_to_human_readable(
     assert DeploymentStatus.to_human_readable(status) == expected
 
 
-def test_every_deployment_status_has_human_readable() -> None:
-    for status in DeploymentStatus:
-        assert DeploymentStatus.to_human_readable(status)
+@pytest.mark.parametrize("status", list(DeploymentStatus))
+def test_every_deployment_status_has_human_readable(
+    status: DeploymentStatus,
+) -> None:
+    assert DeploymentStatus.to_human_readable(status)
 
 
 @pytest.mark.parametrize(
