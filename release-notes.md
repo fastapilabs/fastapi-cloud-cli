@@ -10,6 +10,7 @@
 
 ### Internal
 
+* ✨ Update deployment statuses. PR [#324](https://github.com/fastapilabs/fastapi-cloud-cli/pull/324) by [@buurro](https://github.com/buurro).
 * ⬆️ Bump setup-uv action to 10.0.1. PR [#321](https://github.com/fastapilabs/fastapi-cloud-cli/pull/321) by [@YuriiMotov](https://github.com/YuriiMotov).
 * 👷 Migrate automatic labels to Latest Changes. PR [#320](https://github.com/fastapilabs/fastapi-cloud-cli/pull/320) by [@tiangolo](https://github.com/tiangolo).
 * 👷 Remove legacy label check. PR [#319](https://github.com/fastapilabs/fastapi-cloud-cli/pull/319) by [@tiangolo](https://github.com/tiangolo).
