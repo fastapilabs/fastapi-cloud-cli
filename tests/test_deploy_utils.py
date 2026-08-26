@@ -74,12 +74,17 @@ def test_includes_paths(path: Path) -> None:
         (DeploymentStatus.extracting_failed, "Extraction Failed"),
         (DeploymentStatus.building_image, "Building Image"),
         (DeploymentStatus.building_image_failed, "Build Failed"),
+        (DeploymentStatus.building_image_failed_timeout, "Build Timed Out"),
         (DeploymentStatus.deploying, "Deploying Image"),
+        (DeploymentStatus.deploying_skipped, "Deployment Skipped"),
         (DeploymentStatus.deploying_failed, "Deployment Failed"),
         (DeploymentStatus.verifying, "Verifying Readiness"),
         (DeploymentStatus.verifying_failed, "Verification Failed"),
+        (DeploymentStatus.verification_failed_oom, "Verification Failed (OOM)"),
         (DeploymentStatus.verifying_skipped, "Verification Skipped"),
         (DeploymentStatus.success, "Ready"),
+        (DeploymentStatus.degraded_oom, "Degraded (OOM)"),
+        (DeploymentStatus.degraded, "Degraded"),
         (DeploymentStatus.expired, "Expired"),
         (DeploymentStatus.failed, "Failed"),
     ],
@@ -89,6 +94,13 @@ def test_deployment_status_to_human_readable(
 ) -> None:
     """Should convert deployment status to human readable format."""
     assert DeploymentStatus.to_human_readable(status) == expected
+
+
+@pytest.mark.parametrize("status", list(DeploymentStatus))
+def test_every_deployment_status_has_human_readable(
+    status: DeploymentStatus,
+) -> None:
+    assert DeploymentStatus.to_human_readable(status)
 
 
 @pytest.mark.parametrize(
