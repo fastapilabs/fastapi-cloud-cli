@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Detect when user is using agents. PR [#323](https://github.com/fastapilabs/fastapi-cloud-cli/pull/323) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * ⬆️ Bump setup-uv action to 10.0.1. PR [#321](https://github.com/fastapilabs/fastapi-cloud-cli/pull/321) by [@YuriiMotov](https://github.com/YuriiMotov).
