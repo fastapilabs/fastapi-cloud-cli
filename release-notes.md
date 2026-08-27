@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆️ Bump Typer min version to `0.26.1`. PR [#331](https://github.com/fastapilabs/fastapi-cloud-cli/pull/331) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.24.0 (2026-08-27)
 
 ### Features
