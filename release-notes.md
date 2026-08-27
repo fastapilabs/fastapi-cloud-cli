@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.24.0 (2026-08-27)
+
 ### Features
 
 * ✨ Add `fastapi cloud integrations resources disconnect`. PR [#329](https://github.com/fastapilabs/fastapi-cloud-cli/pull/329) by [@patrick91](https://github.com/patrick91).
