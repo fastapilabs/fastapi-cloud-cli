@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add `fastapi cloud integrations resources disconnect`. PR [#329](https://github.com/fastapilabs/fastapi-cloud-cli/pull/329) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud integrations resources connect`. PR [#328](https://github.com/fastapilabs/fastapi-cloud-cli/pull/328) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud integrations resources get`. PR [#326](https://github.com/fastapilabs/fastapi-cloud-cli/pull/326) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud integrations resources list`. PR [#325](https://github.com/fastapilabs/fastapi-cloud-cli/pull/325) by [@patrick91](https://github.com/patrick91).
