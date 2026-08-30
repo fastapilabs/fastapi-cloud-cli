@@ -44,10 +44,18 @@ def _get_response_error_message(response: httpx.Response) -> str | None:
         return None  # pragma: no cover
 
     detail = data.get("detail")
-    if not isinstance(detail, str):
-        return None  # pragma: no cover
+    if isinstance(detail, str):
+        return detail
 
-    return detail
+    if (
+        isinstance(detail, list)
+        and detail
+        and isinstance(detail[0], dict)
+        and isinstance(message := detail[0].get("msg"), str)
+    ):
+        return message.removeprefix("Value error, ")
+
+    return None  # pragma: no cover
 
 
 def handle_http_error(
@@ -61,9 +69,9 @@ def handle_http_error(
     if isinstance(error, httpx.HTTPStatusError):
         status_code = error.response.status_code
 
-        # Handle validation errors from Pydantic models, this should make it easier to debug :)
         if status_code == 422:
-            logger.debug(error.response.json())  # pragma: no cover
+            logger.debug(error.response.json())
+            message = _get_response_error_message(error.response)
 
         elif status_code == 400:
             message = _get_response_error_message(error.response)
@@ -103,7 +111,7 @@ def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
     if isinstance(error, httpx.HTTPStatusError):
         status_code = error.response.status_code
 
-        if status_code in {400, 409}:
+        if status_code in {400, 409, 422}:
             return "invalid_input"
 
         if status_code == 401:

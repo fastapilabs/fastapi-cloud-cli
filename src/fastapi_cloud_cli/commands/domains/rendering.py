@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
@@ -13,10 +12,8 @@ from fastapi_cloud_cli.api import (
 from fastapi_cloud_cli.commands.domains._setup import (
     ATTENTION_STATUSES,
     SetupStep,
-    StepStatus,
     get_setup_steps,
 )
-from fastapi_cloud_cli.utils.cli import get_details_table
 from fastapi_cloud_cli.utils.dates import format_last_updated
 
 
@@ -25,6 +22,7 @@ class DomainStatusMetadata:
     label: str
     title: str
     description: str
+    emoji: str = "⏳"
 
 
 DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
@@ -51,6 +49,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "The DNS records were found but don't match the expected values. "
             "Double-check your provider settings."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.internal_dcv_timeout: DomainStatusMetadata(
         label="Domain verification timed out",
@@ -59,6 +58,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "We couldn't verify the domain in time, it's possible the DNS changes "
             "may still be propagating. Please restart the domain verification process."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.internal_dcv_revoked: DomainStatusMetadata(
         label="Domain verification revoked",
@@ -67,6 +67,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "Domain ownership could no longer be verified. This may happen if DNS "
             "records were removed or changed."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.external_dcv_pending: DomainStatusMetadata(
         label="Setting up domain",
@@ -96,6 +97,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "This domain has been restricted and domain verification cannot proceed. "
             "Please contact support for more information."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.external_dcv_timeout: DomainStatusMetadata(
         label="Domain setup timed out",
@@ -104,6 +106,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "The domain setup took too long to complete. This is often caused by slow "
             "DNS propagation. Please restart the domain verification process."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.origin_setup_pending: DomainStatusMetadata(
         label="Validating",
@@ -128,6 +131,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "The DNS records were found but don't match the expected values. "
             "Double-check your DNS records."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.origin_setup_timeout: DomainStatusMetadata(
         label="Timeout",
@@ -136,6 +140,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "The domain setup couldn't be validated in time. Please restart the "
             "domain setup process."
         ),
+        emoji="⚠️",
     ),
     CustomDomainStatus.origin_setup_success: DomainStatusMetadata(
         label="Live",
@@ -144,6 +149,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "Your domain is fully configured, secured with TLS, and set up to route "
             "traffic to your app."
         ),
+        emoji="✅",
     ),
     CustomDomainStatus.origin_setup_removed: DomainStatusMetadata(
         label="Removed",
@@ -152,6 +158,7 @@ DOMAIN_STATUS: dict[CustomDomainStatus, DomainStatusMetadata] = {
             "The required DNS records were removed after being valid. Your domain is "
             "no longer active and needs to be set up again."
         ),
+        emoji="⚠️",
     ),
 }
 
@@ -188,16 +195,31 @@ def get_custom_domains_table(domains: list[CustomDomain]) -> Table:
     return table
 
 
-STEP_LABELS: dict[StepStatus, str] = {
-    "verified": "Verified",
-    "in_progress": "In progress",
-    "attention": "Needs attention",
-    "locked": "Locked",
-    "failed": "Action needed",
+STEP_NUMBER_EMOJIS = {
+    1: "1️⃣",
+    2: "2️⃣",
+    3: "3️⃣",
 }
 
 
 def _get_dns_records_table(records: list[CustomDomainRecord]) -> Table:
+    if len(records) == 1:
+        record = records[0]
+        generating = Text("Generating; check again shortly", style="dim italic")
+        table = Table.grid(padding=(0, 2), pad_edge=False)
+        table.add_column(style="dim", no_wrap=True)
+        table.add_column(overflow="fold")
+        table.add_row("type", record.type)
+        table.add_row(
+            "name",
+            Text(record.name) if record.name is not None else generating,
+        )
+        table.add_row(
+            "value",
+            Text(record.value) if record.value is not None else generating,
+        )
+        return table
+
     table = Table.grid(padding=(0, 2), pad_edge=False)
     table.add_column("Type", no_wrap=True)
     table.add_column("Name", overflow="fold")
@@ -219,50 +241,95 @@ def _get_dns_records_table(records: list[CustomDomainRecord]) -> Table:
     return table
 
 
+def _get_concise_step_description(
+    step: SetupStep,
+    records: list[CustomDomainRecord],
+) -> str:
+    if not records:
+        return step.description
+
+    records_label = (
+        f"this {records[0].type} record" if len(records) == 1 else "these records"
+    )
+    if step.id == "combined":
+        return (
+            "[bold]To verify ownership and route traffic[/bold], add "
+            f"{records_label} at your DNS provider:"
+        )
+    return f"Add {records_label} at your DNS provider:"
+
+
 def _render_setup_step(
     step: SetupStep,
     toolkit: RichToolkit,
     *,
     number: int,
+    show_number: bool,
 ) -> None:
-    toolkit.print(
-        f"[bold]{number}  {step.title}[/bold]  [dim]{STEP_LABELS[step.status]}[/dim]",
-        bullet=False,
-    )
-    toolkit.print(step.description, bullet=False)
+    if step.status == "verified":
+        toolkit.print(f"[bold]{step.title}[/bold]", emoji="✅")
+        return
 
     records = step.records if step.status != "locked" else []
+    hint_emoji = "" if show_number else "💡"
+
+    if show_number:
+        toolkit.print(
+            f"[bold]{step.title}[/bold]",
+            emoji=STEP_NUMBER_EMOJIS[number],
+        )
+
+    if step.status == "locked":
+        return
+
+    toolkit.print(_get_concise_step_description(step, records))
+
     if not records:
         return
 
     toolkit.print_line()
-    toolkit.print(_get_dns_records_table(records), bullet=False)
+    toolkit.print(_get_dns_records_table(records))
 
-    if any(
+    has_trailing_dot = any(
         record.type == "CNAME" and (record.value or "").endswith(".")
         for record in records
-    ):
+    )
+    show_cloudflare_warning = any(record.type in {"CNAME", "A"} for record in records)
+
+    if has_trailing_dot or show_cloudflare_warning:
         toolkit.print_line()
+
+    if has_trailing_dot:
         toolkit.print(
-            "Copy CNAME values as shown. If your DNS provider rejects the trailing "
-            "dot, remove it and try again.",
-            emoji="💡",
+            "Copy as shown; remove the trailing dot only if your provider rejects it.",
+            emoji=hint_emoji,
+        )
+        hint_emoji = ""
+
+    if show_cloudflare_warning:
+        toolkit.print(
+            "Cloudflare: use DNS only (gray cloud).",
+            emoji=hint_emoji,
         )
 
-    if step.status != "verified" and any(
-        record.type in {"CNAME", "A"} for record in records
-    ):
+
+def render_custom_domain_setup(
+    domain: CustomDomain,
+    toolkit: RichToolkit,
+) -> None:
+    steps = get_setup_steps(domain)
+    show_number = len(steps) > 1
+    for number, step in enumerate(steps, start=1):
         toolkit.print_line()
-        toolkit.print(
-            "Using Cloudflare? Set these records to DNS only (gray cloud), not "
-            "Proxied (orange cloud).",
-            emoji="💡",
+        _render_setup_step(
+            step,
+            toolkit,
+            number=number,
+            show_number=show_number,
         )
 
 
-def _get_next_action(domain: CustomDomain) -> str:
-    if domain.setup_successful:
-        return "No action needed. Your domain is live."
+def _get_next_action(domain: CustomDomain) -> str | None:
     if domain.setup_failed:
         return (
             "Correct the DNS records, then run "
@@ -270,41 +337,28 @@ def _get_next_action(domain: CustomDomain) -> str:
         )
     if domain.status in ATTENTION_STATUSES:
         return "Correct the DNS records shown. We'll check again automatically."
-    return (
-        "Wait for automatic verification. DNS changes can take up to 48 hours "
-        "to propagate."
-    )
+    return None
 
 
 def render_custom_domain_details(
     domain: CustomDomain,
     toolkit: RichToolkit,
 ) -> None:
-    metadata = DOMAIN_STATUS[domain.status]
-    rows: list[tuple[str, RenderableType]] = [
-        ("hostname", domain.name),
-        ("status", metadata.label),
-        ("raw status", domain.status.value),
-        ("setup mode", get_setup_mode_label(domain)),
-        ("id", domain.id),
-        ("created", format_last_updated(domain.created_at)),
-        ("updated", format_last_updated(domain.updated_at)),
-        ("setup started", format_last_updated(domain.setup_started_at)),
-        ("last checked", format_last_updated(domain.setup_checked_at)),
-    ]
     if domain.setup_successful:
         url = f"https://{domain.name}"
-        rows.insert(1, ("url", Text(url, style=f"link {url}")))
+        toolkit.print(Text(url, style=f"bold link {url}"), emoji="🌐")
+        toolkit.print_line()
+        toolkit.print("Your domain is live.", emoji="✅")
+        return
 
+    metadata = DOMAIN_STATUS[domain.status]
     toolkit.print(Text(domain.name, style="bold"), emoji="🌐")
     toolkit.print_line()
-    toolkit.print(get_details_table(rows))
-    toolkit.print_line()
-    toolkit.print(f"[bold]{metadata.title}[/bold]\n{metadata.description}")
-
-    for number, step in enumerate(get_setup_steps(domain), start=1):
+    toolkit.print(
+        f"[bold]{metadata.title}[/bold]\n{metadata.description}",
+        emoji=metadata.emoji,
+    )
+    render_custom_domain_setup(domain, toolkit)
+    if next_action := _get_next_action(domain):
         toolkit.print_line()
-        _render_setup_step(step, toolkit, number=number)
-
-    toolkit.print_line()
-    toolkit.print(_get_next_action(domain), emoji="⏳")
+        toolkit.print(next_action)
