@@ -1,9 +1,22 @@
 from dataclasses import dataclass
 
+from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
+from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.api import CustomDomain, CustomDomainStatus
+from fastapi_cloud_cli.api import (
+    CustomDomain,
+    CustomDomainRecord,
+    CustomDomainStatus,
+)
+from fastapi_cloud_cli.commands.domains._setup import (
+    ATTENTION_STATUSES,
+    SetupStep,
+    StepStatus,
+    get_setup_steps,
+)
+from fastapi_cloud_cli.utils.cli import get_details_table
 from fastapi_cloud_cli.utils.dates import format_last_updated
 
 
@@ -173,3 +186,125 @@ def get_custom_domains_table(domains: list[CustomDomain]) -> Table:
         )
 
     return table
+
+
+STEP_LABELS: dict[StepStatus, str] = {
+    "verified": "Verified",
+    "in_progress": "In progress",
+    "attention": "Needs attention",
+    "locked": "Locked",
+    "failed": "Action needed",
+}
+
+
+def _get_dns_records_table(records: list[CustomDomainRecord]) -> Table:
+    table = Table.grid(padding=(0, 2), pad_edge=False)
+    table.add_column("Type", no_wrap=True)
+    table.add_column("Name", overflow="fold")
+    table.add_column("Value", overflow="fold")
+    table.add_row(
+        Text("Type", style="bold"),
+        Text("Name", style="bold"),
+        Text("Value", style="bold"),
+    )
+
+    generating = Text("Generating; check again shortly", style="dim italic")
+    for record in records:
+        table.add_row(
+            Text(record.type),
+            Text(record.name) if record.name is not None else generating,
+            Text(record.value) if record.value is not None else generating,
+        )
+
+    return table
+
+
+def _render_setup_step(
+    step: SetupStep,
+    toolkit: RichToolkit,
+    *,
+    number: int,
+) -> None:
+    toolkit.print(
+        f"[bold]{number}  {step.title}[/bold]  [dim]{STEP_LABELS[step.status]}[/dim]",
+        bullet=False,
+    )
+    toolkit.print(step.description, bullet=False)
+
+    records = step.records if step.status != "locked" else []
+    if not records:
+        return
+
+    toolkit.print_line()
+    toolkit.print(_get_dns_records_table(records), bullet=False)
+
+    if any(
+        record.type == "CNAME" and (record.value or "").endswith(".")
+        for record in records
+    ):
+        toolkit.print_line()
+        toolkit.print(
+            "Copy CNAME values as shown. If your DNS provider rejects the trailing "
+            "dot, remove it and try again.",
+            emoji="💡",
+        )
+
+    if step.status != "verified" and any(
+        record.type in {"CNAME", "A"} for record in records
+    ):
+        toolkit.print_line()
+        toolkit.print(
+            "Using Cloudflare? Set these records to DNS only (gray cloud), not "
+            "Proxied (orange cloud).",
+            emoji="💡",
+        )
+
+
+def _get_next_action(domain: CustomDomain) -> str:
+    if domain.setup_successful:
+        return "No action needed. Your domain is live."
+    if domain.setup_failed:
+        return (
+            "Correct the DNS records, then run "
+            f"`fastapi cloud domains restart {domain.name}`."
+        )
+    if domain.status in ATTENTION_STATUSES:
+        return "Correct the DNS records shown. We'll check again automatically."
+    return (
+        "Wait for automatic verification. DNS changes can take up to 48 hours "
+        "to propagate."
+    )
+
+
+def render_custom_domain_details(
+    domain: CustomDomain,
+    toolkit: RichToolkit,
+) -> None:
+    metadata = DOMAIN_STATUS[domain.status]
+    rows: list[tuple[str, RenderableType]] = [
+        ("hostname", domain.name),
+        ("status", metadata.label),
+        ("raw status", domain.status.value),
+        ("setup mode", get_setup_mode_label(domain)),
+        ("id", domain.id),
+        ("created", format_last_updated(domain.created_at)),
+        ("updated", format_last_updated(domain.updated_at)),
+        ("setup started", format_last_updated(domain.setup_started_at)),
+        ("last checked", format_last_updated(domain.setup_checked_at)),
+    ]
+    if domain.setup_successful:
+        url = f"https://{domain.name}"
+        rows.insert(1, ("url", Text(url, style=f"link {url}")))
+
+    toolkit.print(Text(domain.name, style="bold"), emoji="🌐")
+    toolkit.print_line()
+    toolkit.print(get_details_table(rows))
+    toolkit.print_line()
+    toolkit.print(f"[bold]{metadata.title}[/bold]\n{metadata.description}")
+
+    for number, step in enumerate(get_setup_steps(domain), start=1):
+        toolkit.print_line()
+        _render_setup_step(step, toolkit, number=number)
+
+    toolkit.print_line()
+    toolkit.print(_get_next_action(domain), emoji="⏳")
