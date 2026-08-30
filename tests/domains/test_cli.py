@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 import respx
 import time_machine
-from httpx import Response
+from httpx import ConnectError, Response
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.api import CustomDomainStatus
@@ -1033,3 +1033,206 @@ def test_domains_remove_selector_handles_empty_collection(
 
     assert result.exit_code == 0
     assert "No custom domains found." in result.output
+
+
+def test_domains_restart_json_requires_domain(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        ["domains", "restart", "--app-id", APP_ID, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Custom domain is required.",
+            "hint": "Pass DOMAIN to choose a custom domain.",
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_restart_returns_reset_domain_as_json(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    failed_domain = custom_domain(
+        status="internal_dcv_timeout",
+        setup_in_progress=False,
+        setup_failed=True,
+    )
+    restarted_domain = custom_domain()
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [failed_domain], "count": 1})
+    )
+    respx_mock.post(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}/restart-setup").mock(
+        return_value=Response(200, json=restarted_domain)
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "restart",
+            "  API.Example.COM. ",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {"app_id": APP_ID, "domain": restarted_domain}
+    }
+
+
+@pytest.mark.respx
+def test_domains_restart_selector_only_shows_failed_domains(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    live_domain = custom_domain(
+        id="00000000-0000-4000-8000-000000000004",
+        name="live.example.com",
+        status="origin_setup_success",
+        setup_in_progress=False,
+        setup_successful=True,
+    )
+    failed_domain = custom_domain(
+        name="failed.example.com",
+        status="external_dcv_timeout",
+        setup_in_progress=False,
+        setup_failed=True,
+    )
+    restarted_domain = custom_domain(
+        name="failed.example.com",
+        is_using_pre_validation=True,
+        dns_records=PREVALIDATION_RECORDS,
+    )
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(
+            200,
+            json={"data": [live_domain, failed_domain], "count": 2},
+        )
+    )
+    respx_mock.post(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}/restart-setup").mock(
+        return_value=Response(200, json=restarted_domain)
+    )
+
+    with patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]):
+        result = runner.invoke(app, ["domains", "restart", "--app-id", APP_ID])
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+         Select the custom domain to restart:
+         ● failed.example.com
+
+         Select the custom domain to restart: failed.example.com
+
+        🐔 Restarted verification for failed.example.com
+
+        🌐 failed.example.com
+
+        ⏳ Waiting domain verification
+           We are checking your DNS configuration to confirm domain ownership. This
+           usually takes a few minutes.
+
+        1️⃣ Prove ownership
+           Add this TXT record at your DNS provider:
+
+           type   TXT
+           name   _fc-dcv.api
+           value  ownership-value
+
+        2️⃣ Secure your domain
+
+        3️⃣ Switch traffic
+
+           hint: Run `fastapi cloud domains get failed.example.com` to check progress.
+        """
+    )
+
+
+@pytest.mark.respx
+def test_domains_restart_selector_handles_no_failed_domains(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    live_domain = custom_domain(
+        status="origin_setup_success",
+        setup_in_progress=False,
+        setup_successful=True,
+    )
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [live_domain], "count": 1})
+    )
+
+    result = runner.invoke(app, ["domains", "restart", "--app-id", APP_ID])
+
+    assert result.exit_code == 0
+    assert "No failed custom domains found." in result.output
+
+
+@pytest.mark.respx
+def test_domains_restart_surfaces_backend_rejection_for_live_domain(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    live_domain = custom_domain(
+        status="origin_setup_success",
+        setup_in_progress=False,
+        setup_successful=True,
+    )
+    message = "The custom domain setup has already been completed successfully"
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [live_domain], "count": 1})
+    )
+    respx_mock.post(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}/restart-setup").mock(
+        return_value=Response(400, json={"detail": message})
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "restart",
+            live_domain["name"],
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": message,
+            "hint": None,
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_list_surfaces_network_errors(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        side_effect=ConnectError("Connection failed")
+    )
+
+    result = runner.invoke(app, ["domains", "list", "--app-id", APP_ID, "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "network_error",
+            "message": "Error fetching custom domains. Please try again later.",
+            "hint": None,
+        }
+    }
