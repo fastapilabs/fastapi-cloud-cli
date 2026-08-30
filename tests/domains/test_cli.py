@@ -58,8 +58,9 @@ def custom_domain(**overrides: Any) -> dict[str, Any]:
         ["list"],
         ["get", "api.example.com"],
         ["add", "api.example.com", "--standard"],
+        ["remove", "api.example.com", "--yes"],
     ],
-    ids=["list", "get", "add"],
+    ids=["list", "get", "add", "remove"],
 )
 def test_domains_commands_require_user_session(
     command: list[str],
@@ -839,3 +840,196 @@ def test_domains_add_surfaces_entitlement_limit(
             "hint": None,
         }
     }
+
+
+def test_domains_remove_json_requires_domain(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        ["domains", "remove", "--yes", "--app-id", APP_ID, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Custom domain is required.",
+            "hint": "Pass DOMAIN to choose a custom domain.",
+        }
+    }
+
+
+def test_domains_remove_json_requires_confirmation(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        ["domains", "remove", "api.example.com", "--app-id", APP_ID, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Removal confirmation is required.",
+            "hint": "Pass --yes to confirm removal.",
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_remove_resolves_name_and_returns_json(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
+    respx_mock.delete(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}").mock(
+        return_value=Response(200, json={"message": "Custom domain deleted"})
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "remove",
+            "  API.Example.COM. ",
+            "--yes",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "data": {
+            "app_id": APP_ID,
+            "domain_id": DOMAIN_ID,
+            "name": "api.example.com",
+            "removed": True,
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_remove_warns_and_confirms(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
+    respx_mock.delete(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}").mock(
+        return_value=Response(200, json={"message": "Custom domain deleted"})
+    )
+
+    with patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]):
+        result = runner.invoke(
+            app,
+            ["domains", "remove", domain["name"], "--app-id", APP_ID],
+        )
+
+    assert result.exit_code == 0
+    assert (
+        "FastAPI Cloud resources for api.example.com will be removed" in result.output
+    )
+    assert "DNS records at" in result.output
+    assert "will not be changed" in result.output
+    assert "Remove api.example.com?" in result.output
+    assert "Removed api.example.com" in result.output
+
+
+@pytest.mark.respx
+def test_domains_remove_can_select_domain(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
+    respx_mock.delete(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}").mock(
+        return_value=Response(200, json={"message": "Custom domain deleted"})
+    )
+
+    with patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]):
+        result = runner.invoke(
+            app,
+            ["domains", "remove", "--yes", "--app-id", APP_ID],
+        )
+
+    assert result.exit_code == 0
+    assert "Select the custom domain to remove:" in result.output
+    assert "Removed api.example.com" in result.output
+
+
+@pytest.mark.respx
+def test_domains_remove_can_be_cancelled(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
+
+    with patch(
+        "rich_toolkit.container.getchar",
+        side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+    ):
+        result = runner.invoke(
+            app,
+            ["domains", "remove", domain["name"], "--app-id", APP_ID],
+        )
+
+    assert result.exit_code == 0
+    assert "Removal cancelled." in result.output
+
+
+@pytest.mark.respx
+def test_domains_remove_reports_not_found_before_delete(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [custom_domain()], "count": 1})
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "remove",
+            "missing.example.com",
+            "--yes",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["error"] == {
+        "code": "not_found",
+        "message": "Custom domain missing.example.com not found.",
+        "hint": "Run `fastapi cloud domains list` to see available custom domains.",
+    }
+
+
+@pytest.mark.respx
+def test_domains_remove_selector_handles_empty_collection(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [], "count": 0})
+    )
+
+    result = runner.invoke(
+        app,
+        ["domains", "remove", "--yes", "--app-id", APP_ID],
+    )
+
+    assert result.exit_code == 0
+    assert "No custom domains found." in result.output
