@@ -27,6 +27,52 @@ BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
 )
 
 
+class CustomDomainStatus(str, Enum):
+    internal_dcv_pending = "internal_dcv_pending"
+    internal_dcv_missing = "internal_dcv_missing"
+    internal_dcv_invalid = "internal_dcv_invalid"
+    internal_dcv_timeout = "internal_dcv_timeout"
+    internal_dcv_revoked = "internal_dcv_revoked"
+    external_dcv_pending = "external_dcv_pending"
+    external_dcv_proxied = "external_dcv_proxied"
+    external_dcv_secured = "external_dcv_secured"
+    external_dcv_blocked = "external_dcv_blocked"
+    external_dcv_timeout = "external_dcv_timeout"
+    origin_setup_pending = "origin_setup_pending"
+    origin_setup_missing = "origin_setup_missing"
+    origin_setup_invalid = "origin_setup_invalid"
+    origin_setup_timeout = "origin_setup_timeout"
+    origin_setup_success = "origin_setup_success"
+    origin_setup_removed = "origin_setup_removed"
+
+
+class CustomDomainRecord(BaseModel):
+    type: Literal["TXT", "CNAME", "A"]
+    name: str | None
+    value: str | None
+
+
+class CustomDomain(BaseModel):
+    id: str
+    name: str
+    status: CustomDomainStatus
+    setup_in_progress: bool
+    setup_failed: bool
+    setup_successful: bool
+    is_using_pre_validation: bool
+    dns_records: list[CustomDomainRecord]
+    created_at: str
+    updated_at: str
+    setup_started_at: str | None
+    setup_checked_at: str | None
+    app_id: str
+
+
+class CustomDomainsAPIResponse(BaseModel):
+    data: list[CustomDomain]
+    count: int
+
+
 class DeploymentStatus(str, Enum):
     waiting_upload = "waiting_upload"
     upload_cancelled = "upload_cancelled"

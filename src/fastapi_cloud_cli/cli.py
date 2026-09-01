@@ -11,6 +11,7 @@ from .commands.auth import auth_app
 from .commands.ci import ci_app
 from .commands.deploy import deploy
 from .commands.deployments import deployments_app
+from .commands.domains import domains_app
 from .commands.env import env_app
 from .commands.integrations import integrations_app
 from .commands.login import login
@@ -74,6 +75,7 @@ cloud_app.add_typer(auth_app, name="auth")
 cloud_app.add_typer(apps_app, name="apps")
 cloud_app.add_typer(ci_app, name="ci")
 cloud_app.add_typer(deployments_app, name="deployments")
+cloud_app.add_typer(domains_app, name="domains")
 cloud_app.add_typer(integrations_app, name="integrations")
 cloud_app.add_typer(teams_app, name="teams")
 cloud_app.add_typer(tokens_app, name="tokens")

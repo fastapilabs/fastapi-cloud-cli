@@ -7,6 +7,9 @@ from ._errors import handle_http_error as handle_http_error
 from ._models import SUCCESSFUL_STATUSES as SUCCESSFUL_STATUSES
 from ._models import AppLogEntry as AppLogEntry
 from ._models import BuildLogLineMessage as BuildLogLineMessage
+from ._models import CustomDomain as CustomDomain
+from ._models import CustomDomainRecord as CustomDomainRecord
+from ._models import CustomDomainStatus as CustomDomainStatus
 from ._models import DeploymentStatus as DeploymentStatus
 from ._retry import STREAM_LOGS_MAX_RETRIES as STREAM_LOGS_MAX_RETRIES
 from .client import APIClient as APIClient

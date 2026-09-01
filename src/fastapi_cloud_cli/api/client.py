@@ -28,6 +28,7 @@ from ._models import (
     AppLogEntry,
     BuildLogAdapter,
     BuildLogLine,
+    CustomDomainsAPIResponse,
     DeploymentStatus,
 )
 from ._retry import (
@@ -133,6 +134,12 @@ class APIClient(httpx.Client):
                 progress.set_error(message)
 
             raise typer.Exit(1) from None
+
+    def get_custom_domains(self, *, app_id: str) -> CustomDomainsAPIResponse:
+        response = self.get(f"/apps/{app_id}/custom-domains")
+        response.raise_for_status()
+
+        return CustomDomainsAPIResponse.model_validate(response.json())
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
