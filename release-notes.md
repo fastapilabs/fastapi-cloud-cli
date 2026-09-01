@@ -19,6 +19,7 @@
 
 ### Internal
 
+* ⬆ Bump the github-actions group with 3 updates. PR [#342](https://github.com/fastapilabs/fastapi-cloud-cli/pull/342) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump pre-commit hooks. PR [#341](https://github.com/fastapilabs/fastapi-cloud-cli/pull/341) by [@pr-submit[bot]](https://github.com/apps/pr-submit).
 
 ## 0.24.0 (2026-08-27)
