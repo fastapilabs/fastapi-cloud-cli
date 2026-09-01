@@ -59,8 +59,9 @@ def custom_domain(**overrides: Any) -> dict[str, Any]:
         ["get", "api.example.com"],
         ["add", "api.example.com", "--standard"],
         ["remove", "api.example.com", "--yes"],
+        ["restart", "api.example.com"],
     ],
-    ids=["list", "get", "add", "remove"],
+    ids=["list", "get", "add", "remove", "restart"],
 )
 def test_domains_commands_require_user_session(
     command: list[str],
@@ -1088,6 +1089,50 @@ def test_domains_restart_returns_reset_domain_as_json(
 
 
 @pytest.mark.respx
+def test_domains_restart_with_argument_renders_result(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    failed_domain = custom_domain(
+        status="internal_dcv_timeout",
+        setup_in_progress=False,
+        setup_failed=True,
+    )
+    restarted_domain = custom_domain(dns_records=[])
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [failed_domain], "count": 1})
+    )
+    respx_mock.post(f"/apps/{APP_ID}/custom-domains/{DOMAIN_ID}/restart-setup").mock(
+        return_value=Response(200, json=restarted_domain)
+    )
+
+    result = runner.invoke(
+        app,
+        ["domains", "restart", failed_domain["name"], "--app-id", APP_ID],
+    )
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+        🐔 Restarted verification for api.example.com
+
+        🌐 api.example.com
+
+        ⏳ Waiting domain verification
+           We are checking your DNS configuration to confirm domain ownership. This
+           usually takes a few minutes.
+
+           Add the record below. We'll verify ownership, issue your TLS certificate,
+           and route traffic automatically.
+
+           hint: Run `fastapi cloud domains get api.example.com` to check progress.
+        """
+    )
+
+
+@pytest.mark.respx
 def test_domains_restart_selector_only_shows_failed_domains(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -1175,6 +1220,39 @@ def test_domains_restart_selector_handles_no_failed_domains(
 
     assert result.exit_code == 0
     assert "No failed custom domains found." in result.output
+
+
+@pytest.mark.respx
+def test_domains_restart_reports_not_found(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [custom_domain()], "count": 1})
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "restart",
+            "missing.example.com",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_found",
+            "message": "Custom domain missing.example.com not found.",
+            "hint": (
+                "Run `fastapi cloud domains list` to see available custom domains."
+            ),
+        }
+    }
 
 
 @pytest.mark.respx
