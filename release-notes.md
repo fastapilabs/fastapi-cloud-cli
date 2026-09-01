@@ -20,6 +20,7 @@
 
 ### Internal
 
+* ⬆ Bump sentry-sdk from 2.66.1 to 2.68.1. PR [#344](https://github.com/fastapilabs/fastapi-cloud-cli/pull/344) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump rignore from 0.8.0 to 0.8.1. PR [#347](https://github.com/fastapilabs/fastapi-cloud-cli/pull/347) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump typer from 0.27.0 to 0.27.1. PR [#345](https://github.com/fastapilabs/fastapi-cloud-cli/pull/345) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the python-packages group with 6 updates. PR [#343](https://github.com/fastapilabs/fastapi-cloud-cli/pull/343) by [@dependabot[bot]](https://github.com/apps/dependabot).
