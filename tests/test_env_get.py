@@ -4,13 +4,13 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 
 def test_shows_a_message_if_not_logged_in(logged_out_cli: None) -> None:
@@ -32,7 +32,11 @@ def test_shows_message_if_no_environment_variables(
         result = runner.invoke(app, ["env", "get"])
 
     assert result.exit_code == 0
-    assert "No environment variables found." in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+No environment variables found.\
+""")
 
 
 @pytest.mark.respx
@@ -58,9 +62,12 @@ def test_gets_environment_variable_in_human_output_with_environment_variables_ta
     result = runner.invoke(app, ["env", "get", "LOG_LEVEL", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "environment variables" in result.output
-    assert "LOG_LEVEL" in result.output
-    assert "info" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+name:   LOG_LEVEL
+value:  info\
+""")
 
 
 @pytest.mark.respx
@@ -85,9 +92,12 @@ def test_gets_secret_environment_variable_in_human_output(
     result = runner.invoke(app, ["env", "get", "DATABASE_URL", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "environment variables" in result.output
-    assert "DATABASE_URL" in result.output
-    assert "[secret]" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+name:   DATABASE_URL
+value:  [secret]\
+""")
 
 
 @pytest.mark.respx
@@ -119,10 +129,18 @@ def test_get_prompts_for_environment_variable_name(
         result = runner.invoke(app, ["env", "get", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "environment variables" in result.output
-    assert "Select the environment variable to get:" in result.output
-    assert "DEMO" in result.output
-    assert "VALUE" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Select the environment variable to get:
+● DEMO
+○ OTHER
+
+Select the environment variable to get: DEMO
+
+name:   DEMO
+value:  VALUE\
+""")
 
 
 def test_get_json_returns_missing_required_input_without_name(

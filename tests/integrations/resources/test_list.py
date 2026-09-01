@@ -5,13 +5,13 @@ from typing import Literal
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from tests.utils import changing_dir
+from tests.utils import SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 Provider = Literal["neon", "redis", "supabase", "logfire"]
 
@@ -203,15 +203,16 @@ def test_lists_resources_in_human_output(
     )
 
     assert result.exit_code == 0
-    assert "connected resources" in result.output
-    assert "Name" in result.output
-    assert "Provider" in result.output
-    assert "Resource ID" in result.output
-    assert "Neon" in result.output
-    assert "Redis Cloud" in result.output
-    assert "Supabase" in result.output
-    assert "Logfire" in result.output
-    assert "00000000-0000-4000-8000-000000000010" in result.output
+    assert result.output == snapshot("""\
+connected resources
+
+Name           Provider     Resource ID
+
+primary        Neon         00000000-0000-4000-8000-000000000010
+cache          Redis Cloud  00000000-0000-4000-8000-000000000011
+analytics      Supabase     00000000-0000-4000-8000-000000000012
+observability  Logfire      00000000-0000-4000-8000-000000000013\
+""")
 
 
 @pytest.mark.respx
@@ -229,7 +230,11 @@ def test_lists_resources_in_human_output_empty(
     )
 
     assert result.exit_code == 0
-    assert "No connected resources found." in result.output
+    assert result.output == snapshot("""\
+connected resources
+
+No connected resources found.\
+""")
 
 
 @pytest.mark.respx

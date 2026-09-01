@@ -5,13 +5,13 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 TEAM_ID = "00000000-0000-4000-8000-000000000001"
 LINKED_TEAM_ID = "00000000-0000-4000-8000-000000000002"
@@ -215,14 +215,22 @@ def test_lists_providers_prompts_for_team_and_renders_statuses(
         result = runner.invoke(app, ["integrations", "providers", "list"])
 
     assert result.exit_code == 0
-    assert "Select the team:" in result.output
-    assert "Acme" in result.output
-    assert "integrations" in result.output
-    assert "Name" in result.output
-    assert "coming soon" in result.output
-    assert "not connected" in result.output
-    assert "connected" in result.output
-    assert INTEGRATION_ID in result.output
+    assert result.output == snapshot("""\
+Select the team:
+Filter:
+
+● Acme
+
+Select the team: Acme
+
+integrations
+
+Name         Status         Integration ID
+
+Logfire      coming soon    -
+Neon         connected      00000000-0000-4000-8000-000000000003
+Redis Cloud  not connected  -\
+""")
 
 
 @pytest.mark.respx
@@ -239,8 +247,11 @@ def test_lists_providers_returns_missing_input_when_no_teams_exist(
         result = runner.invoke(app, ["integrations", "providers", "list"])
 
     assert result.exit_code == 1
-    assert "No teams found." in result.output
-    assert "Create a team before listing integration providers." in result.output
+    assert result.output == snapshot("""\
+✗ error: No teams found.
+
+  hint: Create a team before listing integration providers.\
+""")
 
 
 @pytest.mark.respx
@@ -258,7 +269,11 @@ def test_lists_providers_in_human_output_empty(
     )
 
     assert result.exit_code == 0
-    assert "No integration providers available." in result.output
+    assert result.output == snapshot("""\
+integrations
+
+No integration providers available.\
+""")
 
 
 @pytest.mark.respx

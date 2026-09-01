@@ -5,18 +5,14 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 assets_path = Path(__file__).parent / "assets"
-
-
-def _has_environment_variables_title(output: str) -> bool:
-    return any(line.strip() == "environment variables" for line in output.splitlines())
 
 
 @pytest.fixture
@@ -120,9 +116,16 @@ def test_shows_message_when_it_deletes(
         result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
 
     assert result.exit_code == 0
-    assert "Delete SOME_VAR?" in result.output
-    assert _has_environment_variables_title(result.output)
-    assert "Environment variable SOME_VAR deleted" in result.output
+    assert result.output == snapshot("""\
+Delete SOME_VAR?
+● Yes  ○ No
+
+Delete SOME_VAR? Yes
+
+environment variables
+
+Environment variable SOME_VAR deleted.\
+""")
 
 
 @pytest.mark.respx
@@ -219,16 +222,17 @@ def test_shows_selector_for_environment_variables(
         result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 0
-    assert _has_environment_variables_title(result.output)
-    selector_line = next(
-        line
-        for line in result.output.splitlines()
-        if line.strip() == "Select the environment variable to delete:"
-    )
-    assert selector_line.startswith("  Select the environment variable to delete:")
-    assert "Select the environment variable to delete" in result.output
+    assert result.output == snapshot("""\
+environment variables
 
-    assert "Environment variable SECRET_KEY deleted" in result.output
+Select the environment variable to delete:
+● SECRET_KEY
+○ API_KEY
+
+Select the environment variable to delete: SECRET_KEY
+
+Environment variable SECRET_KEY deleted.\
+""")
 
 
 @pytest.mark.respx
@@ -243,8 +247,11 @@ def test_shows_message_if_no_environment_variable(
         result = runner.invoke(app, ["env", "delete"])
 
     assert result.exit_code == 0
-    assert _has_environment_variables_title(result.output)
-    assert "No environment variables found." in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+No environment variables found.\
+""")
 
 
 def test_delete_json_returns_missing_required_input_without_name(
@@ -305,5 +312,15 @@ def test_shows_message_when_deletion_is_cancelled(
         result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
 
     assert result.exit_code == 0
-    assert "Delete SOME_VAR?" in result.output
-    assert "Deletion cancelled." in result.output
+    assert result.output == snapshot("""\
+Delete SOME_VAR?
+● Yes  ○ No
+
+Delete SOME_VAR?
+○ Yes  ● No
+
+Delete SOME_VAR? No
+environment variables
+
+Deletion cancelled.\
+""")

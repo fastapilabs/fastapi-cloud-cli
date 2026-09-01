@@ -7,7 +7,7 @@ import pytest
 import respx
 import time_machine
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.commands.apps.list import (
@@ -17,9 +17,9 @@ from fastapi_cloud_cli.commands.apps.list import (
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import AppConfig
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 
 def test_creates_app_json_returns_not_logged_in_when_logged_out(
@@ -185,9 +185,16 @@ def test_creates_app_prompts_for_team_when_team_id_is_missing(
         result = runner.invoke(app, ["apps", "create", "--name", "API", "--no-link"])
 
     assert result.exit_code == 0
-    assert "Select the team:" in result.output
-    assert "Acme" in result.output
-    assert "Created app API" in result.output
+    assert result.output == snapshot("""\
+Select the team:
+Filter:
+
+● Acme
+
+Select the team: Acme
+
+Created app API\
+""")
     assert not (tmp_path / ".fastapicloud" / "cloud.json").exists()
 
 
@@ -435,8 +442,10 @@ def test_updates_linked_app_directory_in_human_output(
         result = runner.invoke(app, ["apps", "update", "--directory", "src"])
 
     assert result.exit_code == 0
-    assert "Updated app API" in result.output
-    assert "Directory: src" in result.output
+    assert result.output == snapshot("""\
+Updated app API
+Directory: src\
+""")
 
 
 def test_updates_app_json_returns_missing_required_input_without_update_flags(
@@ -704,8 +713,11 @@ def test_gets_app_human_returns_not_logged_in_when_logged_out(
     )
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
-    assert "fastapi cloud login" in result.output
+    assert result.output == snapshot("""\
+✗ error: No credentials found.
+
+  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+""")
 
 
 @pytest.mark.respx
@@ -737,9 +749,20 @@ def test_lists_apps_prompts_for_team_when_team_id_is_missing(
         result = runner.invoke(app, ["apps", "list"])
 
     assert result.exit_code == 0
-    assert "Select the team:" in result.output
-    assert "Acme" in result.output
-    assert "API" in result.output
+    assert result.output == snapshot("""\
+Select the team:
+Filter:
+
+● Acme
+
+Select the team: Acme
+
+apps
+
+Name  ID
+
+API   00000000-0000-4000-8000-000000000002\
+""")
     assert apps_route.calls.last.request.url.params["team_id"] == team["id"]
 
 
@@ -755,8 +778,11 @@ def test_lists_apps_returns_missing_required_input_when_no_teams(
     result = runner.invoke(app, ["apps", "list"])
 
     assert result.exit_code == 1
-    assert "No teams found." in result.output
-    assert "Create a team before listing apps." in result.output
+    assert result.output == snapshot("""\
+✗ error: No teams found.
+
+  hint: Create a team before listing apps.\
+""")
 
 
 @pytest.mark.respx
@@ -809,7 +835,6 @@ def test_gets_app_in_human_output(
         "directory": "backend",
         "url": "https://api.fastapicloud.app",
     }
-    dashboard_url = "https://dashboard.fastapicloud.com/strawberry/apps/api"
     respx_mock.get(f"/apps/{app_data['id']}").mock(
         return_value=Response(200, json=app_data)
     )
@@ -820,13 +845,16 @@ def test_gets_app_in_human_output(
     result = runner.invoke(app, ["apps", "get", app_data["id"]])
 
     assert result.exit_code == 0
-    assert "📦 API" in result.output
-    assert "slug       api" in result.output
-    assert "directory  backend" in result.output
-    assert "url        https://api.fastapicloud.app" in result.output
-    assert f"dashboard  {dashboard_url}" in result.output
-    assert f"id         {app_data['id']}" in result.output
-    assert f"team id    {app_data['team_id']}" in result.output
+    assert result.output == snapshot("""\
+📦 API
+
+   id         00000000-0000-4000-8000-000000000002
+   slug       api
+   directory  backend
+   url        https://api.fastapicloud.app
+   dashboard  https://dashboard.fastapicloud.com/strawberry/apps/api
+   team id    00000000-0000-4000-8000-000000000001\
+""")
 
 
 @pytest.mark.respx
@@ -945,9 +973,13 @@ def test_lists_apps_in_human_output(
     result = runner.invoke(app, ["apps", "list", "--team-id", team_id])
 
     assert result.exit_code == 0
-    assert "apps" in result.output
-    assert "Name  ID" in result.output
-    assert "API   00000000-0000-4000-8000-000000000002" in result.output
+    assert result.output == snapshot("""\
+apps
+
+Name  ID
+
+API   00000000-0000-4000-8000-000000000002\
+""")
 
 
 @pytest.mark.respx
@@ -970,7 +1002,11 @@ def test_lists_apps_in_human_output_empty(
     result = runner.invoke(app, ["apps", "list", "--team-id", team_id])
 
     assert result.exit_code == 0
-    assert "No apps found." in result.output
+    assert result.output == snapshot("""\
+apps
+
+No apps found.\
+""")
 
 
 def test_lists_apps_human_returns_not_logged_in_when_logged_out(
@@ -979,5 +1015,8 @@ def test_lists_apps_human_returns_not_logged_in_when_logged_out(
     result = runner.invoke(app, ["apps", "list", "--team-id", "team-1"])
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
-    assert "fastapi cloud login" in result.output
+    assert result.output == snapshot("""\
+✗ error: No credentials found.
+
+  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+""")

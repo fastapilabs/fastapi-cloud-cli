@@ -6,19 +6,15 @@ import pytest
 import respx
 import time_machine
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from tests.conftest import ConfiguredApp
-from tests.utils import changing_dir
+from tests.utils import SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 assets_path = Path(__file__).parent / "assets"
-
-
-def _normalize_output(output: str) -> str:
-    return "\n".join(line.rstrip() for line in output.strip("\n").splitlines())
 
 
 def test_shows_a_message_if_not_logged_in(logged_out_cli: None) -> None:
@@ -81,7 +77,11 @@ def test_shows_a_message_if_no_env_variables(
         result = runner.invoke(app, ["env", "list"])
 
     assert result.exit_code == 0
-    assert "No environment variables found." in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+No environment variables found.\
+""")
 
 
 @pytest.mark.respx
@@ -104,8 +104,14 @@ def test_shows_environment_variables_names(
         result = runner.invoke(app, ["env", "list"])
 
     assert result.exit_code == 0
-    assert "SECRET_KEY" in result.output
-    assert "API_KEY" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Key         Value  Last updated
+
+SECRET_KEY  123    -
+API_KEY     456    -\
+""")
 
 
 @pytest.mark.respx
@@ -208,14 +214,14 @@ def test_shows_environment_variables_in_compact_table(
         result = runner.invoke(app, ["env", "list"])
 
     assert result.exit_code == 0
-    output = _normalize_output(result.output)
+    assert result.output == snapshot("""\
+environment variables
 
-    assert "APP_URL" in output
-    assert "https://fastapicloud.com" in output
-    assert "12 days ago" in output
-    assert "SENTRY_ENVIRONMENT" in output
-    assert "production" in output
-    assert "2 months ago" in output
+Key                 Value                     Last updated
+
+APP_URL             https://fastapicloud.com  12 days ago
+SENTRY_ENVIRONMENT  production                2 months ago\
+""")
 
 
 @pytest.mark.respx
@@ -249,17 +255,18 @@ def test_truncates_values_and_marks_secrets_in_compact_table(
         result = runner.invoke(app, ["env", "list"])
 
     assert result.exit_code == 0
-    output = _normalize_output(result.output)
-    assert "LONG_VALUE" in output
-    assert "1234567890123456789012345678901234567..." in output
-    assert "2 months ago" in output
-    assert "SECRET_KEY" in output
-    assert "[secret]" in output
-    assert "1 month ago" in output
-    assert long_value not in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Key         Value                                     Last updated
+
+LONG_VALUE  1234567890123456789012345678901234567...  2 months ago
+SECRET_KEY  [secret]                                  1 month ago\
+""")
 
 
 @pytest.mark.respx
+@time_machine.travel(datetime(2026, 8, 13, 12, tzinfo=timezone.utc), tick=False)
 def test_shows_secret_environment_variables_without_value(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -285,4 +292,10 @@ def test_shows_secret_environment_variables_without_value(
         result = runner.invoke(app, ["env", "list"])
 
     assert result.exit_code == 0
-    assert "SECRET_KEY" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Key         Value     Last updated
+
+SECRET_KEY  [secret]  7 months ago\
+""")
