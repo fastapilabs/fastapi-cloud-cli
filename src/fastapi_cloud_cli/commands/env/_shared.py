@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from rich.text import Text
 
-from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.api import APIClient
 
 ENV_VAR_VALUE_MAX_LENGTH = 40
 

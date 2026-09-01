@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from rich.markup import escape
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.utils.api import (
+from fastapi_cloud_cli.api import (
     APIClient,
     AppLogEntry,
     StreamLogError,

@@ -6,14 +6,14 @@ import typer
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
-from fastapi_cloud_cli.utils.api import (
+from fastapi_cloud_cli.api import (
     SUCCESSFUL_STATUSES,
     APIClient,
     DeploymentStatus,
     StreamLogError,
     TooManyRetriesError,
 )
+from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
 
 # (bullet emoji, message) — the emoji replaces the progress animation
 WAITING_MESSAGES = [

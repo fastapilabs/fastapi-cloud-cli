@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.utils.api import (
+from fastapi_cloud_cli.api import (
     APIClient,
     BuildLogLineMessage,
     DeploymentStatus,

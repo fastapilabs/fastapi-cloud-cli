@@ -4,6 +4,7 @@ import typer
 from pydantic import TypeAdapter
 from rich_toolkit.menu import Option
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.deploy.archive import AppDirectory, _get_app_name
 from fastapi_cloud_cli.commands.deploy.cloud import (
     AppResponse,
@@ -12,7 +13,6 @@ from fastapi_cloud_cli.commands.deploy.cloud import (
     _get_teams,
     _update_app,
 )
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 

@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.apps.list import _get_app
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit

@@ -6,8 +6,8 @@ from httpx import Client
 from pydantic import BaseModel
 from rich_toolkit.progress import Progress
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.progress_file import ProgressFile
 
 logger = logging.getLogger(__name__)

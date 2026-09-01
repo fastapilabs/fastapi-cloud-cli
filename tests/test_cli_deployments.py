@@ -9,8 +9,8 @@ import time_machine
 from httpx import Response
 from typer.testing import CliRunner
 
+from fastapi_cloud_cli.api import StreamLogError, TooManyRetriesError
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import build_logs_response, changing_dir
 
@@ -637,7 +637,7 @@ def test_streaming_build_logs_handles_keyboard_interrupt(
     deployment_id = "00000000-0000-4000-8000-000000000003"
 
     with patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+        "fastapi_cloud_cli.api.APIClient.stream_build_logs",
         side_effect=KeyboardInterrupt,
     ):
         result = runner.invoke(
@@ -652,7 +652,7 @@ def test_build_logs_handles_not_found_stream_error(logged_in_cli: None) -> None:
     deployment_id = "00000000-0000-4000-8000-000000000003"
 
     with patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+        "fastapi_cloud_cli.api.APIClient.stream_build_logs",
         side_effect=StreamLogError("not found", status_code=404),
     ):
         result = runner.invoke(
@@ -680,7 +680,7 @@ def test_build_logs_handles_http_stream_error_with_hint(logged_in_cli: None) -> 
             raise StreamLogError("HTTP 401") from exc
 
     with patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+        "fastapi_cloud_cli.api.APIClient.stream_build_logs",
         side_effect=raise_stream_error,
     ):
         result = runner.invoke(
@@ -697,7 +697,7 @@ def test_build_logs_handles_generic_stream_error(logged_in_cli: None) -> None:
     deployment_id = "00000000-0000-4000-8000-000000000003"
 
     with patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+        "fastapi_cloud_cli.api.APIClient.stream_build_logs",
         side_effect=StreamLogError("Log storage unavailable"),
     ):
         result = runner.invoke(
@@ -713,7 +713,7 @@ def test_build_logs_handles_connection_loss(logged_in_cli: None) -> None:
     deployment_id = "00000000-0000-4000-8000-000000000003"
 
     with patch(
-        "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+        "fastapi_cloud_cli.api.APIClient.stream_build_logs",
         side_effect=TooManyRetriesError("Connection lost"),
     ):
         result = runner.invoke(

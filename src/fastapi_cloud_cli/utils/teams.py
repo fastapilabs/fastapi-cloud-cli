@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import BaseModel
 from rich_toolkit.menu import Option
 
-from fastapi_cloud_cli.utils.api import APIClient
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 

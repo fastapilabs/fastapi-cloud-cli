@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 from rich_toolkit.progress import Progress
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import AuthConfig, AuthMode, write_auth_config
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 

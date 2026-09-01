@@ -5,8 +5,8 @@ import typer
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
