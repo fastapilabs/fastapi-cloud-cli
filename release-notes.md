@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add `fastapi cloud domains remove`. PR [#335](https://github.com/fastapilabs/fastapi-cloud-cli/pull/335) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud domains add`. PR [#334](https://github.com/fastapilabs/fastapi-cloud-cli/pull/334) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud domains get`. PR [#333](https://github.com/fastapilabs/fastapi-cloud-cli/pull/333) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud domains list`. PR [#332](https://github.com/fastapilabs/fastapi-cloud-cli/pull/332) by [@patrick91](https://github.com/patrick91).
@@ -16,6 +17,15 @@
 ### Upgrades
 
 * ⬆️ Bump Typer min version to `0.26.1`. PR [#331](https://github.com/fastapilabs/fastapi-cloud-cli/pull/331) by [@YuriiMotov](https://github.com/YuriiMotov).
+
+### Internal
+
+* ⬆ Bump rignore from 0.8.0 to 0.8.1. PR [#347](https://github.com/fastapilabs/fastapi-cloud-cli/pull/347) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump typer from 0.27.0 to 0.27.1. PR [#345](https://github.com/fastapilabs/fastapi-cloud-cli/pull/345) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump the python-packages group with 6 updates. PR [#343](https://github.com/fastapilabs/fastapi-cloud-cli/pull/343) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump fastar from 0.11.0 to 0.12.0. PR [#346](https://github.com/fastapilabs/fastapi-cloud-cli/pull/346) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump the github-actions group with 3 updates. PR [#342](https://github.com/fastapilabs/fastapi-cloud-cli/pull/342) by [@dependabot[bot]](https://github.com/apps/dependabot).
+* ⬆ Bump pre-commit hooks. PR [#341](https://github.com/fastapilabs/fastapi-cloud-cli/pull/341) by [@pr-submit[bot]](https://github.com/apps/pr-submit).
 
 ## 0.24.0 (2026-08-27)
 
