@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Add `fastapi cloud domains list`. PR [#332](https://github.com/fastapilabs/fastapi-cloud-cli/pull/332) by [@patrick91](https://github.com/patrick91).
+
 ### Refactors
 
 * ♻️ Split API client internals. PR [#339](https://github.com/fastapilabs/fastapi-cloud-cli/pull/339) by [@patrick91](https://github.com/patrick91).
