@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.apps.list import (
     App,
     _get_app,
@@ -13,7 +14,6 @@ from fastapi_cloud_cli.commands.apps.list import (
     _get_team,
 )
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit

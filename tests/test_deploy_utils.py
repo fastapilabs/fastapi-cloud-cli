@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
+from fastapi_cloud_cli.api import DeploymentStatus
 from fastapi_cloud_cli.commands.deploy.archive import (
     _get_large_files,
     _should_exclude_entry,
     validate_app_directory,
 )
-from fastapi_cloud_cli.utils.api import DeploymentStatus
 
 
 def _create_file(path: Path, size_bytes: int) -> None:

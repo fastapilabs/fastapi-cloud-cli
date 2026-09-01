@@ -5,8 +5,8 @@ import typer
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.deploy.archive import validate_app_directory
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit

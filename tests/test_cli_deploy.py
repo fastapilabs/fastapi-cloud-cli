@@ -15,10 +15,10 @@ from httpx import Response
 from rich_toolkit.progress import Progress
 from typer.testing import CliRunner, Result
 
+from fastapi_cloud_cli.api import StreamLogError, TooManyRetriesError
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.commands.deploy import wait
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import StreamLogError, TooManyRetriesError
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
 
@@ -1378,7 +1378,7 @@ def test_shows_error_message_on_build_exception(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+            "fastapi_cloud_cli.api.APIClient.stream_build_logs",
             side_effect=error,
         ),
     ):
@@ -2382,7 +2382,7 @@ def test_polling_timeout_shows_dashboard_link(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
+            "fastapi_cloud_cli.api.APIClient.poll_deployment_status",
             side_effect=TimeoutError("Deployment verification timed out"),
         ),
     ):
@@ -2431,7 +2431,7 @@ def test_ctrl_c_during_verification_shows_cancelled(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.utils.api.APIClient.poll_deployment_status",
+            "fastapi_cloud_cli.api.APIClient.poll_deployment_status",
             side_effect=KeyboardInterrupt(),
         ),
     ):
@@ -2476,7 +2476,7 @@ def test_ctrl_c_during_build_streaming_shows_cancelled(
     with (
         changing_dir(tmp_path),
         patch(
-            "fastapi_cloud_cli.utils.api.APIClient.stream_build_logs",
+            "fastapi_cloud_cli.api.APIClient.stream_build_logs",
             side_effect=KeyboardInterrupt(),
         ),
     ):

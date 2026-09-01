@@ -8,7 +8,7 @@ from agent_detector import DetectionResult
 from httpx import Response
 
 from fastapi_cloud_cli import __version__
-from fastapi_cloud_cli.utils.api import (
+from fastapi_cloud_cli.api import (
     STREAM_LOGS_MAX_RETRIES,
     APIClient,
     BuildLogLineMessage,
@@ -37,7 +37,7 @@ def test_api_client_reports_high_confidence_agent() -> None:
 
     with (
         patch(
-            "fastapi_cloud_cli.utils.api.detect_agent", return_value=detection
+            "fastapi_cloud_cli.api.client.detect_agent", return_value=detection
         ) as mock_detect_agent,
         APIClient() as client,
     ):
@@ -50,7 +50,7 @@ def test_api_client_reports_high_confidence_agent() -> None:
 
 def test_api_client_omits_unattributed_agent() -> None:
     with (
-        patch("fastapi_cloud_cli.utils.api.detect_agent", return_value=None),
+        patch("fastapi_cloud_cli.api.client.detect_agent", return_value=None),
         APIClient() as client,
     ):
         assert client.headers["User-Agent"] == f"fastapi-cloud-cli/{__version__}"
@@ -451,7 +451,7 @@ def test_poll_deployment_status_raises_after_max_consecutive_errors(
 
 def test_poll_deployment_status_timeout(client: APIClient, deployment_id: str) -> None:
     with (
-        patch("fastapi_cloud_cli.utils.api.POLL_TIMEOUT", timedelta(seconds=-1)),
+        patch("fastapi_cloud_cli.api.client.POLL_TIMEOUT", timedelta(seconds=-1)),
         pytest.raises(TimeoutError, match="timed out"),
     ):
         client.poll_deployment_status(deployment_id)

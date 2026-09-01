@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from fastapi_cloud_cli.utils.api import (
+from fastapi_cloud_cli.api import (
     APIClient,
     DeploymentStatus,
     _get_response_error_message,

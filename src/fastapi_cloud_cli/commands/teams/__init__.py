@@ -7,13 +7,13 @@ from rich.markup import escape
 from rich.table import Table
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.teams.get import (
     Team,
     _get_team_dashboard_url,
     get_team,
 )
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption

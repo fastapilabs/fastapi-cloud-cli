@@ -21,9 +21,8 @@ from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.auth import AuthMode, Identity, delete_auth_config
 from fastapi_cloud_cli.utils.errors import ErrorCode, ErrorToolkit
-
-from .auth import AuthMode, Identity, delete_auth_config
 
 logger = logging.getLogger(__name__)
 

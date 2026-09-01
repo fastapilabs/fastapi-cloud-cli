@@ -7,13 +7,13 @@ from rich.table import Table
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands.env._shared import (
     EnvironmentVariable,
     _find_environment_variable,
     _format_env_var_value,
     _get_environment_variables,
 )
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit

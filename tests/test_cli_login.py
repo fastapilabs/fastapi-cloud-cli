@@ -402,11 +402,11 @@ def test_auth_wait_json_cancel_returns_error_envelope(
 def test_fetch_access_token_uses_default_timeout(
     respx_mock: respx.MockRouter, settings: Settings
 ) -> None:
+    from fastapi_cloud_cli.api import APIClient
     from fastapi_cloud_cli.commands._flow import (
         LoginTimeoutError,
         fetch_access_token,
     )
-    from fastapi_cloud_cli.utils.api import APIClient
 
     respx_mock.post(
         "/login/device/token",
@@ -487,8 +487,8 @@ def test_full_login_with_deploy_token_set(
 def test_fetch_access_token_success_immediately(
     respx_mock: respx.MockRouter, settings: Settings
 ) -> None:
+    from fastapi_cloud_cli.api import APIClient
     from fastapi_cloud_cli.commands._flow import fetch_access_token
-    from fastapi_cloud_cli.utils.api import APIClient
 
     respx_mock.post(
         "/login/device/token",
@@ -510,8 +510,8 @@ def test_fetch_access_token_authorization_pending_then_success(
     respx_mock: respx.MockRouter,
     settings: Settings,
 ) -> None:
+    from fastapi_cloud_cli.api import APIClient
     from fastapi_cloud_cli.commands._flow import fetch_access_token
-    from fastapi_cloud_cli.utils.api import APIClient
 
     # First call returns authorization pending, second call succeeds
     respx_mock.post(
@@ -541,8 +541,8 @@ def test_fetch_access_token_handles_400_error_not_authorization_pending(
     respx_mock: respx.MockRouter,
     settings: Settings,
 ) -> None:
+    from fastapi_cloud_cli.api import APIClient
     from fastapi_cloud_cli.commands._flow import fetch_access_token
-    from fastapi_cloud_cli.utils.api import APIClient
 
     respx_mock.post(
         "/login/device/token",
@@ -562,8 +562,8 @@ def test_fetch_access_token_handles_400_error_not_authorization_pending(
 def test_fetch_access_token_handles_500_error(
     respx_mock: respx.MockRouter, settings: Settings
 ) -> None:
+    from fastapi_cloud_cli.api import APIClient
     from fastapi_cloud_cli.commands._flow import fetch_access_token
-    from fastapi_cloud_cli.utils.api import APIClient
 
     respx_mock.post(
         "/login/device/token",

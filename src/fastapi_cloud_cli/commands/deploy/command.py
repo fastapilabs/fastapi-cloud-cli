@@ -6,6 +6,7 @@ from typing import Annotated, Any, cast
 import typer
 from pydantic import BaseModel
 
+from fastapi_cloud_cli.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
     AppResponse,
@@ -18,7 +19,6 @@ from fastapi_cloud_cli.commands.deploy.configure import _configure_app
 from fastapi_cloud_cli.commands.deploy.upload import _cancel_upload, _upload_deployment
 from fastapi_cloud_cli.commands.deploy.wait import _wait_for_deployment
 from fastapi_cloud_cli.commands.login import _interactive_login
-from fastapi_cloud_cli.utils.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.utils.apps import get_app_config
 from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit

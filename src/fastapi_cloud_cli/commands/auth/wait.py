@@ -2,12 +2,12 @@ from typing import Annotated, Any
 
 import typer
 
+from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands._flow import (
     DEFAULT_LOGIN_TIMEOUT_SECONDS,
     complete_device_login,
     render_login_output,
 )
-from fastapi_cloud_cli.utils.api import APIClient
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
