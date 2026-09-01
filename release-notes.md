@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Refactors
+
+* ♻️ Move API client into a package. PR [#338](https://github.com/fastapilabs/fastapi-cloud-cli/pull/338) by [@patrick91](https://github.com/patrick91).
+
 ### Upgrades
 
 * ⬆️ Bump Typer min version to `0.26.1`. PR [#331](https://github.com/fastapilabs/fastapi-cloud-cli/pull/331) by [@YuriiMotov](https://github.com/YuriiMotov).
