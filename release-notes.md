@@ -20,6 +20,7 @@
 
 ### Internal
 
+* ⬆ Bump typer from 0.27.0 to 0.27.1. PR [#345](https://github.com/fastapilabs/fastapi-cloud-cli/pull/345) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the python-packages group with 6 updates. PR [#343](https://github.com/fastapilabs/fastapi-cloud-cli/pull/343) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump fastar from 0.11.0 to 0.12.0. PR [#346](https://github.com/fastapilabs/fastapi-cloud-cli/pull/346) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the github-actions group with 3 updates. PR [#342](https://github.com/fastapilabs/fastapi-cloud-cli/pull/342) by [@dependabot[bot]](https://github.com/apps/dependabot).
