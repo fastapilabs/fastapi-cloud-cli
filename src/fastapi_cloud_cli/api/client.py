@@ -160,6 +160,10 @@ class APIClient(httpx.Client):
 
         return CustomDomain.model_validate(response.json())
 
+    def remove_custom_domain(self, *, app_id: str, domain_id: str) -> None:
+        response = self.delete(f"/apps/{app_id}/custom-domains/{domain_id}")
+        response.raise_for_status()
+
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
         self, deployment_id: str, *, follow: bool = True
