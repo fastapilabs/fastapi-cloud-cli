@@ -10,12 +10,9 @@ import time_machine
 from httpx import Response
 from typer.testing import CliRunner
 
-from fastapi_cloud_cli.api import CustomDomain, CustomDomainStatus
+from fastapi_cloud_cli.api import CustomDomainStatus
 from fastapi_cloud_cli.cli import cloud_app as app
-from fastapi_cloud_cli.commands.domains.rendering import (
-    DOMAIN_STATUS,
-    _get_next_action,
-)
+from fastapi_cloud_cli.commands.domains.rendering import DOMAIN_STATUS
 from tests.conftest import ConfiguredApp
 from tests.utils import Keys, changing_dir
 
@@ -57,8 +54,12 @@ def custom_domain(**overrides: Any) -> dict[str, Any]:
 
 @pytest.mark.parametrize(
     "command",
-    [["list"], ["get", "api.example.com"]],
-    ids=["list", "get"],
+    [
+        ["list"],
+        ["get", "api.example.com"],
+        ["add", "api.example.com", "--standard"],
+    ],
+    ids=["list", "get", "add"],
 )
 def test_domains_commands_require_user_session(
     command: list[str],
@@ -191,8 +192,9 @@ def test_domain_status_metadata_is_exhaustive() -> None:
     assert set(DOMAIN_STATUS) == set(CustomDomainStatus)
 
 
+@pytest.mark.respx
 @pytest.mark.parametrize(
-    ("overrides", "expected"),
+    ("overrides", "expected_output"),
     [
         (
             {
@@ -201,23 +203,35 @@ def test_domain_status_metadata_is_exhaustive() -> None:
                 "setup_failed": True,
             },
             (
-                "Correct the DNS records, then run "
-                "`fastapi cloud domains restart api.example.com`."
+                "Correct the DNS records, then run `fastapi cloud domains restart",
+                "api.example.com`.",
             ),
         ),
         (
             {"status": "internal_dcv_invalid"},
-            "Correct the DNS records shown. We'll check again automatically.",
+            ("Correct the DNS records shown. We'll check again automatically.",),
         ),
     ],
 )
-def test_domain_next_action_when_user_intervention_is_required(
+def test_domains_get_renders_next_action_when_user_intervention_is_required(
     overrides: dict[str, Any],
-    expected: str,
+    expected_output: tuple[str, ...],
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
 ) -> None:
-    domain = CustomDomain.model_validate(custom_domain(**overrides))
+    domain = custom_domain(**overrides)
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
 
-    assert _get_next_action(domain) == expected
+    result = runner.invoke(
+        app,
+        ["domains", "get", domain["name"], "--app-id", APP_ID],
+    )
+
+    assert result.exit_code == 0
+    for text in expected_output:
+        assert text in result.output
 
 
 def test_domains_get_json_requires_domain(logged_in_cli: None) -> None:
@@ -283,35 +297,51 @@ def test_domains_get_prompts_with_selector_and_renders_details(
 
         🌐 api.example.com
 
-           hostname       api.example.com
-           status         Pending
-           raw status     internal_dcv_pending
-           setup mode     Standard
-           id             00000000-0000-4000-8000-000000000003
-           created        4 days ago
-           updated        4 days ago
-           setup started  4 days ago
-           last checked   4 days ago
-
-           Waiting domain verification
+        ⏳ Waiting domain verification
            We are checking your DNS configuration to confirm domain ownership. This
            usually takes a few minutes.
 
-         1  Verify ownership and route traffic  In progress
-         Add the record below. We'll verify ownership, issue your TLS certificate, and
-         route traffic automatically.
+           To verify ownership and route traffic, add this CNAME record at your DNS
+           provider:
 
-         Type   Name  Value
-         CNAME  api   00000000-0000-4000-8000-000000000003.endpoints.fastapicloud.dev.
+           type   CNAME
+           name   api
+           value  00000000-0000-4000-8000-000000000003.endpoints.fastapicloud.dev.
 
-        💡 Copy CNAME values as shown. If your DNS provider rejects the trailing dot,
-           remove it and try again.
+        💡 Copy as shown; remove the trailing dot only if your provider rejects it.
+           Cloudflare: use DNS only (gray cloud).
+        """
+    )
 
-        💡 Using Cloudflare? Set these records to DNS only (gray cloud), not Proxied
-           (orange cloud).
 
-        ⏳ Wait for automatic verification. DNS changes can take up to 48 hours to
-           propagate.
+@pytest.mark.respx
+def test_domains_get_renders_description_before_dns_records_are_available(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain(dns_records=[])
+    respx_mock.get(f"/apps/{APP_ID}/custom-domains").mock(
+        return_value=Response(200, json={"data": [domain], "count": 1})
+    )
+
+    result = runner.invoke(
+        app,
+        ["domains", "get", domain["name"], "--app-id", APP_ID],
+    )
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+        🌐 api.example.com
+
+        ⏳ Waiting domain verification
+           We are checking your DNS configuration to confirm domain ownership. This
+           usually takes a few minutes.
+
+           Add the record below. We'll verify ownership, issue your TLS certificate,
+           and route traffic automatically.
         """
     )
 
@@ -371,17 +401,19 @@ PREVALIDATION_RECORDS = [
 
 @pytest.mark.respx
 @pytest.mark.parametrize(
-    ("status", "shows_certificate", "shows_traffic"),
+    ("status", "shows_ownership", "shows_certificate", "shows_traffic", "done_steps"),
     [
-        ("internal_dcv_pending", False, False),
-        ("external_dcv_pending", True, False),
-        ("origin_setup_pending", True, True),
+        ("internal_dcv_pending", True, False, False, 0),
+        ("external_dcv_pending", False, True, False, 1),
+        ("origin_setup_pending", False, False, True, 2),
     ],
 )
 def test_domains_get_gates_zero_downtime_records_by_phase(
     status: str,
+    shows_ownership: bool,
     shows_certificate: bool,
     shows_traffic: bool,
+    done_steps: int,
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
 ) -> None:
@@ -400,10 +432,12 @@ def test_domains_get_gates_zero_downtime_records_by_phase(
     )
 
     assert result.exit_code == 0
-    assert "ownership-value" in result.output
+    assert ("ownership-value" in result.output) is shows_ownership
     assert ("certificate-value" in result.output) is shows_certificate
     assert ("Generating; check again shortly" in result.output) is shows_certificate
+    assert ("Type" in result.output) is shows_certificate
     assert ("traffic-value" in result.output) is shows_traffic
+    assert result.output.count("✅") == done_steps
 
 
 @pytest.mark.respx
@@ -431,32 +465,377 @@ def test_domains_get_shows_url_and_no_action_when_live(
         """
         custom domains
 
-        🌐 api.example.com
+        🌐 https://api.example.com
 
-           hostname       api.example.com
-           url            https://api.example.com
-           status         Live
-           raw status     origin_setup_success
-           setup mode     Standard
-           id             00000000-0000-4000-8000-000000000003
-           created        4 days ago
-           updated        4 days ago
-           setup started  4 days ago
-           last checked   4 days ago
-
-           Live
-           Your domain is fully configured, secured with TLS, and set up to route
-           traffic to your app.
-
-         1  Verify ownership and route traffic  Verified
-         Your domain is live on FastAPI Cloud.
-
-         Type   Name  Value
-         CNAME  api   00000000-0000-4000-8000-000000000003.endpoints.fastapicloud.dev.
-
-        💡 Copy CNAME values as shown. If your DNS provider rejects the trailing dot,
-           remove it and try again.
-
-        ⏳ No action needed. Your domain is live.
+        ✅ Your domain is live.
         """
     )
+
+
+def test_domains_add_json_requires_domain(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        ["domains", "add", "--standard", "--app-id", APP_ID, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Custom domain is required.",
+            "hint": "Pass DOMAIN to choose the hostname to add.",
+        }
+    }
+
+
+def test_domains_add_json_requires_setup_mode(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        ["domains", "add", "api.example.com", "--app-id", APP_ID, "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "missing_required_input",
+            "message": "Custom domain setup mode is required.",
+            "hint": "Pass either --standard or --zero-downtime.",
+        }
+    }
+
+
+def test_domains_add_rejects_both_setup_modes(logged_in_cli: None) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "api.example.com",
+            "--standard",
+            "--zero-downtime",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": "Setup modes are mutually exclusive.",
+            "hint": "Pass either --standard or --zero-downtime.",
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_add_surfaces_backend_hostname_validation(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    message = "Domain name must have at least two labels (e.g., example.com)"
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "localhost", "is_using_pre_validation": False},
+    ).mock(
+        return_value=Response(
+            422,
+            json={
+                "detail": [
+                    {
+                        "type": "value_error",
+                        "loc": ["body", "name"],
+                        "msg": f"Value error, {message}",
+                        "input": "localhost",
+                    }
+                ]
+            },
+        )
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "  LOCALHOST. ",
+            "--standard",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": message,
+            "hint": None,
+        }
+    }
+
+
+@pytest.mark.respx
+@pytest.mark.parametrize(
+    ("flag", "is_using_pre_validation"),
+    [("--standard", False), ("--zero-downtime", True)],
+)
+def test_domains_add_posts_setup_mode_and_returns_json(
+    flag: str,
+    is_using_pre_validation: bool,
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain(
+        name="api.example.com",
+        is_using_pre_validation=is_using_pre_validation,
+    )
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={
+            "name": "api.example.com",
+            "is_using_pre_validation": is_using_pre_validation,
+        },
+    ).mock(return_value=Response(201, json=domain))
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "  API.Example.COM. ",
+            flag,
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {"data": {"app_id": APP_ID, "domain": domain}}
+
+
+@pytest.mark.respx
+def test_domains_add_with_arguments_renders_result(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "api.example.com", "is_using_pre_validation": False},
+    ).mock(return_value=Response(201, json=domain))
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "api.example.com",
+            "--standard",
+            "--app-id",
+            APP_ID,
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+        🐔 Added api.example.com
+
+           To verify ownership and route traffic, add this CNAME record at your DNS
+           provider:
+
+           type   CNAME
+           name   api
+           value  00000000-0000-4000-8000-000000000003.endpoints.fastapicloud.dev.
+
+        💡 Copy as shown; remove the trailing dot only if your provider rejects it.
+           Cloudflare: use DNS only (gray cloud).
+        """
+    )
+
+
+@pytest.mark.respx
+def test_domains_add_standard_wizard(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain()
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "api.example.com", "is_using_pre_validation": False},
+    ).mock(return_value=Response(201, json=domain))
+    keys = ["api.example.com", Keys.ENTER, Keys.ENTER]
+
+    with patch("rich_toolkit.container.getchar", side_effect=keys):
+        result = runner.invoke(app, ["domains", "add", "--app-id", APP_ID])
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+        🌐 What domain do you want to add?
+
+
+        🌐 What domain do you want to add?
+           api.example.com
+
+        🌐 What domain do you want to add? api.example.com
+
+           Is api.example.com already serving traffic?
+
+           ● No — set up a new or unused domain
+           ○ Yes — migrate it without downtime
+
+           No — set up a new or unused domain
+
+        🐔 Added api.example.com
+
+           To verify ownership and route traffic, add this CNAME record at your DNS
+           provider:
+
+           type   CNAME
+           name   api
+           value  00000000-0000-4000-8000-000000000003.endpoints.fastapicloud.dev.
+
+        💡 Copy as shown; remove the trailing dot only if your provider rejects it.
+           Cloudflare: use DNS only (gray cloud).
+        """
+    )
+
+
+@pytest.mark.respx
+def test_domains_add_zero_downtime_wizard_hides_traffic_records(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    domain = custom_domain(
+        is_using_pre_validation=True,
+        dns_records=PREVALIDATION_RECORDS,
+    )
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "api.example.com", "is_using_pre_validation": True},
+    ).mock(return_value=Response(201, json=domain))
+    keys = ["api.example.com", Keys.ENTER, Keys.DOWN_ARROW, Keys.ENTER]
+
+    with patch("rich_toolkit.container.getchar", side_effect=keys):
+        result = runner.invoke(app, ["domains", "add", "--app-id", APP_ID])
+
+    assert result.exit_code == 0
+    assert _normalize_output(result.output) == _normalize_output(
+        """
+        custom domains
+
+        🌐 What domain do you want to add?
+
+
+        🌐 What domain do you want to add?
+           api.example.com
+
+        🌐 What domain do you want to add? api.example.com
+
+           Is api.example.com already serving traffic?
+
+           ● No — set up a new or unused domain
+           ○ Yes — migrate it without downtime
+
+           ○ No — set up a new or unused domain
+           ● Yes — migrate it without downtime
+
+           Yes — migrate it without downtime
+
+        🐔 Added api.example.com
+
+        1️⃣ Prove ownership
+           Add this TXT record at your DNS provider:
+
+           type   TXT
+           name   _fc-dcv.api
+           value  ownership-value
+
+        2️⃣ Secure your domain
+
+        3️⃣ Switch traffic
+        """
+    )
+
+
+@pytest.mark.respx
+def test_domains_add_surfaces_duplicate_as_invalid_input(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "api.example.com", "is_using_pre_validation": False},
+    ).mock(
+        return_value=Response(
+            400,
+            json={
+                "detail": "A custom domain with this name already exists for the app"
+            },
+        )
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "api.example.com",
+            "--standard",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": "A custom domain with this name already exists for the app",
+            "hint": None,
+        }
+    }
+
+
+@pytest.mark.respx
+def test_domains_add_surfaces_entitlement_limit(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    message = "Custom domain limit reached (1). Upgrade your plan to add more domains."
+    respx_mock.post(
+        f"/apps/{APP_ID}/custom-domains",
+        json={"name": "api.example.com", "is_using_pre_validation": False},
+    ).mock(return_value=Response(403, json={"detail": message}))
+
+    result = runner.invoke(
+        app,
+        [
+            "domains",
+            "add",
+            "api.example.com",
+            "--standard",
+            "--app-id",
+            APP_ID,
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "permission_denied",
+            "message": message,
+            "hint": None,
+        }
+    }

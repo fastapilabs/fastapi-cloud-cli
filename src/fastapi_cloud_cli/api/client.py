@@ -28,6 +28,7 @@ from ._models import (
     AppLogEntry,
     BuildLogAdapter,
     BuildLogLine,
+    CustomDomain,
     CustomDomainsAPIResponse,
     DeploymentStatus,
 )
@@ -140,6 +141,24 @@ class APIClient(httpx.Client):
         response.raise_for_status()
 
         return CustomDomainsAPIResponse.model_validate(response.json())
+
+    def create_custom_domain(
+        self,
+        *,
+        app_id: str,
+        name: str,
+        is_using_pre_validation: bool,
+    ) -> CustomDomain:
+        response = self.post(
+            f"/apps/{app_id}/custom-domains",
+            json={
+                "name": name,
+                "is_using_pre_validation": is_using_pre_validation,
+            },
+        )
+        response.raise_for_status()
+
+        return CustomDomain.model_validate(response.json())
 
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
