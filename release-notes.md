@@ -4,6 +4,7 @@
 
 ### Features
 
+* ✨ Add `fastapi cloud domains add`. PR [#334](https://github.com/fastapilabs/fastapi-cloud-cli/pull/334) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud domains get`. PR [#333](https://github.com/fastapilabs/fastapi-cloud-cli/pull/333) by [@patrick91](https://github.com/patrick91).
 * ✨ Add `fastapi cloud domains list`. PR [#332](https://github.com/fastapilabs/fastapi-cloud-cli/pull/332) by [@patrick91](https://github.com/patrick91).
 
