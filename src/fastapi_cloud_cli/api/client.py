@@ -1,320 +1,47 @@
 import json
 import logging
 import time
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import timedelta
-from enum import Enum
-from functools import wraps
-from typing import (
-    Annotated,
-    Literal,
-    TypeVar,
-)
 
 import httpx
 import typer
 from agent_detector import detect_agent
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic import ValidationError
 from rich_toolkit.progress import Progress
-from typing_extensions import ParamSpec
 
 from fastapi_cloud_cli import __version__
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.auth import AuthMode, Identity, delete_auth_config
-from fastapi_cloud_cli.utils.errors import ErrorCode, ErrorToolkit
+from fastapi_cloud_cli.utils.auth import AuthMode, Identity
+from fastapi_cloud_cli.utils.errors import ErrorToolkit
 
-logger = logging.getLogger(__name__)
-
-STREAM_LOGS_MAX_RETRIES = 3
-STREAM_LOGS_TIMEOUT = timedelta(minutes=5)
-
-
-class StreamLogError(Exception):
-    """Raised when there's an error streaming logs (build or app logs)."""
-
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-
-
-class TooManyRetriesError(Exception):
-    pass
-
-
-class AppLogEntry(BaseModel):
-    timestamp: str
-    message: str
-    level: str
-
-
-class BuildLogLineGeneric(BaseModel):
-    type: Literal["complete", "failed", "timeout", "heartbeat"]
-    id: str | None = None
-
-
-class BuildLogLineMessage(BaseModel):
-    type: Literal["message"] = "message"
-    message: str
-    id: str | None = None
-
-
-BuildLogLine = BuildLogLineMessage | BuildLogLineGeneric
-BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
-    Annotated[BuildLogLine, Field(discriminator="type")]
+from ._errors import (
+    StreamLogError,
+    TooManyRetriesError,
+    get_http_error_code,
+    get_http_error_hint,
+    handle_http_error,
+)
+from ._models import (
+    TERMINAL_STATUSES,
+    AppLogEntry,
+    BuildLogAdapter,
+    BuildLogLine,
+    DeploymentStatus,
+)
+from ._retry import (
+    STREAM_LOGS_MAX_RETRIES,
+    STREAM_LOGS_TIMEOUT,
+    attempt,
+    attempts,
 )
 
-
-@contextmanager
-def attempt(attempt_number: int) -> Generator[None, None, None]:
-    def _backoff() -> None:
-        backoff_seconds = min(2**attempt_number, 30)
-        logger.debug(
-            "Retrying in %ds (attempt %d)",
-            backoff_seconds,
-            attempt_number,
-        )
-        time.sleep(backoff_seconds)
-
-    try:
-        yield
-
-    except (
-        httpx.TimeoutException,
-        httpx.NetworkError,
-        httpx.RemoteProtocolError,
-    ) as error:
-        logger.debug("Network error (will retry): %s", error)
-
-        _backoff()
-
-    except httpx.HTTPStatusError as error:
-        if error.response.status_code >= 500:
-            logger.debug(
-                "Server error %d (will retry): %s",
-                error.response.status_code,
-                error,
-            )
-            _backoff()
-        else:
-            # The streaming callers read the body before raising, so the
-            # server's error detail is available here.
-            raise StreamLogError(
-                f"HTTP {error.response.status_code}: {error.response.text}",
-                status_code=error.response.status_code,
-            ) from error
-
-
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def attempts(
-    total_attempts: int = 3, timeout: timedelta = timedelta(minutes=5)
-) -> Callable[
-    [Callable[P, Generator[T, None, None]]], Callable[P, Generator[T, None, None]]
-]:
-    def decorator(
-        func: Callable[P, Generator[T, None, None]],
-    ) -> Callable[P, Generator[T, None, None]]:
-        @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Generator[T, None, None]:
-            start = time.monotonic()
-
-            for attempt_number in range(total_attempts):
-                if time.monotonic() - start > timeout.total_seconds():
-                    raise TimeoutError(
-                        f"Log streaming timed out after {timeout.total_seconds():.0f}s"
-                    )
-
-                with attempt(attempt_number):
-                    yield from func(*args, **kwargs)
-                    # If we get here without exception, the generator completed successfully
-                    return
-
-            raise TooManyRetriesError(f"Failed after {total_attempts} attempts")
-
-        return wrapper
-
-    return decorator
-
-
-class DeploymentStatus(str, Enum):
-    waiting_upload = "waiting_upload"
-    upload_cancelled = "upload_cancelled"
-    ready_for_build = "ready_for_build"
-    building = "building"
-    extracting = "extracting"
-    extracting_failed = "extracting_failed"
-    extracting_failed_archive_too_large = "extracting_failed_archive_too_large"
-    building_image = "building_image"
-    building_image_failed = "building_image_failed"
-    building_image_failed_timeout = "building_image_failed_timeout"
-    deploying = "deploying"
-    deploying_skipped = "deploying_skipped"
-    deploying_failed = "deploying_failed"
-    verifying = "verifying"
-    verifying_failed = "verifying_failed"
-    verification_failed_oom = "verification_failed_oom"
-    verifying_skipped = "verifying_skipped"
-    success = "success"
-    degraded_oom = "degraded_oom"
-    degraded = "degraded"
-    expired = "expired"
-    failed = "failed"
-
-    @classmethod
-    def to_human_readable(cls, status: "DeploymentStatus") -> str:
-        return {
-            cls.waiting_upload: "Awaiting Upload",
-            cls.upload_cancelled: "Upload Cancelled",
-            cls.ready_for_build: "Build Queued",
-            cls.building: "Building",
-            cls.extracting: "Extracting Upload",
-            cls.extracting_failed: "Extraction Failed",
-            cls.extracting_failed_archive_too_large: "Archive Too Large",
-            cls.building_image: "Building Image",
-            cls.building_image_failed: "Build Failed",
-            cls.building_image_failed_timeout: "Build Timed Out",
-            cls.deploying: "Deploying Image",
-            cls.deploying_skipped: "Deployment Skipped",
-            cls.deploying_failed: "Deployment Failed",
-            cls.verifying: "Verifying Readiness",
-            cls.verifying_failed: "Verification Failed",
-            cls.verification_failed_oom: "Verification Failed (OOM)",
-            cls.verifying_skipped: "Verification Skipped",
-            cls.success: "Ready",
-            cls.degraded_oom: "Degraded (OOM)",
-            cls.degraded: "Degraded",
-            cls.expired: "Expired",
-            cls.failed: "Failed",
-        }[status]
-
-
-SUCCESSFUL_STATUSES = {DeploymentStatus.success, DeploymentStatus.verifying_skipped}
-FAILED_STATUSES = {
-    DeploymentStatus.failed,
-    DeploymentStatus.verifying_failed,
-    DeploymentStatus.verification_failed_oom,
-    DeploymentStatus.deploying_failed,
-    DeploymentStatus.deploying_skipped,
-    DeploymentStatus.building_image_failed,
-    DeploymentStatus.building_image_failed_timeout,
-    DeploymentStatus.extracting_failed,
-    DeploymentStatus.extracting_failed_archive_too_large,
-}
-TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES
+logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 2.0
 POLL_TIMEOUT = timedelta(seconds=120)
 POLL_MAX_RETRIES = 5
-
-
-def _handle_unauthorized(auth_mode: AuthMode) -> str:
-    message = "The specified token is not valid. "
-
-    if auth_mode == "user":
-        delete_auth_config()
-
-        message += "Use `fastapi login` to generate a new token."
-    else:
-        message += "Make sure to use a valid token."
-
-    return message
-
-
-def _get_response_error_message(response: httpx.Response) -> str | None:
-    try:
-        data = response.json()
-    except (json.JSONDecodeError, httpx.ResponseNotRead):
-        return None
-
-    if not isinstance(data, dict):
-        return None  # pragma: no cover
-
-    detail = data.get("detail")
-    if not isinstance(detail, str):
-        return None  # pragma: no cover
-
-    return detail
-
-
-def handle_http_error(
-    error: httpx.HTTPError,
-    default_message: str | None = None,
-    not_found_message: str | None = None,
-    auth_mode: AuthMode = "user",
-) -> str:
-    message: str | None = None
-
-    if isinstance(error, httpx.HTTPStatusError):
-        status_code = error.response.status_code
-
-        # Handle validation errors from Pydantic models, this should make it easier to debug :)
-        if status_code == 422:
-            logger.debug(error.response.json())  # pragma: no cover
-
-        elif status_code == 400:
-            message = _get_response_error_message(error.response)
-
-        elif status_code == 409:
-            message = _get_response_error_message(error.response)
-
-        elif status_code == 401:
-            message = _handle_unauthorized(auth_mode=auth_mode)
-
-        elif status_code == 403:
-            message = (
-                _get_response_error_message(error.response)
-                or "You don't have permissions for this resource"
-            )
-
-        elif status_code == 404:
-            message = (
-                _get_response_error_message(error.response)
-                or not_found_message
-                or "Resource not found."
-            )
-
-    if not message:
-        message = (
-            default_message
-            or f"Something went wrong while contacting the FastAPI Cloud server. Please try again later. \n\n{error}"
-        )
-
-    return message
-
-
-def get_http_error_code(error: httpx.HTTPError) -> ErrorCode:
-    if isinstance(error, httpx.TimeoutException | httpx.NetworkError):
-        return "network_error"
-
-    if isinstance(error, httpx.HTTPStatusError):
-        status_code = error.response.status_code
-
-        if status_code in {400, 409}:
-            return "invalid_input"
-
-        if status_code == 401:
-            return "invalid_token"
-
-        if status_code == 403:
-            return "permission_denied"
-
-        if status_code == 404:
-            return "not_found"
-
-    return "api_error"
-
-
-def get_http_error_hint(code: ErrorCode, *, auth_mode: AuthMode = "user") -> str | None:
-    if code == "invalid_token":
-        if auth_mode == "user":
-            return "Run `fastapi cloud login` to generate a new token."
-
-        return "Make sure FASTAPI_CLOUD_TOKEN contains a valid token."
-
-    return None
 
 
 def _get_user_agent() -> str:
