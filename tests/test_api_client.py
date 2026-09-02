@@ -82,10 +82,10 @@ def test_stream_build_logs_successful(
     assert len(logs) == 3
 
     assert logs[0].type == "message"
-    assert logs[0].message == "Building..."  # ty: ignore[unresolved-attribute]
+    assert logs[0].message == "Building..."
 
     assert logs[1].type == "message"
-    assert logs[1].message == "Done!"  # ty: ignore[unresolved-attribute]
+    assert logs[1].message == "Done!"
 
     assert logs[2].type == "complete"
 
@@ -240,7 +240,7 @@ def test_stream_build_logs_network_error_retry(
 
     assert len(logs) == 2
     assert logs[0].type == "message"
-    assert logs[0].message == "Success after retry"  # ty: ignore[unresolved-attribute]
+    assert logs[0].message == "Success after retry"
 
 
 def test_stream_build_logs_server_error_retry(
