@@ -12,6 +12,7 @@
 
 ### Refactors
 
+* ✅ Use inline-snapshots for tests. PR [#348](https://github.com/fastapilabs/fastapi-cloud-cli/pull/348) by [@patrick91](https://github.com/patrick91).
 * ♻️ Split API client internals. PR [#339](https://github.com/fastapilabs/fastapi-cloud-cli/pull/339) by [@patrick91](https://github.com/patrick91).
 * ♻️ Move API client into a package. PR [#338](https://github.com/fastapilabs/fastapi-cloud-cli/pull/338) by [@patrick91](https://github.com/patrick91).
 
