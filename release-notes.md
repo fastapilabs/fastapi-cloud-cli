@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.25.0 (2026-09-02)
+
 ### Features
 
 * ✨ Add `fastapi cloud domains restart`. PR [#336](https://github.com/fastapilabs/fastapi-cloud-cli/pull/336) by [@patrick91](https://github.com/patrick91).
