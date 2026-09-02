@@ -19,12 +19,11 @@ from fastapi_cloud_cli.api import (
     get_http_error_hint,
     handle_http_error,
 )
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
 from fastapi_cloud_cli.utils.cli import (
     FastAPIRichToolkit,
     get_details_table,
-    get_rich_toolkit,
 )
 from fastapi_cloud_cli.utils.dates import format_last_updated
 from fastapi_cloud_cli.utils.errors import ErrorCode
@@ -312,8 +311,9 @@ deployments_app = typer.Typer(
 )
 
 
-@deployments_app.command("get")
+@deployments_app.command("get", cls=UserCommand)
 def get_deployment(
+    ctx: typer.Context,
     deployment_id: Annotated[
         str,
         typer.Argument(
@@ -332,39 +332,33 @@ def get_deployment(
     """
     Get a FastAPI Cloud deployment by ID.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        resolve_app_id_or_fail(toolkit, app_id=app_id)
+    resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-        with APIClient() as client:
-            with toolkit.progress(
-                title="Fetching deployment",
-                transient=True,
-            ) as progress:
-                with client.handle_http_errors(
-                    progress,
-                    default_message="Error fetching deployment. Please try again later.",
-                    not_found_message="Deployment not found.",
-                    toolkit=toolkit,
-                ):
-                    result = _get_deployment(
-                        client,
-                        deployment_id=deployment_id,
-                    )
+    with APIClient() as client:
+        with toolkit.progress(
+            title="Fetching deployment",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error fetching deployment. Please try again later.",
+                not_found_message="Deployment not found.",
+                toolkit=toolkit,
+            ):
+                result = _get_deployment(
+                    client,
+                    deployment_id=deployment_id,
+                )
 
-        toolkit.success(result, render_output=_render_deployment_get_output)
+    toolkit.success(result, render_output=_render_deployment_get_output)
 
 
-@deployments_app.command("build-logs")
+@deployments_app.command("build-logs", cls=UserCommand)
 def build_logs(
+    ctx: typer.Context,
     deployment_id: Annotated[
         str,
         typer.Argument(
@@ -384,58 +378,52 @@ def build_logs(
     """
     Stream or fetch build logs for a FastAPI Cloud deployment.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        if follow:
-            toolkit.print(
-                f"Streaming build logs for [bold]{deployment_id}[/bold]...",
-                emoji="📡",
-            )
-        else:
-            toolkit.print(
-                f"Fetching build logs for [bold]{deployment_id}[/bold]...",
-                emoji="📜",
-            )
+    if follow:
+        toolkit.print(
+            f"Streaming build logs for [bold]{deployment_id}[/bold]...",
+            emoji="📡",
+        )
+    else:
+        toolkit.print(
+            f"Fetching build logs for [bold]{deployment_id}[/bold]...",
+            emoji="📜",
+        )
+    toolkit.print_line()
+
+    try:
+        with APIClient() as client:
+            if follow:
+                failed = _stream_build_logs(toolkit, client, deployment_id)
+            else:
+                result = _fetch_build_logs(client, deployment_id)
+                toolkit.success(result, render_output=_render_build_logs_output)
+                failed = result.failed
+
+    except KeyboardInterrupt:  # pragma: no cover
         toolkit.print_line()
+        return
+    except StreamLogError as e:
+        _handle_build_log_error(toolkit, e)
 
-        try:
-            with APIClient() as client:
-                if follow:
-                    failed = _stream_build_logs(toolkit, client, deployment_id)
-                else:
-                    result = _fetch_build_logs(client, deployment_id)
-                    toolkit.success(result, render_output=_render_build_logs_output)
-                    failed = result.failed
+    except (TooManyRetriesError, TimeoutError):
+        message = "Lost connection to build log stream. Please try again later."
+        toolkit.fail(
+            "network_error",
+            message,
+            hint="Please try again later.",
+            render_output=_render_build_log_error,
+        )
 
-        except KeyboardInterrupt:  # pragma: no cover
-            toolkit.print_line()
-            return
-        except StreamLogError as e:
-            _handle_build_log_error(toolkit, e)
-
-        except (TooManyRetriesError, TimeoutError):
-            message = "Lost connection to build log stream. Please try again later."
-            toolkit.fail(
-                "network_error",
-                message,
-                hint="Please try again later.",
-                render_output=_render_build_log_error,
-            )
-
-        if failed:
-            raise typer.Exit(1)
+    if failed:
+        raise typer.Exit(1)
 
 
-@deployments_app.command("list")
+@deployments_app.command("list", cls=UserCommand)
 def list_deployments(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Option(
@@ -464,34 +452,27 @@ def list_deployments(
     """
     List FastAPI Cloud deployments for an app.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
+    target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-        with APIClient() as client:
-            with toolkit.progress(
-                title="Fetching deployments",
-                transient=True,
-            ) as progress:
-                with client.handle_http_errors(
-                    progress,
-                    default_message="Error fetching deployments. Please try again later.",
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
-                ):
-                    result = _get_deployments(
-                        client,
-                        app_id=target_app_id,
-                        limit=limit,
-                        offset=offset,
-                    )
+    with APIClient() as client:
+        with toolkit.progress(
+            title="Fetching deployments",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error fetching deployments. Please try again later.",
+                not_found_message="App not found.",
+                toolkit=toolkit,
+            ):
+                result = _get_deployments(
+                    client,
+                    app_id=target_app_id,
+                    limit=limit,
+                    offset=offset,
+                )
 
-        toolkit.success(result, render_output=_render_deployments_list_output)
+    toolkit.success(result, render_output=_render_deployments_list_output)

@@ -154,7 +154,7 @@ def test_prints_json_error_when_json_env_is_enabled_and_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""
@@ -258,7 +258,7 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
 
     assert result.exit_code == 1
     assert "No credentials found." in result.output
-    assert "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN." in result.output
+    assert "Run `fastapi cloud login`." in result.output
 
 
 def test_prints_not_logged_in_with_deploy_token(logged_out_cli: None) -> None:
@@ -266,7 +266,7 @@ def test_prints_not_logged_in_with_deploy_token(logged_out_cli: None) -> None:
 
     assert result.exit_code == 1
     assert "No credentials found." in result.output
-    assert "Run `fastapi login` or set FASTAPI_CLOUD_TOKEN." in result.output
+    assert "Run `fastapi cloud login`." in result.output
 
 
 @pytest.mark.respx

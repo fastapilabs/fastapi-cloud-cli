@@ -5,13 +5,13 @@ from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient, CustomDomain
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.domains._app import domains_app
 from fastapi_cloud_cli.commands.domains._shared import (
     _find_custom_domain,
     _select_custom_domain,
 )
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 
@@ -37,7 +37,9 @@ def _print_removal_warning(toolkit: RichToolkit, domain: CustomDomain) -> None:
     )
 
 
+@domains_app.command("remove", cls=UserCommand)
 def remove_domain(
+    ctx: typer.Context,
     domain: Annotated[
         str | None,
         typer.Argument(
@@ -66,116 +68,107 @@ def remove_domain(
 
     DNS records at your provider are not changed.
     """
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
+    app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
+    if toolkit.mode == "json":
+        if domain is None:
             toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login`.",
+                "missing_required_input",
+                "Custom domain is required.",
+                hint="Pass DOMAIN to choose a custom domain.",
+            )
+        if not yes:
+            toolkit.fail(
+                "missing_required_input",
+                "Removal confirmation is required.",
+                hint="Pass --yes to confirm removal.",
             )
 
-        app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
-
-        if toolkit.mode == "json":
-            if domain is None:
-                toolkit.fail(
-                    "missing_required_input",
-                    "Custom domain is required.",
-                    hint="Pass DOMAIN to choose a custom domain.",
-                )
-            if not yes:
-                toolkit.fail(
-                    "missing_required_input",
-                    "Removal confirmation is required.",
-                    hint="Pass --yes to confirm removal.",
-                )
-
-        with APIClient() as client:
-            with (
-                toolkit.progress(
-                    title="Fetching custom domains",
-                    transient=True,
-                ) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message=(
-                        "Error fetching custom domains. Please try again later."
-                    ),
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
+    with APIClient() as client:
+        with (
+            toolkit.progress(
+                title="Fetching custom domains",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message=(
+                    "Error fetching custom domains. Please try again later."
                 ),
-            ):
-                domains = client.get_custom_domains(app_id=app_id).data
+                not_found_message="App not found.",
+                toolkit=toolkit,
+            ),
+        ):
+            domains = client.get_custom_domains(app_id=app_id).data
 
-            toolkit.print_title("custom domains")
+        toolkit.print_title("custom domains")
+        toolkit.print_line()
+
+        selected_domain: CustomDomain | None
+        if domain is None:
+            if not domains:
+                toolkit.print("No custom domains found.", bullet=False)
+                return
+
+            selected_domain = _select_custom_domain(
+                toolkit,
+                domains,
+                prompt="Select the custom domain to remove:",
+            )
             toolkit.print_line()
-
-            selected_domain: CustomDomain | None
-            if domain is None:
-                if not domains:
-                    toolkit.print("No custom domains found.", bullet=False)
-                    return
-
-                selected_domain = _select_custom_domain(
-                    toolkit,
-                    domains,
-                    prompt="Select the custom domain to remove:",
-                )
-                toolkit.print_line()
-            else:
-                selected_domain = _find_custom_domain(domains, domain)
-                if selected_domain is None:
-                    toolkit.fail(
-                        "not_found",
-                        f"Custom domain {domain} not found.",
-                        hint=(
-                            "Run `fastapi cloud domains list` to see available "
-                            "custom domains."
-                        ),
-                    )
-
-            assert selected_domain is not None
-            _print_removal_warning(toolkit, selected_domain)
-
-            if not yes:
-                toolkit.print_line()
-                should_remove = toolkit.confirm(
-                    f"Remove [bold]{selected_domain.name}[/bold]?",
-                    default=False,
-                    bullet=False,
-                )
-                if not should_remove:
-                    toolkit.print_line()
-                    toolkit.print("Removal cancelled.", bullet=False)
-                    raise typer.Exit(0)
-
-            toolkit.print_line()
-            with (
-                toolkit.progress(
-                    title="Removing custom domain",
-                    transient=True,
-                ) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message=(
-                        "Error removing custom domain. Please try again later."
+        else:
+            selected_domain = _find_custom_domain(domains, domain)
+            if selected_domain is None:
+                toolkit.fail(
+                    "not_found",
+                    f"Custom domain {domain} not found.",
+                    hint=(
+                        "Run `fastapi cloud domains list` to see available "
+                        "custom domains."
                     ),
-                    not_found_message="Custom domain not found.",
-                    toolkit=toolkit,
-                ),
-            ):
-                client.remove_custom_domain(
-                    app_id=app_id,
-                    domain_id=selected_domain.id,
                 )
 
-        toolkit.success(
-            CustomDomainRemoveOutput(
+        assert selected_domain is not None
+        _print_removal_warning(toolkit, selected_domain)
+
+        if not yes:
+            toolkit.print_line()
+            should_remove = toolkit.confirm(
+                f"Remove [bold]{selected_domain.name}[/bold]?",
+                default=False,
+                bullet=False,
+            )
+            if not should_remove:
+                toolkit.print_line()
+                toolkit.print("Removal cancelled.", bullet=False)
+                raise typer.Exit(0)
+
+        toolkit.print_line()
+        with (
+            toolkit.progress(
+                title="Removing custom domain",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message=(
+                    "Error removing custom domain. Please try again later."
+                ),
+                not_found_message="Custom domain not found.",
+                toolkit=toolkit,
+            ),
+        ):
+            client.remove_custom_domain(
                 app_id=app_id,
                 domain_id=selected_domain.id,
-                name=selected_domain.name,
-            ),
-            render_output=_render_custom_domain_remove_output,
-        )
+            )
+
+    toolkit.success(
+        CustomDomainRemoveOutput(
+            app_id=app_id,
+            domain_id=selected_domain.id,
+            name=selected_domain.name,
+        ),
+        render_output=_render_custom_domain_remove_output,
+    )

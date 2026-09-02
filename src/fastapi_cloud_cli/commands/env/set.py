@@ -7,9 +7,10 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.env._app import env_app
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 
@@ -104,7 +105,9 @@ def _set_environment_variable(
     response.raise_for_status()
 
 
+@env_app.command(cls=UserCommand)
 def set(
+    ctx: typer.Context,
     name: str | None = typer.Argument(
         None,
         help="The name of the environment variable to set",
@@ -159,57 +162,49 @@ def set(
     Set an environment variable for the app.
     """
 
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    target_app_id = resolve_app_id_or_fail(
+        toolkit, app_id=app_id, path=path or path_arg
+    )
+    name_needs_prompt = name is None
+    value_needs_prompt = value is None and not value_stdin
+    prompts_user = name_needs_prompt or value_needs_prompt
+    if prompts_user and toolkit.mode != "json":
+        toolkit.print_title("environment variables")
+        toolkit.print_line()
 
-        target_app_id = resolve_app_id_or_fail(
-            toolkit, app_id=app_id, path=path or path_arg
-        )
-        name_needs_prompt = name is None
-        value_needs_prompt = value is None and not value_stdin
-        prompts_user = name_needs_prompt or value_needs_prompt
-        if prompts_user and toolkit.mode != "json":
-            toolkit.print_title("environment variables")
-            toolkit.print_line()
+    name = _resolve_environment_variable_name(
+        toolkit,
+        name=name,
+        secret=secret,
+    )
+    value = _resolve_environment_variable_value(
+        toolkit,
+        value=value,
+        value_stdin=value_stdin,
+        secret=secret,
+    )
 
-        name = _resolve_environment_variable_name(
-            toolkit,
+    with APIClient() as client:
+        with toolkit.progress(
+            "Setting environment variable", transient=True
+        ) as progress:
+            with client.handle_http_errors(progress):
+                _set_environment_variable(
+                    client=client,
+                    app_id=target_app_id,
+                    name=name,
+                    value=value,
+                    is_secret=secret,
+                )
+
+    toolkit.success(
+        EnvironmentVariableSetOutput(
+            app_id=target_app_id,
             name=name,
-            secret=secret,
-        )
-        value = _resolve_environment_variable_value(
-            toolkit,
-            value=value,
-            value_stdin=value_stdin,
-            secret=secret,
-        )
-
-        with APIClient() as client:
-            with toolkit.progress(
-                "Setting environment variable", transient=True
-            ) as progress:
-                with client.handle_http_errors(progress):
-                    _set_environment_variable(
-                        client=client,
-                        app_id=target_app_id,
-                        name=name,
-                        value=value,
-                        is_secret=secret,
-                    )
-
-        toolkit.success(
-            EnvironmentVariableSetOutput(
-                app_id=target_app_id,
-                name=name,
-                is_secret=secret,
-                show_tag=not prompts_user,
-            ),
-            render_output=_render_environment_variable_set_output,
-        )
+            is_secret=secret,
+            show_tag=not prompts_user,
+        ),
+        render_output=_render_environment_variable_set_output,
+    )

@@ -8,9 +8,9 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 from fastapi_cloud_cli.utils.teams import Team, select_team
 
@@ -134,7 +134,9 @@ def _render_apps_list_output(data: AppsListOutput, toolkit: RichToolkit) -> None
     )
 
 
+@apps_app.command("list", cls=UserCommand)
 def list_apps(
+    ctx: typer.Context,
     team_id: Annotated[
         str | None,
         typer.Option(
@@ -163,65 +165,58 @@ def list_apps(
     """
     List FastAPI Cloud apps.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        with APIClient() as client:
-            team_slug: str | None = None
+    with APIClient() as client:
+        team_slug: str | None = None
 
-            if team_id is None:
-                if json_output:
-                    toolkit.fail(
-                        "missing_required_input",
-                        "Team ID is required.",
-                        hint="Pass --team-id to choose a team.",
-                    )
-
-                team = select_team(
-                    toolkit,
-                    client,
-                    empty_hint="Create a team before listing apps.",
+        if team_id is None:
+            if json_output:
+                toolkit.fail(
+                    "missing_required_input",
+                    "Team ID is required.",
+                    hint="Pass --team-id to choose a team.",
                 )
-                team_id = team.id
-                team_slug = team.slug
 
-                toolkit.print_line()
-            else:
-                with toolkit.progress(
-                    title="Fetching team",
-                    transient=True,
-                ) as progress:
-                    with client.handle_http_errors(
-                        progress,
-                        default_message="Error fetching team. Please try again later.",
-                        not_found_message="Team not found.",
-                        toolkit=toolkit,
-                    ):
-                        team = _get_team(client, team_id)
-                        team_slug = team.slug
+            team = select_team(
+                toolkit,
+                client,
+                empty_hint="Create a team before listing apps.",
+            )
+            team_id = team.id
+            team_slug = team.slug
 
+            toolkit.print_line()
+        else:
             with toolkit.progress(
-                title="Fetching apps",
+                title="Fetching team",
                 transient=True,
             ) as progress:
                 with client.handle_http_errors(
                     progress,
-                    default_message="Error fetching apps. Please try again later.",
+                    default_message="Error fetching team. Please try again later.",
+                    not_found_message="Team not found.",
                     toolkit=toolkit,
                 ):
-                    result = _get_apps(
-                        client,
-                        team_id=team_id,
-                        limit=limit,
-                        offset=offset,
-                        team_slug=team_slug,
-                    )
+                    team = _get_team(client, team_id)
+                    team_slug = team.slug
 
-        toolkit.success(result, render_output=_render_apps_list_output)
+        with toolkit.progress(
+            title="Fetching apps",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error fetching apps. Please try again later.",
+                toolkit=toolkit,
+            ):
+                result = _get_apps(
+                    client,
+                    team_id=team_id,
+                    limit=limit,
+                    offset=offset,
+                    team_slug=team_slug,
+                )
+
+    toolkit.success(result, render_output=_render_apps_list_output)

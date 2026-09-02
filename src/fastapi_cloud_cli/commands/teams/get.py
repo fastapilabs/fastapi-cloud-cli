@@ -6,9 +6,10 @@ from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.teams._app import teams_app
 from fastapi_cloud_cli.config import Settings
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_details_table
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,9 @@ def _render_team_get_output(data: TeamGetOutput, toolkit: RichToolkit) -> None:
     )
 
 
+@teams_app.command("get", cls=UserCommand)
 def get_team(
+    ctx: typer.Context,
     team_id: Annotated[
         str,
         typer.Argument(
@@ -63,29 +66,22 @@ def get_team(
     """
     Get a FastAPI Cloud team by ID.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        with (
-            APIClient() as client,
-            toolkit.progress(
-                title="Fetching team",
-                transient=True,
-            ) as progress,
+    with (
+        APIClient() as client,
+        toolkit.progress(
+            title="Fetching team",
+            transient=True,
+        ) as progress,
+    ):
+        with client.handle_http_errors(
+            progress,
+            default_message="Error fetching team. Please try again later.",
+            not_found_message="Team not found.",
+            toolkit=toolkit,
         ):
-            with client.handle_http_errors(
-                progress,
-                default_message="Error fetching team. Please try again later.",
-                not_found_message="Team not found.",
-                toolkit=toolkit,
-            ):
-                result = _get_team(client, team_id)
+            result = _get_team(client, team_id)
 
-        toolkit.success(result, render_output=_render_team_get_output)
+    toolkit.success(result, render_output=_render_team_get_output)

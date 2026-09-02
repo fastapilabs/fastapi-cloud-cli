@@ -8,6 +8,8 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.env._app import env_app
 from fastapi_cloud_cli.commands.env._shared import (
     ENV_VAR_VALUE_MAX_LENGTH,
     EnvironmentVariable,
@@ -15,8 +17,6 @@ from fastapi_cloud_cli.commands.env._shared import (
     _get_environment_variables,
 )
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.dates import format_last_updated
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -59,7 +59,9 @@ def _render_environment_variables_list_output(
     toolkit.print(_get_environment_variables_table(data.variables), bullet=False)
 
 
+@env_app.command("list", cls=UserCommand)
 def list_variables(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Option(
@@ -83,31 +85,23 @@ def list_variables(
     List the environment variables for the app.
     """
 
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id, path=path)
 
-        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id, path=path)
+    with APIClient() as client:
+        with toolkit.progress(
+            "Fetching environment variables...", transient=True
+        ) as progress:
+            with client.handle_http_errors(progress):
+                environment_variables = _get_environment_variables(
+                    client=client, app_id=target_app_id
+                )
 
-        with APIClient() as client:
-            with toolkit.progress(
-                "Fetching environment variables...", transient=True
-            ) as progress:
-                with client.handle_http_errors(progress):
-                    environment_variables = _get_environment_variables(
-                        client=client, app_id=target_app_id
-                    )
-
-        toolkit.success(
-            EnvironmentVariablesListOutput(
-                app_id=target_app_id,
-                variables=environment_variables.data,
-            ),
-            render_output=_render_environment_variables_list_output,
-        )
+    toolkit.success(
+        EnvironmentVariablesListOutput(
+            app_id=target_app_id,
+            variables=environment_variables.data,
+        ),
+        render_output=_render_environment_variables_list_output,
+    )

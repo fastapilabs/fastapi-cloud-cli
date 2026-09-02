@@ -9,10 +9,12 @@ from typing import Annotated, Any
 import typer
 from pydantic import BaseModel
 
+from fastapi_cloud_cli._app import cloud_app
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.ci._app import ci_app
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -223,7 +225,10 @@ def _resolve_existing_workflow_path(
     return None
 
 
+@cloud_app.command(cls=UserCommand)
+@ci_app.command("setup", cls=UserCommand)
 def setup_ci(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -283,254 +288,238 @@ def setup_ci(
         fastapi cloud setup-ci --file ci.yml        # Writes workflow to .github/workflows/ci.yml
     """
 
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
-
-        if secrets_only and workflow_only:
-            toolkit.fail(
-                "invalid_input",
-                "--secrets-only and --workflow-only cannot be used together.",
-            )
-
-        target_app_id = resolve_app_id_or_fail(
-            toolkit,
-            app_id=app_id,
-            path=path,
-            hint="Pass --app-id or run `fastapi deploy` first.",
+    if secrets_only and workflow_only:
+        toolkit.fail(
+            "invalid_input",
+            "--secrets-only and --workflow-only cannot be used together.",
         )
 
-        if not _check_git_installed():
-            toolkit.fail(
-                "not_found",
-                "git is not installed. Please install git to use this command.",
-            )
+    target_app_id = resolve_app_id_or_fail(
+        toolkit,
+        app_id=app_id,
+        path=path,
+        hint="Pass --app-id or run `fastapi deploy` first.",
+    )
 
-        try:
-            origin = _get_remote_origin()
-        except subprocess.CalledProcessError:
-            toolkit.fail(
-                "not_found",
-                "Could not retrieve the git remote origin URL. Make sure you're in a git repository with a remote origin set.",
-            )
+    if not _check_git_installed():
+        toolkit.fail(
+            "not_found",
+            "git is not installed. Please install git to use this command.",
+        )
 
-        # Check if it's a GitHub host (github.com or GitHub Enterprise)
-        if "github" not in origin.lower():
-            toolkit.fail(
-                "invalid_input",
-                "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
-            )
+    try:
+        origin = _get_remote_origin()
+    except subprocess.CalledProcessError:
+        toolkit.fail(
+            "not_found",
+            "Could not retrieve the git remote origin URL. Make sure you're in a git repository with a remote origin set.",
+        )
 
-        repo_slug = _repo_slug_from_origin(origin) or origin
+    # Check if it's a GitHub host (github.com or GitHub Enterprise)
+    if "github" not in origin.lower():
+        toolkit.fail(
+            "invalid_input",
+            "Remote origin is not a GitHub repository. Please set up a GitHub repo and add it as the remote origin.",
+        )
 
-        if not branch:
-            branch = _get_default_branch()
+    repo_slug = _repo_slug_from_origin(origin) or origin
 
-        workflow_path = _get_workflow_path(file)
-        needs_secrets = not workflow_only
-        needs_workflow = not secrets_only
-        has_gh = _check_gh_cli_installed() if needs_secrets and not dry_run else True
+    if not branch:
+        branch = _get_default_branch()
 
-        if (
-            toolkit.mode == "json"
-            and needs_workflow
-            and not dry_run
-            and not file
-            and workflow_path.exists()
-        ):
-            toolkit.fail(
-                "invalid_input",
-                f"Workflow file {_format_workflow_path(workflow_path)} already exists.",
-                hint="Pass --file to choose another workflow file or remove the existing file.",
-            )
+    workflow_path = _get_workflow_path(file)
+    needs_secrets = not workflow_only
+    needs_workflow = not secrets_only
+    has_gh = _check_gh_cli_installed() if needs_secrets and not dry_run else True
 
-        if needs_secrets and not dry_run and toolkit.mode == "json" and not has_gh:
-            toolkit.fail(
-                "dependency_missing",
-                "GitHub CLI (`gh`) is required to set GitHub Actions secrets.",
-                hint="Install gh or use --workflow-only to write only the workflow file.",
-            )
+    if (
+        toolkit.mode == "json"
+        and needs_workflow
+        and not dry_run
+        and not file
+        and workflow_path.exists()
+    ):
+        toolkit.fail(
+            "invalid_input",
+            f"Workflow file {_format_workflow_path(workflow_path)} already exists.",
+            hint="Pass --file to choose another workflow file or remove the existing file.",
+        )
 
-        if dry_run:
-            toolkit.print(
-                "[yellow]This is a dry run — no changes will be made[/yellow]"
-            )
-            toolkit.print_line()
+    if needs_secrets and not dry_run and toolkit.mode == "json" and not has_gh:
+        toolkit.fail(
+            "dependency_missing",
+            "GitHub CLI (`gh`) is required to set GitHub Actions secrets.",
+            hint="Install gh or use --workflow-only to write only the workflow file.",
+        )
 
-        toolkit.print_title("Configuring CI")
+    if dry_run:
+        toolkit.print("[yellow]This is a dry run — no changes will be made[/yellow]")
         toolkit.print_line()
 
-        toolkit.print(
-            f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})",
-            emoji="⚙️",
-        )
-        toolkit.print_line()
+    toolkit.print_title("Configuring CI")
+    toolkit.print_line()
 
-        msg_token = "Created deploy token"
-        msg_secrets = (
-            "Set GitHub Actions secrets [bold blue]FASTAPI_CLOUD_TOKEN[/] "
-            "and [bold blue]FASTAPI_CLOUD_APP_ID[/]"
-        )
-        msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
+    toolkit.print(
+        f"Setting up CI for [bold]{repo_slug}[/bold] (branch: {branch})",
+        emoji="⚙️",
+    )
+    toolkit.print_line()
 
-        if dry_run:
-            if needs_secrets:
-                toolkit.print(msg_token)
-                toolkit.print(msg_secrets)
+    msg_token = "Created deploy token"
+    msg_secrets = (
+        "Set GitHub Actions secrets [bold blue]FASTAPI_CLOUD_TOKEN[/] "
+        "and [bold blue]FASTAPI_CLOUD_APP_ID[/]"
+    )
+    msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
 
-            if needs_workflow:
-                toolkit.print(msg_workflow)
-
-            toolkit.success(
-                CISetupOutput(
-                    app_id=target_app_id,
-                    repo=repo_slug,
-                    branch=branch,
-                    workflow_path=_format_workflow_path(workflow_path),
-                    created_token=False,
-                    set_github_secrets=False,
-                    wrote_workflow=False,
-                ),
-                render_output=lambda _data, _toolkit: None,
-            )
-            return
-
-        token_expired_at: str | None = None
-        created_token = False
-        set_github_secrets = False
-        wrote_workflow = False
-
+    if dry_run:
         if needs_secrets:
-            should_create_token = (
-                True
-                if toolkit.mode == "json"
-                else toolkit.confirm(
-                    "Create a FastAPI Cloud deploy token for GitHub Actions?",
-                    default=True,
-                )
-            )
-            if toolkit.mode != "json":
-                toolkit.print_line()
-
-            if should_create_token:
-                # Create unique token name with timestamp to avoid duplicates
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-                token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
-
-                with (
-                    APIClient() as client,
-                    toolkit.progress(
-                        title="Generating deploy token...", done_emoji="🔑"
-                    ) as progress,
-                    client.handle_http_errors(
-                        progress, default_message="Error creating deploy token."
-                    ),
-                ):
-                    token_data = _create_token(
-                        client=client, app_id=target_app_id, token_name=token_name
-                    )
-                    token_expired_at = token_data["expired_at"]
-                    created_token = True
-                    progress.log(msg_token)
-
-                toolkit.print_line()
-
-                if has_gh:
-                    should_set_secrets = (
-                        True
-                        if toolkit.mode == "json"
-                        else toolkit.confirm(
-                            "Set GitHub Actions secrets "
-                            "[bold blue]FASTAPI_CLOUD_TOKEN[/] and "
-                            "[bold blue]FASTAPI_CLOUD_APP_ID[/] via gh?",
-                            default=True,
-                        )
-                    )
-                    if toolkit.mode != "json":
-                        toolkit.print_line()
-                else:
-                    should_set_secrets = False
-                    secrets_url = (
-                        f"https://{_get_github_host(origin)}/{repo_slug}"
-                        "/settings/secrets/actions"
-                    )
-                    toolkit.print(
-                        "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
-                    )
-                    toolkit.print_line()
-                    toolkit.print(f"Repository: [blue]{secrets_url}[/]")
-                    toolkit.print_line()
-                    toolkit.print(
-                        f"[bold blue]FASTAPI_CLOUD_TOKEN[/] = {token_data['value']}"
-                    )
-                    toolkit.print(
-                        f"[bold blue]FASTAPI_CLOUD_APP_ID[/] = {target_app_id}"
-                    )
-
-                if should_set_secrets:
-                    with toolkit.progress(
-                        title="Setting repo secrets...", done_emoji="🔒"
-                    ) as progress:
-                        try:
-                            _set_github_secret(
-                                "FASTAPI_CLOUD_TOKEN", token_data["value"]
-                            )
-                            _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
-
-                            progress.log(msg_secrets)
-                        except GitHubSecretError:
-                            progress.set_error(
-                                "Failed to set GitHub secrets via gh CLI."
-                            )
-                            toolkit.fail(
-                                "api_error",
-                                "Failed to set GitHub secrets via gh CLI.",
-                            )
-                        set_github_secrets = True
-                else:
-                    toolkit.print("Skipped setting GitHub Actions secrets.", emoji="⏭️")
-            else:
-                toolkit.print(
-                    "Skipped creating deploy token and GitHub secrets.", emoji="⏭️"
-                )
-
-        toolkit.print_line()
+            toolkit.print(msg_token)
+            toolkit.print(msg_secrets)
 
         if needs_workflow:
-            if not file and workflow_path.exists():
-                resolved_workflow_path = _resolve_existing_workflow_path(
-                    toolkit, workflow_path
-                )
+            toolkit.print(msg_workflow)
 
-                if resolved_workflow_path is None:
-                    needs_workflow = False
-                else:
-                    workflow_path = resolved_workflow_path
-
-            if needs_workflow:
-                msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
-
-                _write_workflow_file(branch, workflow_path)
-                wrote_workflow = True
-
-                toolkit.print(msg_workflow)
-                toolkit.print_line()
-
-        output = CISetupOutput(
-            app_id=target_app_id,
-            repo=repo_slug,
-            branch=branch,
-            workflow_path=_format_workflow_path(workflow_path),
-            created_token=created_token,
-            set_github_secrets=set_github_secrets,
-            wrote_workflow=wrote_workflow,
-            token_expired_at=token_expired_at,
+        toolkit.success(
+            CISetupOutput(
+                app_id=target_app_id,
+                repo=repo_slug,
+                branch=branch,
+                workflow_path=_format_workflow_path(workflow_path),
+                created_token=False,
+                set_github_secrets=False,
+                wrote_workflow=False,
+            ),
+            render_output=lambda _data, _toolkit: None,
         )
+        return
 
-        toolkit.success(output, render_output=_render_ci_setup_output)
+    token_expired_at: str | None = None
+    created_token = False
+    set_github_secrets = False
+    wrote_workflow = False
+
+    if needs_secrets:
+        should_create_token = (
+            True
+            if toolkit.mode == "json"
+            else toolkit.confirm(
+                "Create a FastAPI Cloud deploy token for GitHub Actions?",
+                default=True,
+            )
+        )
+        if toolkit.mode != "json":
+            toolkit.print_line()
+
+        if should_create_token:
+            # Create unique token name with timestamp to avoid duplicates
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
+
+            with (
+                APIClient() as client,
+                toolkit.progress(
+                    title="Generating deploy token...", done_emoji="🔑"
+                ) as progress,
+                client.handle_http_errors(
+                    progress, default_message="Error creating deploy token."
+                ),
+            ):
+                token_data = _create_token(
+                    client=client, app_id=target_app_id, token_name=token_name
+                )
+                token_expired_at = token_data["expired_at"]
+                created_token = True
+                progress.log(msg_token)
+
+            toolkit.print_line()
+
+            if has_gh:
+                should_set_secrets = (
+                    True
+                    if toolkit.mode == "json"
+                    else toolkit.confirm(
+                        "Set GitHub Actions secrets "
+                        "[bold blue]FASTAPI_CLOUD_TOKEN[/] and "
+                        "[bold blue]FASTAPI_CLOUD_APP_ID[/] via gh?",
+                        default=True,
+                    )
+                )
+                if toolkit.mode != "json":
+                    toolkit.print_line()
+            else:
+                should_set_secrets = False
+                secrets_url = (
+                    f"https://{_get_github_host(origin)}/{repo_slug}"
+                    "/settings/secrets/actions"
+                )
+                toolkit.print(
+                    "[yellow]gh CLI not found. Set these secrets manually:[/yellow]",
+                )
+                toolkit.print_line()
+                toolkit.print(f"Repository: [blue]{secrets_url}[/]")
+                toolkit.print_line()
+                toolkit.print(
+                    f"[bold blue]FASTAPI_CLOUD_TOKEN[/] = {token_data['value']}"
+                )
+                toolkit.print(f"[bold blue]FASTAPI_CLOUD_APP_ID[/] = {target_app_id}")
+
+            if should_set_secrets:
+                with toolkit.progress(
+                    title="Setting repo secrets...", done_emoji="🔒"
+                ) as progress:
+                    try:
+                        _set_github_secret("FASTAPI_CLOUD_TOKEN", token_data["value"])
+                        _set_github_secret("FASTAPI_CLOUD_APP_ID", target_app_id)
+
+                        progress.log(msg_secrets)
+                    except GitHubSecretError:
+                        progress.set_error("Failed to set GitHub secrets via gh CLI.")
+                        toolkit.fail(
+                            "api_error",
+                            "Failed to set GitHub secrets via gh CLI.",
+                        )
+                    set_github_secrets = True
+            else:
+                toolkit.print("Skipped setting GitHub Actions secrets.", emoji="⏭️")
+        else:
+            toolkit.print(
+                "Skipped creating deploy token and GitHub secrets.", emoji="⏭️"
+            )
+
+    toolkit.print_line()
+
+    if needs_workflow:
+        if not file and workflow_path.exists():
+            resolved_workflow_path = _resolve_existing_workflow_path(
+                toolkit, workflow_path
+            )
+
+            if resolved_workflow_path is None:
+                needs_workflow = False
+            else:
+                workflow_path = resolved_workflow_path
+
+        if needs_workflow:
+            msg_workflow = f"Wrote [bold]{workflow_path}[/bold] (branch: {branch})"
+
+            _write_workflow_file(branch, workflow_path)
+            wrote_workflow = True
+
+            toolkit.print(msg_workflow)
+            toolkit.print_line()
+
+    output = CISetupOutput(
+        app_id=target_app_id,
+        repo=repo_slug,
+        branch=branch,
+        workflow_path=_format_workflow_path(workflow_path),
+        created_token=created_token,
+        set_github_secrets=set_github_secrets,
+        wrote_workflow=wrote_workflow,
+        token_expired_at=token_expired_at,
+    )
+
+    toolkit.success(output, render_output=_render_ci_setup_output)

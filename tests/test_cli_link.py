@@ -37,7 +37,7 @@ def test_link_json_returns_not_logged_in_when_logged_out(logged_out_cli: None) -
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""

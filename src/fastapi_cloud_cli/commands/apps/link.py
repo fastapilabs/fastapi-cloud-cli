@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
+from fastapi_cloud_cli._app import cloud_app
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.commands.apps.list import _get_app
 from fastapi_cloud_cli.utils.apps import AppConfig, get_app_config, write_app_config
 from fastapi_cloud_cli.utils.auth import Identity
@@ -171,6 +173,8 @@ def _link_app_interactively(
     logger.debug(f"Linked to app: {app['id']} in team: {team['id']}")
 
 
+@cloud_app.command("link")
+@apps_app.command("link")
 def link_app(
     app_id: Annotated[
         str | None,
@@ -216,7 +220,7 @@ def link_app(
             toolkit.fail(
                 "not_logged_in",
                 "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+                hint="Run `fastapi cloud login`.",
             )
 
         if app_id is not None and app_id_option is not None and app_id != app_id_option:

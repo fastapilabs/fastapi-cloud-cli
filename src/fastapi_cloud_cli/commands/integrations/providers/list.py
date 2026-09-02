@@ -7,8 +7,8 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.integrations.providers._app import providers_app
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 from fastapi_cloud_cli.utils.teams import resolve_team_id
 
@@ -88,7 +88,9 @@ def _render_providers_list_output(
     toolkit.print(_get_providers_table(data.providers), bullet=False)
 
 
+@providers_app.command("list", cls=UserCommand)
 def list_providers(
+    ctx: typer.Context,
     team_id: Annotated[
         str | None,
         typer.Option(
@@ -104,41 +106,34 @@ def list_providers(
     """
     List integration providers and their connection status for a team.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        with APIClient() as client:
-            team_id = resolve_team_id(
-                toolkit,
-                client,
-                team_id=team_id,
-                empty_hint="Create a team before listing integration providers.",
-            )
-
-            with (
-                toolkit.progress(
-                    title="Fetching integration providers",
-                    transient=True,
-                ) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message=(
-                        "Error fetching integration providers. Please try again later."
-                    ),
-                    not_found_message="Team not found.",
-                    toolkit=toolkit,
-                ),
-            ):
-                providers = _get_providers(client, team_id=team_id)
-
-        toolkit.success(
-            ProvidersListOutput(team_id=team_id, providers=providers),
-            render_output=_render_providers_list_output,
+    with APIClient() as client:
+        team_id = resolve_team_id(
+            toolkit,
+            client,
+            team_id=team_id,
+            empty_hint="Create a team before listing integration providers.",
         )
+
+        with (
+            toolkit.progress(
+                title="Fetching integration providers",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message=(
+                    "Error fetching integration providers. Please try again later."
+                ),
+                not_found_message="Team not found.",
+                toolkit=toolkit,
+            ),
+        ):
+            providers = _get_providers(client, team_id=team_id)
+
+    toolkit.success(
+        ProvidersListOutput(team_id=team_id, providers=providers),
+        render_output=_render_providers_list_output,
+    )

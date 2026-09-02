@@ -6,6 +6,7 @@ from typing import Annotated, Any, cast
 import typer
 from pydantic import BaseModel
 
+from fastapi_cloud_cli._app import app, cloud_app
 from fastapi_cloud_cli.api import APIClient, DeploymentStatus
 from fastapi_cloud_cli.commands.deploy.archive import _get_large_files, archive
 from fastapi_cloud_cli.commands.deploy.cloud import (
@@ -98,6 +99,8 @@ def _render_linked_app_not_found(
     )
 
 
+@app.command()
+@cloud_app.command()
 def deploy(
     path: Annotated[
         Path | None,

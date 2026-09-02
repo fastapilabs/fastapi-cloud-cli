@@ -7,6 +7,8 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.commands.apps.list import (
     App,
     _get_app,
@@ -15,8 +17,7 @@ from fastapi_cloud_cli.commands.apps.list import (
 )
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_details_table, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import get_details_table
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,9 @@ def _render_app_get_output(data: AppGetOutput, toolkit: RichToolkit) -> None:
     )
 
 
+@apps_app.command("get", cls=UserCommand)
 def get_app(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Argument(
@@ -68,55 +71,48 @@ def get_app(
     """
     Get a FastAPI Cloud app by ID.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        target_app_id = resolve_app_id_or_fail(
-            toolkit,
-            app_id=app_id,
-            hint="Pass an app ID or run `fastapi cloud apps create --link` first.",
-        )
+    target_app_id = resolve_app_id_or_fail(
+        toolkit,
+        app_id=app_id,
+        hint="Pass an app ID or run `fastapi cloud apps create --link` first.",
+    )
 
-        with APIClient() as client:
+    with APIClient() as client:
+        with toolkit.progress(
+            title="Fetching app",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error fetching app. Please try again later.",
+                not_found_message="App not found.",
+                toolkit=toolkit,
+            ):
+                app = _get_app(client, target_app_id)
+
+        dashboard_url = None
+        if not json_output:
             with toolkit.progress(
-                title="Fetching app",
+                title="Fetching team",
                 transient=True,
             ) as progress:
                 with client.handle_http_errors(
                     progress,
-                    default_message="Error fetching app. Please try again later.",
-                    not_found_message="App not found.",
+                    default_message="Error fetching team. Please try again later.",
+                    not_found_message="Team not found.",
                     toolkit=toolkit,
                 ):
-                    app = _get_app(client, target_app_id)
+                    team = _get_team(client, app.team_id)
 
-            dashboard_url = None
-            if not json_output:
-                with toolkit.progress(
-                    title="Fetching team",
-                    transient=True,
-                ) as progress:
-                    with client.handle_http_errors(
-                        progress,
-                        default_message="Error fetching team. Please try again later.",
-                        not_found_message="Team not found.",
-                        toolkit=toolkit,
-                    ):
-                        team = _get_team(client, app.team_id)
+            dashboard_url = _get_app_dashboard_url(
+                app,
+                team_slug=team.slug,
+                settings=Settings.get(),
+            )
 
-                dashboard_url = _get_app_dashboard_url(
-                    app,
-                    team_slug=team.slug,
-                    settings=Settings.get(),
-                )
+        result = AppGetOutput(app=app, dashboard_url=dashboard_url)
 
-            result = AppGetOutput(app=app, dashboard_url=dashboard_url)
-
-        toolkit.success(result, render_output=_render_app_get_output)
+    toolkit.success(result, render_output=_render_app_get_output)

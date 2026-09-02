@@ -8,10 +8,12 @@ from fastapi_cloud_cli.commands._flow import (
     complete_device_login,
     render_login_output,
 )
+from fastapi_cloud_cli.commands.auth._app import auth_app
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 
+@auth_app.command("wait")
 def wait(
     device_code: Annotated[
         str,
