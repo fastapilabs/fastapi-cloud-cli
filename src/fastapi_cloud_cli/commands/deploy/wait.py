@@ -119,7 +119,7 @@ def _wait_for_deployment(
                 time_elapsed = time.monotonic() - started_at
 
                 if log.type == "message":
-                    progress.log(Text.from_ansi(log.message.rstrip()))  # ty: ignore[unresolved-attribute]
+                    progress.log(Text.from_ansi(log.message.rstrip()))
 
                 if log.type == "complete":
                     build_complete = True
