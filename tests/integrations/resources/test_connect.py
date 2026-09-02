@@ -5,14 +5,14 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from tests.utils import changing_dir
+from tests.utils import SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 APP_ID = "00000000-0000-4000-8000-000000000001"
 LINKED_APP_ID = "00000000-0000-4000-8000-000000000002"
@@ -136,14 +136,15 @@ def test_connect_resource_opens_browser_for_linked_app(
 
     assert result.exit_code == 0
     mock_launch.assert_called_once_with(CONNECT_URL)
-    assert "connect resource" in result.output
-    assert "Opened the integration setup for API in your browser." in result.output
-    assert CONNECT_URL in result.output
-    assert "When the connection is complete" in result.output
-    assert "fastapi cloud integrations resources list" in " ".join(
-        result.output.split()
-    )
-    assert APP_ID not in result.output
+    assert result.output == snapshot("""\
+connect resource
+
+🔌 Opened the integration setup for API in your browser.
+   https://dashboard.fastapicloud.com/acme/apps/api/integrations/connect
+
+💡 When the connection is complete, run fastapi cloud integrations resources
+   list to view it.\
+""")
 
 
 @pytest.mark.respx
@@ -170,11 +171,15 @@ def test_connect_resource_no_open_prints_url_without_opening_browser(
 
     assert result.exit_code == 0
     mock_launch.assert_not_called()
-    assert "Open the integration setup for API in your browser:" in result.output
-    assert CONNECT_URL in result.output
-    assert f"fastapi cloud integrations resources list --app-id {APP_ID}" in " ".join(
-        result.output.split()
-    )
+    assert result.output == snapshot("""\
+connect resource
+
+🔌 Open the integration setup for API in your browser:
+   https://dashboard.fastapicloud.com/acme/apps/api/integrations/connect
+
+💡 When the connection is complete, run fastapi cloud integrations resources
+   list --app-id 00000000-0000-4000-8000-000000000001 to view it.\
+""")
 
 
 def test_connect_resource_json_requires_app_without_linked_app(

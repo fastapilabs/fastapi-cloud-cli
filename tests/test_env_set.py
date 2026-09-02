@@ -5,12 +5,12 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -74,18 +74,22 @@ def test_shows_message_when_it_sets(
         result = runner.invoke(app, ["env", "set", "SOME_VAR", "secret"])
 
     assert result.exit_code == 0
-    assert "Environment variable SOME_VAR set" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Environment variable SOME_VAR set.\
+""")
 
 
 @pytest.mark.respx
 def test_asks_for_name_and_value(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    steps = [*"SOME_VAR", Keys.ENTER, *"secret", Keys.ENTER]
+    steps = [*"API", Keys.ENTER, *"secret", Keys.ENTER]
 
     respx_mock.post(
         "/apps/123/environment-variables/",
-        json={"name": "SOME_VAR", "value": "secret", "is_secret": False},
+        json={"name": "API", "value": "secret", "is_secret": False},
     ).mock(return_value=Response(200))
 
     with (
@@ -95,21 +99,58 @@ def test_asks_for_name_and_value(
         result = runner.invoke(app, ["env", "set"])
 
     assert result.exit_code == 0
+    assert result.output == snapshot("""\
+environment variables
 
-    assert "Enter the name of the environment variable" in result.output
-    assert "Enter the value of the environment variable" in result.output
-    assert "Environment variable SOME_VAR set" in result.output
+Enter the name of the environment variable to set:
+
+
+Enter the name of the environment variable to set:
+A
+
+Enter the name of the environment variable to set:
+AP
+
+Enter the name of the environment variable to set:
+API
+
+Enter the name of the environment variable to set: API
+Enter the value of the environment variable:
+
+
+Enter the value of the environment variable:
+s
+
+Enter the value of the environment variable:
+se
+
+Enter the value of the environment variable:
+sec
+
+Enter the value of the environment variable:
+secr
+
+Enter the value of the environment variable:
+secre
+
+Enter the value of the environment variable:
+secret
+
+Enter the value of the environment variable: secret
+
+Environment variable API set.\
+""")
 
 
 @pytest.mark.respx
 def test_asks_for_name_and_value_for_secret(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    steps = [*"SOME_VAR", Keys.ENTER, *"secret", Keys.ENTER]
+    steps = [*"API", Keys.ENTER, *"secret", Keys.ENTER]
 
     respx_mock.post(
         "/apps/123/environment-variables/",
-        json={"name": "SOME_VAR", "value": "secret", "is_secret": True},
+        json={"name": "API", "value": "secret", "is_secret": True},
     ).mock(return_value=Response(200))
 
     with (
@@ -119,12 +160,47 @@ def test_asks_for_name_and_value_for_secret(
         result = runner.invoke(app, ["env", "set", "--secret"])
 
     assert result.exit_code == 0
+    assert result.output == snapshot("""\
+environment variables
 
-    assert "Enter the name of the secret" in result.output
-    assert "Enter the secret value" in result.output
-    assert "Secret environment variable SOME_VAR set" in result.output
+Enter the name of the secret to set:
 
-    assert "*" * 6 in result.output
+
+Enter the name of the secret to set:
+A
+
+Enter the name of the secret to set:
+AP
+
+Enter the name of the secret to set:
+API
+
+Enter the name of the secret to set: API
+Enter the secret value:
+
+
+Enter the secret value:
+*
+
+Enter the secret value:
+**
+
+Enter the secret value:
+***
+
+Enter the secret value:
+****
+
+Enter the secret value:
+*****
+
+Enter the secret value:
+******
+
+Enter the secret value: ******
+
+Secret environment variable API set.\
+""")
 
 
 @pytest.mark.respx
@@ -140,7 +216,11 @@ def test_sets_secret_flag(
         result = runner.invoke(app, ["env", "set", "SOME_VAR", "secret", "--secret"])
 
     assert result.exit_code == 0
-    assert "Secret environment variable SOME_VAR set" in result.output
+    assert result.output == snapshot("""\
+environment variables
+
+Secret environment variable SOME_VAR set.\
+""")
 
 
 @pytest.mark.respx

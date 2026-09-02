@@ -1,17 +1,19 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
 import pytest
 import respx
+import time_machine
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from tests.utils import changing_dir
+from tests.utils import SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 DatabaseProvider = Literal["neon", "redis", "supabase"]
 
@@ -212,6 +214,7 @@ def test_gets_resource_json_requires_app_without_linked_app(
 
 
 @pytest.mark.respx
+@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=timezone.utc), tick=False)
 def test_gets_database_resource_in_human_output(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -226,21 +229,24 @@ def test_gets_database_resource_in_human_output(
     )
 
     assert result.exit_code == 0
-    assert "connected resource" in result.output
-    assert "production" in result.output
-    assert f"id                     {RESOURCE_ID}" in result.output
-    assert "provider               Neon" in result.output
-    assert "database               app_db" in result.output
-    assert f"console                {CONSOLE_URL}" in result.output
-    assert "environment variables  DATABASE_URL" in result.output
-    assert "DATABASE_PASSWORD" in result.output
-    assert "connected" in result.output
-    assert "last updated" in result.output
-    assert INTEGRATION_ID not in result.output
-    assert "unused-project-id" not in result.output
+    assert result.output == snapshot("""\
+connected resource
+
+🔌 production
+
+   id                     00000000-0000-4000-8000-000000000004
+   provider               Neon
+   database               app_db
+   console                https://provider.example/resource
+   environment variables  DATABASE_URL
+                          DATABASE_PASSWORD
+   connected              14 days ago
+   last updated           12 days ago\
+""")
 
 
 @pytest.mark.respx
+@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=timezone.utc), tick=False)
 def test_gets_logfire_resource_in_human_output_without_environment_variables(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -258,10 +264,20 @@ def test_gets_logfire_resource_in_human_output_without_environment_variables(
     )
 
     assert result.exit_code == 0
-    assert "provider               Logfire" in result.output
-    assert "project                fastapi-api" in result.output
-    assert "organization           acme" in result.output
-    assert "environment variables  -" in result.output
+    assert result.output == snapshot("""\
+connected resource
+
+🔌 observability
+
+   id                     00000000-0000-4000-8000-000000000004
+   provider               Logfire
+   project                fastapi-api
+   organization           acme
+   console                https://provider.example/resource
+   environment variables  -
+   connected              14 days ago
+   last updated           12 days ago\
+""")
 
 
 @pytest.mark.respx

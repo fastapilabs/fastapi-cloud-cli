@@ -7,14 +7,14 @@ import pytest
 import respx
 import time_machine
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.api import StreamLogError, TooManyRetriesError
 from fastapi_cloud_cli.cli import cloud_app as app
 from tests.conftest import ConfiguredApp
-from tests.utils import build_logs_response, changing_dir
+from tests.utils import SnapshotCliRunner, build_logs_response, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 
 @pytest.mark.respx
@@ -123,13 +123,13 @@ def test_lists_deployments_human_output_shows_id_status_and_created(
     result = runner.invoke(app, ["deployments", "list", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "Status" in result.output
-    assert "Created" in result.output
-    assert "00000000-0000-4000-8000-000000000003  success  2 hours ago" in result.output
-    assert "Slug" not in result.output
-    assert "URL" not in result.output
-    assert "api-20260522" not in result.output
-    assert "https://api.fastapicloud.app" not in result.output
+    assert result.output == snapshot("""\
+deployments
+
+ID                                    Status   Created
+
+00000000-0000-4000-8000-000000000003  success  2 hours ago\
+""")
 
 
 @pytest.mark.respx
@@ -146,8 +146,11 @@ def test_lists_deployments_in_human_output_empty(
     result = runner.invoke(app, ["deployments", "list", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "deployments" in result.output
-    assert "No deployments found." in result.output
+    assert result.output == snapshot("""\
+deployments
+
+No deployments found.\
+""")
 
 
 def test_lists_deployments_json_returns_not_logged_in_when_logged_out(
@@ -325,15 +328,18 @@ def test_gets_deployment_in_human_output(
     )
 
     assert result.exit_code == 0
-    assert "deployment" in result.output
-    assert f"🚀 {deployment['id']}" in result.output
-    assert f"app id     {app_id}" in result.output
-    assert "slug       api-20260522" in result.output
-    assert "status     success" in result.output
-    assert "created    2 hours ago" in result.output
-    assert "url        https://api.fastapicloud.app" in result.output
-    assert "dashboard  https://dashboard.example.com/d/api-20260522" in result.output
-    assert "2026-05-22T10:00:00Z" not in result.output
+    assert result.output == snapshot("""\
+deployment
+
+🚀 00000000-0000-4000-8000-000000000003
+
+   app id     00000000-0000-4000-8000-000000000002
+   slug       api-20260522
+   status     success
+   created    2 hours ago
+   url        https://api.fastapicloud.app
+   dashboard  https://dashboard.example.com/d/api-20260522\
+""")
 
 
 @pytest.mark.respx

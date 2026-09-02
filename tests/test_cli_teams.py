@@ -3,11 +3,12 @@ import json
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
+from tests.utils import SnapshotCliRunner
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 
 @pytest.mark.respx
@@ -94,11 +95,13 @@ def test_lists_teams_in_human_output(
     result = runner.invoke(app, ["teams", "list"])
 
     assert result.exit_code == 0
-    assert "teams" in result.output
-    assert "Name  ID" in result.output
-    assert "Slug" not in result.output
-    assert "acme" not in result.output
-    assert "Acme  00000000-0000-4000-8000-000000000001" in result.output
+    assert result.output == snapshot("""\
+teams
+
+Name  ID
+
+Acme  00000000-0000-4000-8000-000000000001\
+""")
 
 
 @pytest.mark.respx
@@ -116,7 +119,11 @@ def test_lists_teams_in_human_output_empty(
     result = runner.invoke(app, ["teams", "list"])
 
     assert result.exit_code == 0
-    assert "No teams found." in result.output
+    assert result.output == snapshot("""\
+teams
+
+No teams found.\
+""")
 
 
 def test_lists_teams_human_returns_not_logged_in_when_logged_out(
@@ -125,8 +132,11 @@ def test_lists_teams_human_returns_not_logged_in_when_logged_out(
     result = runner.invoke(app, ["teams", "list"])
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
-    assert "fastapi cloud login" in result.output
+    assert result.output == snapshot("""\
+✗ error: No credentials found.
+
+  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+""")
 
 
 def test_gets_team_human_returns_not_logged_in_when_logged_out(
@@ -138,8 +148,11 @@ def test_gets_team_human_returns_not_logged_in_when_logged_out(
     )
 
     assert result.exit_code == 1
-    assert "No credentials found." in result.output
-    assert "fastapi cloud login" in result.output
+    assert result.output == snapshot("""\
+✗ error: No credentials found.
+
+  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+""")
 
 
 @pytest.mark.respx
@@ -171,17 +184,18 @@ def test_gets_team_in_human_output(
         "slug": "acme",
         "name": "Acme",
     }
-    dashboard_url = "https://dashboard.fastapicloud.com/acme/apps"
     respx_mock.get(f"/teams/{team['id']}").mock(return_value=Response(200, json=team))
 
     result = runner.invoke(app, ["teams", "get", team["id"]])
 
     assert result.exit_code == 0
-    assert "🏢 Acme" in result.output
-    assert f"id    {team['id']}" in result.output
-    assert "slug  acme" in result.output
-    assert f"url   {dashboard_url}" in result.output
-    assert "Team:" not in result.output
+    assert result.output == snapshot("""\
+🏢 Acme
+
+   id    00000000-0000-4000-8000-000000000001
+   slug  acme
+   url   https://dashboard.fastapicloud.com/acme/apps\
+""")
 
 
 @pytest.mark.respx

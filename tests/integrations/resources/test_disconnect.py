@@ -5,13 +5,13 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 APP_ID = "00000000-0000-4000-8000-000000000001"
 LINKED_APP_ID = "00000000-0000-4000-8000-000000000002"
@@ -226,21 +226,27 @@ def test_disconnect_resource_allows_interactive_selection(
         result = runner.invoke(app, ["integrations", "resources", "disconnect"])
 
     assert result.exit_code == 0
-    assert result.output.index(
-        "Select the resource to disconnect:"
-    ) < result.output.index("The managed environment variables")
-    normalized_output = " ".join(result.output.split())
-    assert (
-        "The managed environment variables DATABASE_URL, DATABASE_PASSWORD will be "
-        "removed from the app." in normalized_output
-    )
-    assert "The Neon resource itself will not be deleted." in normalized_output
-    assert "production (Neon)" in result.output
-    assert "cache (Redis Cloud)" in result.output
+    assert result.output == snapshot("""\
+disconnect resource
 
-    assert "Disconnected production from the app." in result.output
-    assert "Removed managed environment variables:" in result.output
-    assert "DATABASE_URL, DATABASE_PASSWORD" in result.output
+ Select the resource to disconnect:
+ ● production (Neon)
+ ○ cache (Redis Cloud)
+
+ Select the resource to disconnect: production (Neon)
+
+💡 The managed environment variables DATABASE_URL, DATABASE_PASSWORD will be
+   removed from the app. The Neon resource itself will not be deleted.
+
+ Disconnect production?
+ ● Yes  ○ No
+
+ Disconnect production? Yes
+
+🔌 Disconnected production from the app.
+
+   Removed managed environment variables: DATABASE_URL, DATABASE_PASSWORD.\
+""")
 
 
 @pytest.mark.respx
@@ -272,14 +278,19 @@ def test_disconnect_resource_prompts_for_confirmation_when_id_is_provided(
         )
 
     assert result.exit_code == 0
-    normalized_output = " ".join(result.output.split())
-    assert (
-        "Managed environment variables will be removed from the app."
-        in normalized_output
-    )
-    assert "The Neon resource itself will not be deleted." in normalized_output
-    assert "Disconnect production?" in normalized_output
-    assert "Disconnected production from the app." in result.output
+    assert result.output == snapshot("""\
+disconnect resource
+
+💡 Managed environment variables will be removed from the app. The Neon
+   resource itself will not be deleted.
+
+ Disconnect production?
+ ● Yes  ○ No
+
+ Disconnect production? Yes
+
+🔌 Disconnected production from the app.\
+""")
 
 
 @pytest.mark.respx
@@ -308,7 +319,22 @@ def test_disconnect_resource_can_be_cancelled(
         )
 
     assert result.exit_code == 0
-    assert "Disconnection cancelled." in result.output
+    assert result.output == snapshot("""\
+disconnect resource
+
+💡 The managed environment variables DATABASE_URL, DATABASE_PASSWORD will be
+   removed from the app. The Neon resource itself will not be deleted.
+
+ Disconnect production?
+ ● Yes  ○ No
+
+ Disconnect production?
+ ○ Yes  ● No
+
+ Disconnect production? No
+
+ Disconnection cancelled.\
+""")
 
 
 @pytest.mark.respx
@@ -326,7 +352,11 @@ def test_disconnect_resource_selector_handles_empty_list(
     )
 
     assert result.exit_code == 0
-    assert "No connected resources found." in result.output
+    assert result.output == snapshot("""\
+disconnect resource
+
+No connected resources found.\
+""")
 
 
 @pytest.mark.respx

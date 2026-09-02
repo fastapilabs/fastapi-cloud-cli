@@ -5,13 +5,13 @@ from unittest.mock import patch
 import pytest
 import respx
 from httpx import Response
-from typer.testing import CliRunner
+from inline_snapshot import snapshot
 
 from fastapi_cloud_cli.cli import cloud_app as app
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, changing_dir
+from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
-runner = CliRunner()
+runner = SnapshotCliRunner()
 
 
 def test_creates_token_json_returns_not_logged_in_when_logged_out(
@@ -659,10 +659,11 @@ def test_lists_tokens_in_human_output_empty(
     result = runner.invoke(app, ["tokens", "list", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "deploy tokens" in result.output
-    assert "No deploy tokens found." in result.output
-    assert "Name" not in result.output
-    assert "Expiration" not in result.output
+    assert result.output == snapshot("""\
+deploy tokens
+
+No deploy tokens found.\
+""")
 
 
 @pytest.mark.respx
@@ -692,11 +693,10 @@ def test_lists_tokens_human_output_without_secret_values(
     result = runner.invoke(app, ["tokens", "list", "--app-id", app_id])
 
     assert result.exit_code == 0
-    assert "deploy tokens" in result.output
-    assert "Name" in result.output
-    assert "Expiration" in result.output
-    assert "GitHub Actions" in result.output
-    assert "2027-05-22" in result.output
-    assert "expires 2027-05-22" not in result.output
-    assert token_id in result.output
-    assert "fcp_secret_token_value" not in result.output
+    assert result.output == snapshot("""\
+deploy tokens
+
+Name            Expiration  ID
+
+GitHub Actions  2027-05-22  00000000-0000-4000-8000-000000000004\
+""")
