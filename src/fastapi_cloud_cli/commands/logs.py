@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from rich.markup import escape
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli._app import cloud_app
 from fastapi_cloud_cli.api import (
     APIClient,
     AppLogEntry,
@@ -20,9 +21,10 @@ from fastapi_cloud_cli.api import (
     get_http_error_hint,
     handle_http_error,
 )
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 from fastapi_cloud_cli.utils.errors import ErrorCode
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -204,7 +206,10 @@ def _process_log_stream(
         )
 
 
+@cloud_app.command(cls=UserCommand)
+@apps_app.command("logs", cls=UserCommand)
 def logs(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -255,40 +260,33 @@ def logs(
         fastapi cloud logs --no-follow          # Fetch recent logs and exit
         fastapi cloud logs --tail 50 --since 1h # Last 50 logs from the past hour
     """
-    identity = Identity()
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        target_app_id = resolve_app_id_or_fail(
-            toolkit,
-            app_id=app_id,
-            path=path,
-            hint="Pass --app-id or run `fastapi cloud link` to link an app.",
+    target_app_id = resolve_app_id_or_fail(
+        toolkit,
+        app_id=app_id,
+        path=path,
+        hint="Pass --app-id or run `fastapi cloud link` to link an app.",
+    )
+
+    logger.debug("Fetching logs for app ID: %s", target_app_id)
+
+    if follow:
+        toolkit.print(
+            f"Streaming logs for [bold]{target_app_id}[/bold] (Ctrl+C to exit)...",
+            emoji="📡",
         )
-
-        logger.debug("Fetching logs for app ID: %s", target_app_id)
-
-        if follow:
-            toolkit.print(
-                f"Streaming logs for [bold]{target_app_id}[/bold] (Ctrl+C to exit)...",
-                emoji="📡",
-            )
-        else:
-            toolkit.print(
-                f"Fetching logs for [bold]{target_app_id}[/bold]...",
-                emoji="📜",
-            )
-        toolkit.print_line()
-
-        _process_log_stream(
-            toolkit=toolkit,
-            app_id=target_app_id,
-            tail=tail,
-            since=since,
-            follow=follow,
+    else:
+        toolkit.print(
+            f"Fetching logs for [bold]{target_app_id}[/bold]...",
+            emoji="📜",
         )
+    toolkit.print_line()
+
+    _process_log_stream(
+        toolkit=toolkit,
+        app_id=target_app_id,
+        tail=tail,
+        since=since,
+        follow=follow,
+    )

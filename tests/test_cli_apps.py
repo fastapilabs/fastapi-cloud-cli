@@ -43,7 +43,7 @@ def test_creates_app_json_returns_not_logged_in_when_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""
@@ -379,7 +379,7 @@ def test_updates_app_json_returns_not_logged_in_when_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""
@@ -716,7 +716,7 @@ def test_gets_app_human_returns_not_logged_in_when_logged_out(
     assert result.output == snapshot("""\
 ✗ error: No credentials found.
 
-  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+  hint: Run `fastapi cloud login`.\
 """)
 
 
@@ -1018,5 +1018,5 @@ def test_lists_apps_human_returns_not_logged_in_when_logged_out(
     assert result.output == snapshot("""\
 ✗ error: No credentials found.
 
-  hint: Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.\
+  hint: Run `fastapi cloud login`.\
 """)

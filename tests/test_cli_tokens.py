@@ -37,7 +37,7 @@ def test_creates_token_json_returns_not_logged_in_when_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""
@@ -63,7 +63,7 @@ def test_deletes_token_json_returns_not_logged_in_when_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""
@@ -564,7 +564,7 @@ def test_lists_tokens_json_returns_not_logged_in_when_logged_out(
         "error": {
             "code": "not_logged_in",
             "message": "No credentials found.",
-            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
+            "hint": "Run `fastapi cloud login`.",
         }
     }
     assert result.stderr == ""

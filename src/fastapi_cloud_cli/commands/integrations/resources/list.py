@@ -7,13 +7,13 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.integrations.resources._app import resources_app
 from fastapi_cloud_cli.commands.integrations.resources.providers import (
     PROVIDER_NAMES,
     Provider,
 )
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 
@@ -75,7 +75,9 @@ def _render_resources_list_output(
     toolkit.print(_get_resources_table(data.resources), bullet=False)
 
 
+@resources_app.command("list", cls=UserCommand)
 def list_resources(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Option(
@@ -88,36 +90,29 @@ def list_resources(
     """
     List resources connected to an app.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
+    app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-        with APIClient() as client:
-            with (
-                toolkit.progress(
-                    title="Fetching connected resources",
-                    transient=True,
-                ) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message=(
-                        "Error fetching connected resources. Please try again later."
-                    ),
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
+    with APIClient() as client:
+        with (
+            toolkit.progress(
+                title="Fetching connected resources",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message=(
+                    "Error fetching connected resources. Please try again later."
                 ),
-            ):
-                resources = _get_resources(client, app_id=app_id)
+                not_found_message="App not found.",
+                toolkit=toolkit,
+            ),
+        ):
+            resources = _get_resources(client, app_id=app_id)
 
-        toolkit.success(
-            ResourcesListOutput(app_id=app_id, resources=resources),
-            render_output=_render_resources_list_output,
-        )
+    toolkit.success(
+        ResourcesListOutput(app_id=app_id, resources=resources),
+        render_output=_render_resources_list_output,
+    )

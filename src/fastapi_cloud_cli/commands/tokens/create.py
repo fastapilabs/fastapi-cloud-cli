@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.tokens._app import tokens_app
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 DEFAULT_EXPIRES_IN_DAYS = 365
@@ -95,7 +96,9 @@ def _render_deploy_token_create_output(
     )
 
 
+@tokens_app.command("create", cls=UserCommand)
 def create_token(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Option(
@@ -130,53 +133,46 @@ def create_token(
     """
     Create a deploy token for an app.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
+    target_app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-        toolkit.print_title("deploy tokens")
+    toolkit.print_title("deploy tokens")
+    toolkit.print_line()
+
+    output_file = _resolve_output_file(toolkit, output_file=output_file)
+    name_needs_prompt = name is None
+    name = _resolve_token_name(toolkit, name=name)
+    if name_needs_prompt:
         toolkit.print_line()
 
-        output_file = _resolve_output_file(toolkit, output_file=output_file)
-        name_needs_prompt = name is None
-        name = _resolve_token_name(toolkit, name=name)
-        if name_needs_prompt:
-            toolkit.print_line()
+    with APIClient() as client:
+        with toolkit.progress(
+            title="Creating deploy token",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error creating deploy token. Please try again later.",
+                not_found_message="App not found.",
+                toolkit=toolkit,
+            ):
+                token = _create_deploy_token(
+                    client,
+                    app_id=target_app_id,
+                    name=name,
+                    expires_in_days=expires_in_days,
+                )
 
-        with APIClient() as client:
-            with toolkit.progress(
-                title="Creating deploy token",
-                transient=True,
-            ) as progress:
-                with client.handle_http_errors(
-                    progress,
-                    default_message="Error creating deploy token. Please try again later.",
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
-                ):
-                    token = _create_deploy_token(
-                        client,
-                        app_id=target_app_id,
-                        name=name,
-                        expires_in_days=expires_in_days,
-                    )
+    _write_token_value(output_file, token.value)
 
-        _write_token_value(output_file, token.value)
-
-        toolkit.success(
-            DeployTokenCreateOutput(
-                app_id=target_app_id,
-                token=CreatedDeployToken.model_validate(token),
-                stored_secret=StoredDeployTokenSecret(path=output_file),
-                output_file=output_file,
-            ),
-            render_output=_render_deploy_token_create_output,
-        )
+    toolkit.success(
+        DeployTokenCreateOutput(
+            app_id=target_app_id,
+            token=CreatedDeployToken.model_validate(token),
+            stored_secret=StoredDeployTokenSecret(path=output_file),
+            output_file=output_file,
+        ),
+        render_output=_render_deploy_token_create_output,
+    )

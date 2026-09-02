@@ -7,10 +7,10 @@ from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.env._app import env_app
 from fastapi_cloud_cli.commands.env._shared import _get_environment_variables
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -43,7 +43,9 @@ def _delete_environment_variable(client: APIClient, app_id: str, name: str) -> b
     return True
 
 
+@env_app.command(cls=UserCommand)
 def delete(
+    ctx: typer.Context,
     name: str | None = typer.Argument(
         None,
         help="The name of the environment variable to delete",
@@ -88,107 +90,99 @@ def delete(
     Delete an environment variable from the app.
     """
 
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    target_app_id = resolve_app_id_or_fail(
+        toolkit, app_id=app_id, path=path or path_arg
+    )
+    name_provided = name is not None
 
-        target_app_id = resolve_app_id_or_fail(
-            toolkit, app_id=app_id, path=path or path_arg
-        )
-        name_provided = name is not None
-
-        with APIClient() as client:
-            if not name:
-                if toolkit.mode == "json":
-                    toolkit.fail(
-                        "missing_required_input",
-                        "Environment variable name is required.",
-                        hint="Pass NAME to choose an environment variable.",
-                    )
-
-                with toolkit.progress(
-                    "Fetching environment variables...", transient=True
-                ) as progress:
-                    with client.handle_http_errors(progress):
-                        environment_variables = _get_environment_variables(
-                            client=client, app_id=target_app_id
-                        )
-
-                toolkit.print_title("environment variables")
-                toolkit.print_line()
-
-                if not environment_variables.data:
-                    toolkit.print("No environment variables found.", bullet=False)
-                    return
-
-                name = toolkit.ask(
-                    "Select the environment variable to delete:",
-                    options=[
-                        Option({"name": env_var.name, "value": env_var.name})
-                        for env_var in environment_variables.data
-                    ],
-                    bullet=False,
+    with APIClient() as client:
+        if not name:
+            if toolkit.mode == "json":
+                toolkit.fail(
+                    "missing_required_input",
+                    "Environment variable name is required.",
+                    hint="Pass NAME to choose an environment variable.",
                 )
-
-                assert name
-            else:
-                if not validate_environment_variable_name(name):
-                    toolkit.fail(
-                        "invalid_input",
-                        f"The environment variable name [bold]{name}[/] is invalid.",
-                    )
-
-                toolkit.print_line()
-
-            if name_provided and not yes:
-                if toolkit.mode == "json":
-                    toolkit.fail(
-                        "missing_required_input",
-                        "Deletion confirmation is required.",
-                        hint="Pass --yes to confirm deletion.",
-                    )
-
-                should_delete = toolkit.confirm(
-                    f"Delete [bold]{name}[/]?",
-                    default=False,
-                    bullet=False,
-                )
-                if not should_delete:
-                    toolkit.print_title("environment variables")
-                    toolkit.print_line()
-                    toolkit.print("Deletion cancelled.", bullet=False)
-                    raise typer.Exit(0)
-                toolkit.print_line()
 
             with toolkit.progress(
-                "Deleting environment variable", transient=True
+                "Fetching environment variables...", transient=True
             ) as progress:
                 with client.handle_http_errors(progress):
-                    deleted = _delete_environment_variable(
-                        client=client, app_id=target_app_id, name=name
+                    environment_variables = _get_environment_variables(
+                        client=client, app_id=target_app_id
                     )
 
-        if not deleted:
-            message = (
-                f"Environment variable {name} not found."
-                if toolkit.mode == "json"
-                else "Environment variable not found."
-            )
-            toolkit.fail(
-                "not_found",
-                message,
-                hint="Run `fastapi cloud env list` to see available variables.",
+            toolkit.print_title("environment variables")
+            toolkit.print_line()
+
+            if not environment_variables.data:
+                toolkit.print("No environment variables found.", bullet=False)
+                return
+
+            name = toolkit.ask(
+                "Select the environment variable to delete:",
+                options=[
+                    Option({"name": env_var.name, "value": env_var.name})
+                    for env_var in environment_variables.data
+                ],
+                bullet=False,
             )
 
-        toolkit.success(
-            EnvironmentVariableDeleteOutput(
-                app_id=target_app_id, name=name, show_tag=name_provided
-            ),
-            render_output=_render_environment_variable_delete_output,
+            assert name
+        else:
+            if not validate_environment_variable_name(name):
+                toolkit.fail(
+                    "invalid_input",
+                    f"The environment variable name [bold]{name}[/] is invalid.",
+                )
+
+            toolkit.print_line()
+
+        if name_provided and not yes:
+            if toolkit.mode == "json":
+                toolkit.fail(
+                    "missing_required_input",
+                    "Deletion confirmation is required.",
+                    hint="Pass --yes to confirm deletion.",
+                )
+
+            should_delete = toolkit.confirm(
+                f"Delete [bold]{name}[/]?",
+                default=False,
+                bullet=False,
+            )
+            if not should_delete:
+                toolkit.print_title("environment variables")
+                toolkit.print_line()
+                toolkit.print("Deletion cancelled.", bullet=False)
+                raise typer.Exit(0)
+            toolkit.print_line()
+
+        with toolkit.progress(
+            "Deleting environment variable", transient=True
+        ) as progress:
+            with client.handle_http_errors(progress):
+                deleted = _delete_environment_variable(
+                    client=client, app_id=target_app_id, name=name
+                )
+
+    if not deleted:
+        message = (
+            f"Environment variable {name} not found."
+            if toolkit.mode == "json"
+            else "Environment variable not found."
         )
+        toolkit.fail(
+            "not_found",
+            message,
+            hint="Run `fastapi cloud env list` to see available variables.",
+        )
+
+    toolkit.success(
+        EnvironmentVariableDeleteOutput(
+            app_id=target_app_id, name=name, show_tag=name_provided
+        ),
+        render_output=_render_environment_variable_delete_output,
+    )

@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli._app import cloud_app
 from fastapi_cloud_cli.utils.auth import delete_auth_config
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
@@ -18,6 +19,7 @@ def _render_logout_output(data: LogoutOutput, toolkit: RichToolkit) -> None:
     toolkit.print("You are now logged out!", emoji="👋")
 
 
+@cloud_app.command()
 def logout(json_output: JsonOutputOption = False) -> Any:
     """
     Logout from FastAPI Cloud.

@@ -4,6 +4,7 @@ import typer
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli.commands.ci._app import ci_app
 from fastapi_cloud_cli.commands.setup_ci import (
     DEFAULT_WORKFLOW_PATH,
     _get_default_branch,
@@ -22,6 +23,7 @@ def _render_workflow_output(data: CIWorkflowOutput, toolkit: RichToolkit) -> Non
     toolkit.console.print(data.content, markup=False, end="")
 
 
+@ci_app.command("print-workflow")
 def print_workflow(
     branch: Annotated[
         str | None,

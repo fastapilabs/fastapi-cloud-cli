@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient, CustomDomain
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.domains._app import domains_app
 from fastapi_cloud_cli.commands.domains.rendering import get_custom_domains_table
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 
@@ -32,7 +32,9 @@ def _render_custom_domains_list_output(
     toolkit.print(get_custom_domains_table(data.domains), bullet=False)
 
 
+@domains_app.command("list", cls=UserCommand)
 def list_domains(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Option(
@@ -45,40 +47,31 @@ def list_domains(
     """
     List custom domains for an app.
     """
-    identity = Identity()
+    toolkit = get_user_command_context(ctx).toolkit
+    app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login`.",
-            )
-
-        app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
-
-        with APIClient() as client:
-            with (
-                toolkit.progress(
-                    title="Fetching custom domains",
-                    transient=True,
-                ) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message=(
-                        "Error fetching custom domains. Please try again later."
-                    ),
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
+    with APIClient() as client:
+        with (
+            toolkit.progress(
+                title="Fetching custom domains",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message=(
+                    "Error fetching custom domains. Please try again later."
                 ),
-            ):
-                response = client.get_custom_domains(app_id=app_id)
-
-        toolkit.success(
-            CustomDomainsListOutput(
-                app_id=app_id,
-                domains=response.data,
-                total_count=response.count,
+                not_found_message="App not found.",
+                toolkit=toolkit,
             ),
-            render_output=_render_custom_domains_list_output,
-        )
+        ):
+            response = client.get_custom_domains(app_id=app_id)
+
+    toolkit.success(
+        CustomDomainsListOutput(
+            app_id=app_id,
+            domains=response.data,
+            total_count=response.count,
+        ),
+        render_output=_render_custom_domains_list_output,
+    )

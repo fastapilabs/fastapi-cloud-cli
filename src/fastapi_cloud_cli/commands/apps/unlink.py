@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli._app import cloud_app
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit, get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
@@ -40,6 +42,8 @@ def _fail_not_linked(toolkit: FastAPIRichToolkit) -> None:
     )
 
 
+@cloud_app.command("unlink")
+@apps_app.command("unlink")
 def unlink_app(
     path: Annotated[
         Path | None,

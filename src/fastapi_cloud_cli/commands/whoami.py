@@ -1,12 +1,13 @@
 import logging
 from typing import Any
 
+import typer
 from pydantic import BaseModel
 from rich_toolkit import RichToolkit
 
+from fastapi_cloud_cli._app import cloud_app
 from fastapi_cloud_cli.api import APIClient
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -28,41 +29,38 @@ def _render_whoami_output(data: WhoAmIOutput, toolkit: RichToolkit) -> None:
         )
 
 
+@cloud_app.command(cls=UserCommand)
 def whoami(
+    ctx: typer.Context,
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
     Show the currently logged in user.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run [blue]`fastapi login`[/] or set [blue]FASTAPI_CLOUD_TOKEN.[/]",
-            )
+    command_context = get_user_command_context(ctx)
+    toolkit = command_context.toolkit
+    identity = command_context.identity
 
-        with (
-            APIClient() as client,
-            toolkit.progress(
-                title="Fetching profile",
-                transient=True,
-            ) as progress,
+    with (
+        APIClient() as client,
+        toolkit.progress(
+            title="Fetching profile",
+            transient=True,
+        ) as progress,
+    ):
+        with client.handle_http_errors(
+            progress,
+            default_message="",
+            toolkit=toolkit,
         ):
-            with client.handle_http_errors(
-                progress,
-                default_message="",
-                toolkit=toolkit,
-            ):
-                response = client.get("/users/me")
-                response.raise_for_status()
+            response = client.get("/users/me")
+            response.raise_for_status()
 
-        data = response.json()
+    data = response.json()
 
-        result = WhoAmIOutput(
-            has_deploy_token=identity.has_deploy_token(), email=data["email"]
-        )
+    result = WhoAmIOutput(
+        has_deploy_token=identity.has_deploy_token(), email=data["email"]
+    )
 
-        toolkit.success(result, render_output=_render_whoami_output)
+    toolkit.success(result, render_output=_render_whoami_output)

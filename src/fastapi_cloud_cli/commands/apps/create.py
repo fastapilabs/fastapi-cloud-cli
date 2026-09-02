@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
+from fastapi_cloud_cli.commands.apps._app import apps_app
 from fastapi_cloud_cli.commands.deploy.archive import (
     _get_app_name,
     validate_app_directory,
 )
 from fastapi_cloud_cli.utils.apps import AppConfig, write_app_config
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 from fastapi_cloud_cli.utils.teams import select_team
 
@@ -56,7 +56,9 @@ def _render_apps_create_output(data: AppsCreateOutput, toolkit: RichToolkit) -> 
         )
 
 
+@apps_app.command("create", cls=UserCommand)
 def create_app(
+    ctx: typer.Context,
     team_id: Annotated[
         str | None,
         typer.Option(
@@ -100,97 +102,90 @@ def create_app(
     """
     Create a FastAPI Cloud app.
     """
-    identity = Identity()
     path_to_link = path or Path.cwd()
 
     # JSON output is non-interactive, so it defaults to create-only unless --link is explicit.
     link_app = link if link is not None else not json_output
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        if not link_app and path is not None:
-            toolkit.fail(
-                "invalid_input",
-                "Path can only be used when linking.",
-                hint="Pass --link or omit --path.",
-            )
-
-        with APIClient() as client:
-            if team_id is None:
-                if json_output:
-                    toolkit.fail(
-                        "missing_required_input",
-                        "Team ID is required.",
-                        hint="Pass --team-id to choose a team.",
-                    )
-
-                team = select_team(
-                    toolkit,
-                    client,
-                    empty_hint="Create a team before listing apps.",
-                )
-                team_id = team.id
-                toolkit.print_line()
-
-            if name is None:
-                if json_output:
-                    toolkit.fail(
-                        "missing_required_input",
-                        "App name is required.",
-                        hint="Pass --name to choose an app name.",
-                    )
-
-                name = toolkit.input(
-                    title="What's your app name?",
-                    default=_get_app_name(path_to_link),
-                    bullet=False,
-                )
-                toolkit.print_line()
-
-            try:
-                directory = validate_app_directory(directory)
-            except ValueError as e:
-                toolkit.fail(
-                    "invalid_input",
-                    f"Invalid app directory: {e}",
-                    hint=(
-                        "Pass a relative app directory such as `backend` or `webserver`; "
-                        "use --path with --link to choose a local filesystem path."
-                    ),
-                )
-
-            with toolkit.progress(
-                title="Creating app",
-                transient=True,
-            ) as progress:
-                with client.handle_http_errors(
-                    progress,
-                    default_message="Error creating app. Please try again later.",
-                    toolkit=toolkit,
-                ):
-                    app = _create_app(
-                        client,
-                        team_id=team_id,
-                        name=name,
-                        directory=directory,
-                    )
-
-        if link_app:
-            write_app_config(
-                path_to_link,
-                AppConfig(app_id=app.id, team_id=app.team_id),
-            )
-
-        result = AppsCreateOutput(
-            app=app,
-            linked=link_app,
-            path_to_link=path_to_link if link_app else None,
+    if not link_app and path is not None:
+        toolkit.fail(
+            "invalid_input",
+            "Path can only be used when linking.",
+            hint="Pass --link or omit --path.",
         )
 
-        toolkit.success(result, render_output=_render_apps_create_output)
+    with APIClient() as client:
+        if team_id is None:
+            if json_output:
+                toolkit.fail(
+                    "missing_required_input",
+                    "Team ID is required.",
+                    hint="Pass --team-id to choose a team.",
+                )
+
+            team = select_team(
+                toolkit,
+                client,
+                empty_hint="Create a team before listing apps.",
+            )
+            team_id = team.id
+            toolkit.print_line()
+
+        if name is None:
+            if json_output:
+                toolkit.fail(
+                    "missing_required_input",
+                    "App name is required.",
+                    hint="Pass --name to choose an app name.",
+                )
+
+            name = toolkit.input(
+                title="What's your app name?",
+                default=_get_app_name(path_to_link),
+                bullet=False,
+            )
+            toolkit.print_line()
+
+        try:
+            directory = validate_app_directory(directory)
+        except ValueError as e:
+            toolkit.fail(
+                "invalid_input",
+                f"Invalid app directory: {e}",
+                hint=(
+                    "Pass a relative app directory such as `backend` or `webserver`; "
+                    "use --path with --link to choose a local filesystem path."
+                ),
+            )
+
+        with toolkit.progress(
+            title="Creating app",
+            transient=True,
+        ) as progress:
+            with client.handle_http_errors(
+                progress,
+                default_message="Error creating app. Please try again later.",
+                toolkit=toolkit,
+            ):
+                app = _create_app(
+                    client,
+                    team_id=team_id,
+                    name=name,
+                    directory=directory,
+                )
+
+    if link_app:
+        write_app_config(
+            path_to_link,
+            AppConfig(app_id=app.id, team_id=app.team_id),
+        )
+
+    result = AppsCreateOutput(
+        app=app,
+        linked=link_app,
+        path_to_link=path_to_link if link_app else None,
+    )
+
+    toolkit.success(result, render_output=_render_apps_create_output)

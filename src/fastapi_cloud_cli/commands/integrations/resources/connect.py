@@ -7,16 +7,16 @@ from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.commands.apps.list import (
     App,
     _get_app,
     _get_app_dashboard_url,
     _get_team,
 )
+from fastapi_cloud_cli.commands.integrations.resources._app import resources_app
 from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
-from fastapi_cloud_cli.utils.auth import Identity
-from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,9 @@ def _render_resource_connect_output(
     )
 
 
+@resources_app.command("connect", cls=UserCommand)
 def connect_resource(
+    ctx: typer.Context,
     app_id: Annotated[
         str | None,
         typer.Option(
@@ -95,61 +97,54 @@ def connect_resource(
     """
     Open FastAPI Cloud to connect a provider resource to an app.
     """
-    identity = Identity()
 
-    with get_rich_toolkit(json_output=json_output) as toolkit:
-        if not identity.is_logged_in():
-            toolkit.fail(
-                "not_logged_in",
-                "No credentials found.",
-                hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
-            )
+    toolkit = get_user_command_context(ctx).toolkit
 
-        app_id_was_provided = app_id is not None
-        app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
+    app_id_was_provided = app_id is not None
+    app_id = resolve_app_id_or_fail(toolkit, app_id=app_id)
 
-        with APIClient() as client:
-            with (
-                toolkit.progress(title="Fetching app", transient=True) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message="Error fetching app. Please try again later.",
-                    not_found_message="App not found.",
-                    toolkit=toolkit,
-                ),
-            ):
-                app = _get_app(client, app_id)
-
-            with (
-                toolkit.progress(title="Fetching team", transient=True) as progress,
-                client.handle_http_errors(
-                    progress,
-                    default_message="Error fetching team. Please try again later.",
-                    not_found_message="Team not found.",
-                    toolkit=toolkit,
-                ),
-            ):
-                team = _get_team(client, app.team_id)
-
-        connect_url = _get_resource_connect_url(
-            app,
-            team_slug=team.slug,
-            settings=Settings.get(),
-        )
-        browser_opened = False
-
-        if not json_output and not no_open:
-            launch_result = typer.launch(connect_url)
-            logger.debug("Launch command result: %s", launch_result)
-            browser_opened = launch_result == 0
-
-        toolkit.success(
-            ResourceConnectOutput(
-                app_id=app.id,
-                app_name=app.name,
-                connect_url=connect_url,
-                browser_opened=browser_opened,
-                app_id_was_provided=app_id_was_provided,
+    with APIClient() as client:
+        with (
+            toolkit.progress(title="Fetching app", transient=True) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message="Error fetching app. Please try again later.",
+                not_found_message="App not found.",
+                toolkit=toolkit,
             ),
-            render_output=_render_resource_connect_output,
-        )
+        ):
+            app = _get_app(client, app_id)
+
+        with (
+            toolkit.progress(title="Fetching team", transient=True) as progress,
+            client.handle_http_errors(
+                progress,
+                default_message="Error fetching team. Please try again later.",
+                not_found_message="Team not found.",
+                toolkit=toolkit,
+            ),
+        ):
+            team = _get_team(client, app.team_id)
+
+    connect_url = _get_resource_connect_url(
+        app,
+        team_slug=team.slug,
+        settings=Settings.get(),
+    )
+    browser_opened = False
+
+    if not json_output and not no_open:
+        launch_result = typer.launch(connect_url)
+        logger.debug("Launch command result: %s", launch_result)
+        browser_opened = launch_result == 0
+
+    toolkit.success(
+        ResourceConnectOutput(
+            app_id=app.id,
+            app_name=app.name,
+            connect_url=connect_url,
+            browser_opened=browser_opened,
+            app_id_was_provided=app_id_was_provided,
+        ),
+        render_output=_render_resource_connect_output,
+    )
