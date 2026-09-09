@@ -30,6 +30,7 @@ from ._models import (
     BuildLogLine,
     CustomDomain,
     CustomDomainsAPIResponse,
+    Deployment,
     DeploymentStatus,
 )
 from ._retry import (
@@ -135,6 +136,11 @@ class APIClient(httpx.Client):
                 progress.set_error(message)
 
             raise typer.Exit(1) from None
+
+    def get_deployment(self, deployment_id: str) -> Deployment:
+        response = self.get(f"/deployments/{deployment_id}")
+        response.raise_for_status()
+        return Deployment.model_validate(response.json())
 
     def get_custom_domains(self, *, app_id: str) -> CustomDomainsAPIResponse:
         response = self.get(f"/apps/{app_id}/custom-domains")

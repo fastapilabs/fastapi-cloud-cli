@@ -455,3 +455,28 @@ def test_poll_deployment_status_timeout(client: APIClient, deployment_id: str) -
         pytest.raises(TimeoutError, match="timed out"),
     ):
         client.poll_deployment_status(deployment_id)
+
+
+def test_get_deployment_with_persisted_failure(
+    respx_mock: respx.MockRouter,
+    client: APIClient,
+    deployment_id: str,
+) -> None:
+    deployment = {
+        "id": deployment_id,
+        "app_id": "123",
+        "slug": "demo-build",
+        "created_at": "2026-09-10T12:00:00Z",
+        "status": "building_image_failed",
+        "url": "https://demo.fastapicloud.app",
+        "dashboard_url": "https://dashboard.fastapicloud.com/demo-build",
+        "failure": {
+            "error_code": "future_build_error",
+            "error_title": "A new build error",
+            "error_message": "Guidance supplied by the backend.",
+            "error_hint": "",
+        },
+    }
+    respx_mock.get(f"/deployments/{deployment_id}").respond(200, json=deployment)
+
+    assert client.get_deployment(deployment_id).model_dump(mode="json") == deployment
