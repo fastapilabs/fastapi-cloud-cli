@@ -9,7 +9,6 @@ from rich_toolkit.menu import Option
 from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.commands.env._app import env_app
-from fastapi_cloud_cli.commands.env._shared import _get_environment_variables
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.env import validate_environment_variable_name
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
@@ -30,17 +29,6 @@ def _render_environment_variable_delete_output(
 
     toolkit.print_line()
     toolkit.print(f"Environment variable [bold]{data.name}[/] deleted.", bullet=False)
-
-
-def _delete_environment_variable(client: APIClient, app_id: str, name: str) -> bool:
-    response = client.delete(f"/apps/{app_id}/environment-variables/{name}")
-
-    if response.status_code == 404:
-        return False
-
-    response.raise_for_status()
-
-    return True
 
 
 @env_app.command(cls=UserCommand)
@@ -84,10 +72,19 @@ def delete(
             help="Confirm deletion without prompting.",
         ),
     ] = False,
+    no_redeploy: Annotated[
+        bool,
+        typer.Option(
+            "--no-redeploy",
+            help="Delete the environment variable without redeploying the app.",
+        ),
+    ] = False,
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
-    Delete an environment variable from the app.
+    Delete an environment variable and redeploy the app by default.
+
+    Succeeds even if the variable is already absent.
     """
 
     toolkit = get_user_command_context(ctx).toolkit
@@ -109,9 +106,9 @@ def delete(
             with toolkit.progress(
                 "Fetching environment variables...", transient=True
             ) as progress:
-                with client.handle_http_errors(progress):
-                    environment_variables = _get_environment_variables(
-                        client=client, app_id=target_app_id
+                with client.handle_http_errors(progress, toolkit=toolkit):
+                    environment_variables = client.get_environment_variables(
+                        app_id=target_app_id
                     )
 
             toolkit.print_title("environment variables")
@@ -163,22 +160,13 @@ def delete(
         with toolkit.progress(
             "Deleting environment variable", transient=True
         ) as progress:
-            with client.handle_http_errors(progress):
-                deleted = _delete_environment_variable(
-                    client=client, app_id=target_app_id, name=name
+            with client.handle_http_errors(progress, toolkit=toolkit):
+                client.batch_environment_variables(
+                    app_id=target_app_id,
+                    upsert={},
+                    delete=[name],
+                    redeploy=not no_redeploy,
                 )
-
-    if not deleted:
-        message = (
-            f"Environment variable {name} not found."
-            if toolkit.mode == "json"
-            else "Environment variable not found."
-        )
-        toolkit.fail(
-            "not_found",
-            message,
-            hint="Run `fastapi cloud env list` to see available variables.",
-        )
 
     toolkit.success(
         EnvironmentVariableDeleteOutput(

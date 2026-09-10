@@ -4,6 +4,22 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, TypeAdapter
 
 
+class EnvironmentVariable(BaseModel):
+    name: str
+    value: str | None = None
+    is_secret: bool = False
+    updated_at: str | None = None
+
+
+class EnvironmentVariableResponse(BaseModel):
+    data: list[EnvironmentVariable]
+
+
+class EnvironmentVariableCreatePayload(BaseModel):
+    value: str
+    is_secret: bool = False
+
+
 class AppLogEntry(BaseModel):
     timestamp: str
     message: str

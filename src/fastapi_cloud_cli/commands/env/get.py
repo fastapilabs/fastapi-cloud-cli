@@ -7,14 +7,12 @@ from rich.table import Table
 from rich_toolkit import RichToolkit
 from rich_toolkit.menu import Option
 
-from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.api import APIClient, EnvironmentVariable
 from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.commands.env._app import env_app
 from fastapi_cloud_cli.commands.env._shared import (
-    EnvironmentVariable,
     _find_environment_variable,
     _format_env_var_value,
-    _get_environment_variables,
 )
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.execution import JsonOutputOption
@@ -92,8 +90,8 @@ def get_variable(
             "Fetching environment variables...", transient=True
         ) as progress:
             with client.handle_http_errors(progress):
-                environment_variables = _get_environment_variables(
-                    client=client, app_id=target_app_id
+                environment_variables = client.get_environment_variables(
+                    app_id=target_app_id
                 )
 
     if name is None:

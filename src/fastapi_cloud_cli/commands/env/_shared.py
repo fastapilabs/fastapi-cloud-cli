@@ -1,29 +1,8 @@
-from pydantic import BaseModel
 from rich.text import Text
 
-from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.api import EnvironmentVariable
 
 ENV_VAR_VALUE_MAX_LENGTH = 40
-
-
-class EnvironmentVariable(BaseModel):
-    name: str
-    value: str | None = None
-    is_secret: bool = False
-    updated_at: str | None = None
-
-
-class EnvironmentVariableResponse(BaseModel):
-    data: list[EnvironmentVariable]
-
-
-def _get_environment_variables(
-    client: APIClient, app_id: str
-) -> EnvironmentVariableResponse:
-    response = client.get(f"/apps/{app_id}/environment-variables/")
-    response.raise_for_status()
-
-    return EnvironmentVariableResponse.model_validate(response.json())
 
 
 def _find_environment_variable(

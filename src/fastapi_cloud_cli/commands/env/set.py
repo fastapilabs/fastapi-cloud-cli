@@ -6,7 +6,7 @@ import typer
 from pydantic import BaseModel, Field
 from rich_toolkit import RichToolkit
 
-from fastapi_cloud_cli.api import APIClient
+from fastapi_cloud_cli.api import APIClient, EnvironmentVariableCreatePayload
 from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.commands.env._app import env_app
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
@@ -95,16 +95,6 @@ def _resolve_environment_variable_value(
     return _input(toolkit, "Enter the value of the environment variable:")
 
 
-def _set_environment_variable(
-    client: APIClient, app_id: str, name: str, value: str, is_secret: bool = False
-) -> None:
-    response = client.post(
-        f"/apps/{app_id}/environment-variables/",
-        json={"name": name, "value": value, "is_secret": is_secret},
-    )
-    response.raise_for_status()
-
-
 @env_app.command(cls=UserCommand)
 def set(
     ctx: typer.Context,
@@ -153,13 +143,20 @@ def set(
         bool,
         typer.Option(
             "--secret",
-            help="Mark the environment variable as secret",
+            help="Mark a new environment variable as secret. Existing variables keep their secret status.",
+        ),
+    ] = False,
+    no_redeploy: Annotated[
+        bool,
+        typer.Option(
+            "--no-redeploy",
+            help="Save the environment variable without redeploying the app.",
         ),
     ] = False,
     json_output: JsonOutputOption = False,
 ) -> Any:
     """
-    Set an environment variable for the app.
+    Create or update an environment variable and redeploy the app by default.
     """
 
     toolkit = get_user_command_context(ctx).toolkit
@@ -190,20 +187,27 @@ def set(
         with toolkit.progress(
             "Setting environment variable", transient=True
         ) as progress:
-            with client.handle_http_errors(progress):
-                _set_environment_variable(
-                    client=client,
+            with client.handle_http_errors(progress, toolkit=toolkit):
+                environment_variables = client.batch_environment_variables(
                     app_id=target_app_id,
-                    name=name,
-                    value=value,
-                    is_secret=secret,
+                    upsert={
+                        name: EnvironmentVariableCreatePayload(
+                            value=value, is_secret=secret
+                        )
+                    },
+                    delete=[],
+                    redeploy=not no_redeploy,
                 )
+
+    variable = next(
+        variable for variable in environment_variables.data if variable.name == name
+    )
 
     toolkit.success(
         EnvironmentVariableSetOutput(
             app_id=target_app_id,
             name=name,
-            is_secret=secret,
+            is_secret=variable.is_secret,
             show_tag=not prompts_user,
         ),
         render_output=_render_environment_variable_set_output,
