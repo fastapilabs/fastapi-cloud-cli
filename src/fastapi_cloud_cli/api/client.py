@@ -32,6 +32,8 @@ from ._models import (
     CustomDomainsAPIResponse,
     Deployment,
     DeploymentStatus,
+    EnvironmentVariableCreatePayload,
+    EnvironmentVariableResponse,
 )
 from ._retry import (
     STREAM_LOGS_MAX_RETRIES,
@@ -141,6 +143,34 @@ class APIClient(httpx.Client):
         response = self.get(f"/deployments/{deployment_id}")
         response.raise_for_status()
         return Deployment.model_validate(response.json())
+
+    def get_environment_variables(self, *, app_id: str) -> EnvironmentVariableResponse:
+        response = self.get(f"/apps/{app_id}/environment-variables/")
+        response.raise_for_status()
+
+        return EnvironmentVariableResponse.model_validate(response.json())
+
+    def batch_environment_variables(
+        self,
+        *,
+        app_id: str,
+        upsert: dict[str, EnvironmentVariableCreatePayload],
+        delete: list[str],
+        redeploy: bool = True,
+    ) -> EnvironmentVariableResponse:
+        response = self.put(
+            f"/apps/{app_id}/environment-variables/",
+            json={
+                "upsert": {
+                    name: payload.model_dump() for name, payload in upsert.items()
+                },
+                "delete": delete,
+                "redeploy": redeploy,
+            },
+        )
+        response.raise_for_status()
+
+        return EnvironmentVariableResponse.model_validate(response.json())
 
     def get_custom_domains(self, *, app_id: str) -> CustomDomainsAPIResponse:
         response = self.get(f"/apps/{app_id}/custom-domains")

@@ -16,5 +16,9 @@ from ._models import CustomDomainRecord as CustomDomainRecord
 from ._models import CustomDomainStatus as CustomDomainStatus
 from ._models import Deployment as Deployment
 from ._models import DeploymentStatus as DeploymentStatus
+from ._models import EnvironmentVariable as EnvironmentVariable
+from ._models import (
+    EnvironmentVariableCreatePayload as EnvironmentVariableCreatePayload,
+)
 from ._retry import STREAM_LOGS_MAX_RETRIES as STREAM_LOGS_MAX_RETRIES
 from .client import APIClient as APIClient

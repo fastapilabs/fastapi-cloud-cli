@@ -12,6 +12,52 @@ from tests.utils import Keys, SnapshotCliRunner, changing_dir
 
 runner = SnapshotCliRunner()
 
+
+@pytest.mark.respx
+def test_delete_succeeds_when_variable_is_already_absent(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["TOKEN"], "redeploy": True},
+    ).mock(return_value=Response(200, json={"data": [], "count": 0}))
+
+    for _ in range(2):
+        result = runner.invoke(
+            app, ["env", "delete", "TOKEN", "--app-id", "123", "--yes", "--json"]
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == {
+            "data": {"app_id": "123", "name": "TOKEN", "deleted": True}
+        }
+        assert result.stderr == ""
+
+
+@pytest.mark.respx
+def test_delete_json_reports_managed_variable_error(
+    logged_in_cli: None, respx_mock: respx.MockRouter
+) -> None:
+    message = (
+        "Cannot modify integration-managed environment variables: 'DATABASE_URL'. "
+        "Disconnect the associated integration resources to remove these variables."
+    )
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["DATABASE_URL"], "redeploy": True},
+    ).mock(return_value=Response(400, json={"detail": message}))
+
+    result = runner.invoke(
+        app, ["env", "delete", "DATABASE_URL", "--app-id", "123", "--yes", "--json"]
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {"code": "invalid_input", "message": message, "hint": None}
+    }
+    assert result.stderr == ""
+
+
 assets_path = Path(__file__).parent / "assets"
 
 
@@ -62,9 +108,10 @@ def test_delete_json_returns_missing_required_input_without_app_context(
 def test_shows_a_message_if_something_is_wrong(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    respx_mock.delete("/apps/123/environment-variables/SOME_VAR").mock(
-        return_value=Response(500)
-    )
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["SOME_VAR"], "redeploy": True},
+    ).mock(return_value=Response(500))
 
     with changing_dir(configured_app):
         result = runner.invoke(app, ["env", "delete", "SOME_VAR", "--yes"])
@@ -77,18 +124,19 @@ def test_shows_a_message_if_something_is_wrong(
 
 
 @pytest.mark.respx
-def test_shows_message_if_not_found(
+def test_shows_message_if_app_not_found(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    respx_mock.delete("/apps/123/environment-variables/SOME_VAR").mock(
-        return_value=Response(404)
-    )
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["SOME_VAR"], "redeploy": True},
+    ).mock(return_value=Response(404, json={"detail": "App not found"}))
 
     with changing_dir(configured_app):
         result = runner.invoke(app, ["env", "delete", "SOME_VAR", "--yes"])
 
     assert result.exit_code == 1
-    assert "Environment variable not found" in result.output
+    assert "App not found" in result.output
 
 
 def test_shows_a_message_if_name_is_invalid(
@@ -105,9 +153,10 @@ def test_shows_a_message_if_name_is_invalid(
 def test_shows_message_when_it_deletes(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: Path
 ) -> None:
-    respx_mock.delete("/apps/123/environment-variables/SOME_VAR").mock(
-        return_value=Response(204)
-    )
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["SOME_VAR"], "redeploy": True},
+    ).mock(return_value=Response(200, json={"data": [], "count": 0}))
 
     with (
         changing_dir(configured_app),
@@ -129,13 +178,15 @@ Environment variable SOME_VAR deleted.\
 
 
 @pytest.mark.respx
+@pytest.mark.parametrize("no_redeploy", [False, True])
 def test_deletes_environment_variable_as_json_with_app_id(
-    logged_in_cli: None, respx_mock: respx.MockRouter
+    logged_in_cli: None, respx_mock: respx.MockRouter, no_redeploy: bool
 ) -> None:
     app_id = "00000000-0000-4000-8000-000000000002"
-    respx_mock.delete(f"/apps/{app_id}/environment-variables/DATABASE_URL").mock(
-        return_value=Response(204)
-    )
+    respx_mock.put(
+        f"/apps/{app_id}/environment-variables/",
+        json={"upsert": {}, "delete": ["DATABASE_URL"], "redeploy": not no_redeploy},
+    ).mock(return_value=Response(200, json={"data": [], "count": 0}))
 
     result = runner.invoke(
         app,
@@ -147,6 +198,7 @@ def test_deletes_environment_variable_as_json_with_app_id(
             app_id,
             "--yes",
             "--json",
+            *(["--no-redeploy"] if no_redeploy else []),
         ],
     )
 
@@ -162,13 +214,14 @@ def test_deletes_environment_variable_as_json_with_app_id(
 
 
 @pytest.mark.respx
-def test_delete_environment_variable_json_returns_not_found(
+def test_delete_environment_variable_json_returns_app_not_found(
     logged_in_cli: None, respx_mock: respx.MockRouter
 ) -> None:
     app_id = "00000000-0000-4000-8000-000000000002"
-    respx_mock.delete(f"/apps/{app_id}/environment-variables/DATABASE_URL").mock(
-        return_value=Response(404)
-    )
+    respx_mock.put(
+        f"/apps/{app_id}/environment-variables/",
+        json={"upsert": {}, "delete": ["DATABASE_URL"], "redeploy": True},
+    ).mock(return_value=Response(404, json={"detail": "App not found"}))
 
     result = runner.invoke(
         app,
@@ -187,8 +240,8 @@ def test_delete_environment_variable_json_returns_not_found(
     assert json.loads(result.stdout) == {
         "error": {
             "code": "not_found",
-            "message": "Environment variable DATABASE_URL not found.",
-            "hint": "Run `fastapi cloud env list` to see available variables.",
+            "message": "App not found",
+            "hint": None,
         }
     }
     assert result.stderr == ""
@@ -211,9 +264,10 @@ def test_shows_selector_for_environment_variables(
         )
     )
 
-    respx_mock.delete("/apps/123/environment-variables/SECRET_KEY").mock(
-        return_value=Response(204)
-    )
+    respx_mock.put(
+        "/apps/123/environment-variables/",
+        json={"upsert": {}, "delete": ["SECRET_KEY"], "redeploy": True},
+    ).mock(return_value=Response(200, json={"data": [], "count": 0}))
 
     with (
         changing_dir(configured_app),
