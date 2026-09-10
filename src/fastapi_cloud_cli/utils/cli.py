@@ -282,7 +282,11 @@ class FastAPIStyle(BaseStyle):
         prefix = Text(" " * self.content_padding)
 
         if emoji:
-            prefix.append_text(Text.from_markup(emoji))
+            bullet = Text.from_markup(emoji)
+            bullet.plain = self.symbol(
+                bullet.plain, fallback=" x" if emoji == ERROR_BULLET else "*"
+            )
+            prefix.append_text(bullet)
 
         prefix.pad_right(
             self.content_padding + self.emoji_column_width - prefix.cell_len

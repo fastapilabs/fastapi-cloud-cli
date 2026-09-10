@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 import sys
@@ -264,6 +265,65 @@ def test_fastapi_style_progress_status_emoji_states() -> None:
     progress.is_error = True
     assert style._get_progress_status_emoji(progress, done=False) == ERROR_BULLET
     assert render_plain(style.render_element(progress)) == "  ✗ Working\n"
+
+
+@pytest.mark.parametrize("encoding", ["ascii", "cp1252", "gbk", "utf-8"])
+@pytest.mark.parametrize("emoji", ["📁", "⚡", ERROR_BULLET, "✅", "🟡", "🐤"])
+def test_bullets_can_be_written_to_encoded_streams(encoding: str, emoji: str) -> None:
+    style = FastAPIStyle()
+    with io.TextIOWrapper(
+        io.BytesIO(), encoding=encoding, errors="strict", newline="\n"
+    ) as stream:
+        style.console.file = stream
+        style.console.print(style.render_element("Working\nSecond line", emoji=emoji))
+        stream.flush()
+
+        expected_bullet = Text.from_markup(emoji).plain
+        if encoding != "utf-8":
+            expected_bullet = " x" if emoji == ERROR_BULLET else "*"
+        padding = " " * (3 - Text(expected_bullet).cell_len)
+        assert stream.buffer.getvalue().decode(encoding) == (
+            f" {expected_bullet}{padding}Working\n    Second line\n"
+        )
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "gbk"])
+def test_bullet_fallback_preserves_supported_text_and_layout(encoding: str) -> None:
+    style = FastAPIStyle()
+    with io.TextIOWrapper(
+        io.BytesIO(), encoding=encoding, errors="strict", newline="\n"
+    ) as stream:
+        style.console.file = stream
+        text = "café" if encoding == "cp1252" else "项目"
+        style.console.print(style.render_element(text, emoji="*"))
+        style.console.print(style.render_element("alpha\nbeta", bullet=False))
+        style.console.print(
+            style.render_element(get_details_table([("Name", text)]), bullet=False)
+        )
+        stream.flush()
+
+        assert stream.buffer.getvalue().decode(encoding) == (
+            f" *  {text}\n  alpha\n  beta\n  Name  {text}\n"
+        )
+        assert (
+            style.get_cursor_offset_for_element(
+                Input(label="Project name", style=style, emoji="📁")
+            ).left
+            == 4
+        )
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "gbk"])
+def test_error_bullet_fallback_keeps_error_style(encoding: str) -> None:
+    style = FastAPIStyle()
+    with io.TextIOWrapper(io.BytesIO(), encoding=encoding) as stream:
+        style.console.file = stream
+        prefix = style._get_bullet_prefix(ERROR_BULLET)
+
+        assert prefix.plain == "  x "
+        error_style = prefix.get_style_at_offset(style.console, 2)
+        assert error_style.bold
+        assert error_style.color == style.console.get_style("error").color
 
 
 def test_fastapi_style_gets_cursor_offset_with_and_without_bullet_column() -> None:
