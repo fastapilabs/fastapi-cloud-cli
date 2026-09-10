@@ -10,6 +10,10 @@
 
 * 🐛 Handle Unicode output with Rich Toolkit 0.20.5. PR [#353](https://github.com/fastapilabs/fastapi-cloud-cli/pull/353) by [@patrick91](https://github.com/patrick91).
 
+### Refactors
+
+* ♻️ Use batch endpoint for environment variable updates and deletions. PR [#356](https://github.com/fastapilabs/fastapi-cloud-cli/pull/356) by [@patrick91](https://github.com/patrick91).
+
 ## 0.25.0 (2026-09-02)
 
 ### Features
