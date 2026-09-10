@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Show backend build failure guidance. PR [#354](https://github.com/fastapilabs/fastapi-cloud-cli/pull/354) by [@patrick91](https://github.com/patrick91).
+
 ### Fixes
 
 * 🐛 Handle Unicode output with Rich Toolkit 0.20.5. PR [#353](https://github.com/fastapilabs/fastapi-cloud-cli/pull/353) by [@patrick91](https://github.com/patrick91).
