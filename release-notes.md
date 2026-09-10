@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.26.0 (2026-09-10)
+
 ### Features
 
 * ✨ Show backend build failure guidance. PR [#354](https://github.com/fastapilabs/fastapi-cloud-cli/pull/354) by [@patrick91](https://github.com/patrick91).
