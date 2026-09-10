@@ -21,6 +21,13 @@ class BuildLogLineMessage(BaseModel):
     id: str | None = None
 
 
+class BuildFailure(BaseModel):
+    error_code: str
+    error_title: str
+    error_message: str
+    error_hint: str
+
+
 BuildLogLine = BuildLogLineMessage | BuildLogLineGeneric
 BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
     Annotated[BuildLogLine, Field(discriminator="type")]
@@ -125,16 +132,29 @@ class DeploymentStatus(str, Enum):
         }[status]
 
 
+class Deployment(BaseModel):
+    id: str
+    app_id: str
+    slug: str
+    status: DeploymentStatus
+    created_at: str
+    url: str | None = None
+    dashboard_url: str | None = None
+    failure: BuildFailure | None = None
+
+
 SUCCESSFUL_STATUSES = {DeploymentStatus.success, DeploymentStatus.verifying_skipped}
-FAILED_STATUSES = {
+BUILD_FAILED_STATUSES = {
+    DeploymentStatus.building_image_failed,
+    DeploymentStatus.building_image_failed_timeout,
+    DeploymentStatus.extracting_failed,
+    DeploymentStatus.extracting_failed_archive_too_large,
+}
+FAILED_STATUSES = BUILD_FAILED_STATUSES | {
     DeploymentStatus.failed,
     DeploymentStatus.verifying_failed,
     DeploymentStatus.verification_failed_oom,
     DeploymentStatus.deploying_failed,
     DeploymentStatus.deploying_skipped,
-    DeploymentStatus.building_image_failed,
-    DeploymentStatus.building_image_failed_timeout,
-    DeploymentStatus.extracting_failed,
-    DeploymentStatus.extracting_failed_archive_too_large,
 }
 TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES

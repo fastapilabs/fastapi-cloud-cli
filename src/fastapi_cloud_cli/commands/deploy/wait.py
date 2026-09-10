@@ -1,19 +1,25 @@
+import contextlib
 import time
 from itertools import cycle
 from textwrap import dedent
 
 import typer
+from httpx import HTTPError
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import (
     SUCCESSFUL_STATUSES,
     APIClient,
+    BuildFailure,
     DeploymentStatus,
     StreamLogError,
     TooManyRetriesError,
 )
 from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
+from fastapi_cloud_cli.utils.build_logs import print_build_error
+from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
+from fastapi_cloud_cli.utils.execution import is_ci_enabled
 
 # (bullet emoji, message) — the emoji replaces the progress animation
 WAITING_MESSAGES = [
@@ -89,7 +95,7 @@ def _verify_deployment(
 
 
 def _wait_for_deployment(
-    toolkit: RichToolkit,
+    toolkit: FastAPIRichToolkit,
     client: APIClient,
     app_id: str,
     deployment: CreateDeploymentResponse,
@@ -107,12 +113,15 @@ def _wait_for_deployment(
             "Checking the status of your deployment",
             inline_logs=True,
             lines_to_show=20,
+            # Keep the log panel replaceable by a diagnosis, but retain CI logs.
+            preserve_logs=is_ci_enabled(),
             emoji="👀",
             done_emoji="🚀",
         ) as progress,
     ):
         build_complete = False
         build_failed = False
+        build_error: BuildFailure | None = None
 
         try:
             for log in client.stream_build_logs(deployment.id):
@@ -128,6 +137,12 @@ def _wait_for_deployment(
 
                 if log.type == "failed":
                     build_failed = True
+                    build_error = None
+
+                    with contextlib.suppress(HTTPError):
+                        build_error = client.get_deployment(deployment.id).failure
+
+                    progress.transient = build_error is not None
                     # the headline comes from the title once there are log
                     # lines, and from current_message when there are none
                     progress.title = "Build failed"
@@ -157,10 +172,16 @@ def _wait_for_deployment(
             raise typer.Exit(1) from None
 
     if build_failed:
-        toolkit.print_line()
+        if build_error is not None:
+            print_build_error(toolkit, build_error)
+            toolkit.print_line()
+            message = "Check out the logs at"
+        else:
+            toolkit.print_line()
+            message = "Oh no! Something went wrong. Check out the logs at"
         toolkit.print(
-            f"Oh no! Something went wrong. Check out the logs at [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
-            emoji="😔",
+            f"{message} [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]",
+            emoji="👀" if build_error is not None else "😔",
         )
         raise typer.Exit(1)
 

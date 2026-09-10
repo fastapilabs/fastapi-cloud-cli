@@ -5,14 +5,19 @@ from typing import Annotated, Any
 import typer
 from httpx import HTTPError
 from pydantic import BaseModel
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 from rich_toolkit import RichToolkit
 
 from fastapi_cloud_cli.api import (
+    BUILD_FAILED_STATUSES,
+    TERMINAL_STATUSES,
     APIClient,
+    BuildFailure,
+    BuildLogLineGeneric,
     BuildLogLineMessage,
-    DeploymentStatus,
+    Deployment,
     StreamLogError,
     TooManyRetriesError,
     get_http_error_code,
@@ -33,16 +38,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 100
 DEFAULT_OFFSET = 0
-
-
-class Deployment(BaseModel):
-    id: str
-    app_id: str
-    slug: str
-    status: DeploymentStatus
-    created_at: str
-    url: str | None = None
-    dashboard_url: str | None = None
 
 
 class DeploymentsListAPIResponse(BaseModel):
@@ -70,6 +65,7 @@ class BuildLogsOutput(BaseModel):
     deployment_id: str
     failed: bool
     logs: list[BuildLogOutput]
+    failure: BuildFailure | None = None
 
 
 def _get_deployments(
@@ -92,13 +88,6 @@ def _get_deployments(
         limit=limit,
         offset=offset,
     )
-
-
-def _get_deployment(client: APIClient, *, deployment_id: str) -> DeploymentGetOutput:
-    response = client.get(f"/deployments/{deployment_id}")
-    response.raise_for_status()
-
-    return DeploymentGetOutput(deployment=Deployment.model_validate(response.json()))
 
 
 def _render_deployments_list_output(
@@ -129,7 +118,7 @@ def _render_deployments_list_output(
 
 
 def _render_deployment_get_output(
-    data: DeploymentGetOutput, toolkit: RichToolkit
+    data: DeploymentGetOutput, toolkit: FastAPIRichToolkit
 ) -> None:
     deployment = data.deployment
 
@@ -164,6 +153,23 @@ def _render_deployment_get_output(
         )
     )
 
+    if deployment.failure is not None:
+        toolkit.print_line()
+        _print_deployment_failure(toolkit, deployment.failure)
+
+
+def _print_deployment_failure(
+    toolkit: FastAPIRichToolkit, failure: BuildFailure
+) -> None:
+    toolkit.print("This deployment failed with the following error:", emoji="🚨")
+    toolkit.print_line()
+    toolkit.print(Text(failure.error_title, style="bold"))
+    toolkit.print_line()
+    toolkit.print(Text(failure.error_message))
+    if failure.error_hint:
+        toolkit.print_line()
+        toolkit.print_hint(escape(failure.error_hint))
+
 
 def _print_build_log_json(
     deployment_id: str,
@@ -171,12 +177,14 @@ def _print_build_log_json(
     *,
     log_id: str | None,
     message: str | None = None,
+    failure: BuildFailure | None = None,
 ) -> None:
     record = {
         "type": record_type,
         "deployment_id": deployment_id,
         "id": log_id,
         "message": message,
+        "failure": failure.model_dump(mode="json") if failure is not None else None,
     }
 
     typer.echo(
@@ -191,22 +199,31 @@ BUILD_LOG_BULLET = "[dim]▕[/dim]"
 
 
 def _print_build_log_line(toolkit: RichToolkit, message: str) -> None:
-    toolkit.print(Text.from_ansi(message.rstrip()), emoji=BUILD_LOG_BULLET)
+    text = Text.from_ansi(message.rstrip())
+
+    if not text.plain.strip():
+        # Keep the log marker when the style would otherwise omit an empty line.
+        text = Text("\u200b")
+
+    toolkit.print(text, emoji=BUILD_LOG_BULLET)
 
 
 def _render_build_logs_output(
     data: BuildLogsOutput, toolkit: FastAPIRichToolkit
 ) -> None:
-    if not data.logs:
-        toolkit.print("No build logs found.")
-        return
-
     for log in data.logs:
         _print_build_log_line(toolkit, log.message)
 
-    if data.failed:
+    if data.failure:
+        if data.logs:
+            toolkit.print_line()
+
+        _print_deployment_failure(toolkit, data.failure)
+    elif data.failed:
         toolkit.print_line()
         toolkit.print_error("Build failed.")
+    elif not data.logs:
+        toolkit.print("No build logs found.")
 
 
 def _stream_build_logs(
@@ -214,9 +231,12 @@ def _stream_build_logs(
     client: APIClient,
     deployment_id: str,
 ) -> bool:
-    failed = False
+    deployment = client.get_deployment(deployment_id)
+    terminal_log: BuildLogLineGeneric | None = None
 
-    for log in client.stream_build_logs(deployment_id, follow=True):
+    for log in client.stream_build_logs(
+        deployment_id, follow=deployment.status not in TERMINAL_STATUSES
+    ):
         if isinstance(log, BuildLogLineMessage):
             if toolkit.mode == "json":
                 _print_build_log_json(
@@ -227,26 +247,30 @@ def _stream_build_logs(
                 )
             else:
                 _print_build_log_line(toolkit, log.message)
+        else:
+            terminal_log = log
 
-        elif log.type == "complete":
-            if toolkit.mode == "json":
-                _print_build_log_json(
-                    deployment_id,
-                    "complete",
-                    log_id=log.id,
-                )
+    if deployment.status not in TERMINAL_STATUSES:
+        deployment = client.get_deployment(deployment_id)
 
-        elif log.type == "failed":
-            failed = True
-            if toolkit.mode == "json":
-                _print_build_log_json(
-                    deployment_id,
-                    "failed",
-                    log_id=log.id,
-                )
-            else:
-                toolkit.print_line()
-                toolkit.print_error("Build failed.")
+    failed = (
+        terminal_log is not None and terminal_log.type == "failed"
+    ) or deployment.status in BUILD_FAILED_STATUSES
+
+    if toolkit.mode == "json":
+        if failed or terminal_log is not None or deployment.status in TERMINAL_STATUSES:
+            _print_build_log_json(
+                deployment_id,
+                "failed" if failed else "complete",
+                log_id=terminal_log.id if terminal_log is not None else None,
+                failure=deployment.failure,
+            )
+    elif deployment.failure is not None:
+        toolkit.print_line()
+        _print_deployment_failure(toolkit, deployment.failure)
+    elif failed:
+        toolkit.print_line()
+        toolkit.print_error("Build failed.")
 
     return failed
 
@@ -262,7 +286,13 @@ def _fetch_build_logs(client: APIClient, deployment_id: str) -> BuildLogsOutput:
         elif log.type == "failed":
             failed = True
 
-    return BuildLogsOutput(deployment_id=deployment_id, failed=failed, logs=logs)
+    deployment = client.get_deployment(deployment_id)
+    return BuildLogsOutput(
+        deployment_id=deployment_id,
+        failed=failed or deployment.status in BUILD_FAILED_STATUSES,
+        logs=logs,
+        failure=deployment.failure,
+    )
 
 
 def _handle_build_log_error(
@@ -338,22 +368,24 @@ def get_deployment(
     resolve_app_id_or_fail(toolkit, app_id=app_id)
 
     with APIClient() as client:
-        with toolkit.progress(
-            title="Fetching deployment",
-            transient=True,
-        ) as progress:
-            with client.handle_http_errors(
+        with (
+            toolkit.progress(
+                title="Fetching deployment",
+                transient=True,
+            ) as progress,
+            client.handle_http_errors(
                 progress,
                 default_message="Error fetching deployment. Please try again later.",
                 not_found_message="Deployment not found.",
                 toolkit=toolkit,
-            ):
-                result = _get_deployment(
-                    client,
-                    deployment_id=deployment_id,
-                )
+            ),
+        ):
+            deployment = client.get_deployment(deployment_id)
 
-    toolkit.success(result, render_output=_render_deployment_get_output)
+    toolkit.success(
+        DeploymentGetOutput(deployment=deployment),
+        render_output=_render_deployment_get_output,
+    )
 
 
 @deployments_app.command("build-logs", cls=UserCommand)
@@ -407,6 +439,14 @@ def build_logs(
         return
     except StreamLogError as e:
         _handle_build_log_error(toolkit, e)
+    except HTTPError as e:
+        code = get_http_error_code(e)
+        toolkit.fail(
+            code,
+            handle_http_error(e, not_found_message="Deployment not found."),
+            hint=get_http_error_hint(code),
+            render_output=_render_build_log_error,
+        )
 
     except (TooManyRetriesError, TimeoutError):
         message = "Lost connection to build log stream. Please try again later."

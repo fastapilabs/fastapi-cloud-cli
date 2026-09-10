@@ -12,15 +12,29 @@ import pytest
 import respx
 import typer
 from httpx import Response
+from inline_snapshot import snapshot
 from rich_toolkit.progress import Progress
 from typer.testing import CliRunner, Result
 
-from fastapi_cloud_cli.api import StreamLogError, TooManyRetriesError
+from fastapi_cloud_cli.api import (
+    APIClient,
+    DeploymentStatus,
+    StreamLogError,
+    TooManyRetriesError,
+)
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.commands.deploy import wait
+from fastapi_cloud_cli.commands.deploy.cloud import CreateDeploymentResponse
 from fastapi_cloud_cli.config import Settings
+from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from tests.conftest import ConfiguredApp
-from tests.utils import Keys, build_logs_response, changing_dir, create_jwt_token
+from tests.utils import (
+    Keys,
+    SnapshotCliRunner,
+    build_logs_response,
+    changing_dir,
+    create_jwt_token,
+)
 
 runner = CliRunner()
 
@@ -79,6 +93,7 @@ def _get_random_deployment(
         "status": status,
         "url": "http://test.com",
         "dashboard_url": "http://test.com",
+        "created_at": "2026-09-10T12:00:00Z",
     }
 
 
@@ -1113,10 +1128,17 @@ def test_exits_with_error_when_deployment_fails_to_build(
         return_value=Response(200)
     )
 
+    respx_mock.get(f"/deployments/{deployment_data['id']}").respond(
+        200,
+        json={**deployment_data, "status": "building_image_failed", "failure": None},
+    )
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
-            json={"type": "failed"},
+            content=build_logs_response(
+                {"type": "message", "message": "Original build failure", "id": "1"},
+                {"type": "failed", "id": "2"},
+            ),
         )
     )
 
@@ -1133,6 +1155,7 @@ def test_exits_with_error_when_deployment_fails_to_build(
 
         assert result.exit_code == 1
 
+        assert "Original build failure" in result.output
         assert "Oh no! Something went wrong" in result.output
         assert deployment_data["dashboard_url"] in result.output
 
@@ -1169,6 +1192,7 @@ def test_shows_error_when_deployment_build_fails(
         return_value=Response(200)
     )
 
+    respx_mock.get(f"/deployments/{deployment_data['id']}").respond(503)
     respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").mock(
         return_value=Response(
             200,
@@ -2642,3 +2666,131 @@ def test_invalid_large_file_threshold(
 
     assert result.exit_code == 2
     assert "Invalid value for '--large-file-threshold'" in result.output
+
+
+@pytest.mark.respx
+@pytest.mark.parametrize("ci", [False, True])
+def test_deploy_shows_backend_build_failure_diagnostic(
+    logged_in_cli: None,
+    tmp_path: Path,
+    respx_mock: respx.MockRouter,
+    ci: bool,
+) -> None:
+    app_data: RandomApp = {
+        "id": "123",
+        "name": "demo",
+        "slug": "demo",
+        "team_id": "456",
+        "directory": None,
+    }
+    deployment_data = {
+        "id": "789",
+        "app_id": "123",
+        "slug": "demo-build",
+        "status": "waiting_upload",
+        "url": "https://demo.fastapicloud.app",
+        "dashboard_url": "https://dashboard.fastapicloud.com/demo-build",
+    }
+    _mock_deploy_until_upload(
+        respx_mock, tmp_path, app_data, deployment_data, Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").respond(
+        200, json={**deployment_data, "status": "ready_for_build"}
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}").respond(
+        200,
+        json={
+            **deployment_data,
+            "created_at": "2026-09-10T12:00:00Z",
+            "status": "building_image_failed",
+            "failure": {
+                "error_code": "uv_lockfile_outdated",
+                "error_title": "Your lockfile is out of date",
+                "error_message": "The lockfile does not match your project dependencies.",
+                "error_hint": "Run `uv lock` and commit the updated lockfile.",
+            },
+        },
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}/build-logs").respond(
+        200,
+        content=build_logs_response(
+            {"type": "message", "id": "1", "message": "Installing dependencies"},
+            {"type": "message", "id": "3", "message": "Cleaning up..."},
+            {"type": "failed", "id": "4"},
+        ),
+    )
+
+    with changing_dir(tmp_path):
+        result = SnapshotCliRunner().invoke(app, ["deploy"], env={"CI": str(ci)})
+
+    assert result.exit_code == 1
+    assert ("Installing dependencies" in result.output) == ci
+    assert ("Cleaning up..." in result.output) == ci
+    assert result.output.count("Your lockfile is out of date") == 1
+    assert "The lockfile does not match your project dependencies." in result.output
+    assert "Run `uv lock` and commit the updated lockfile." in result.output
+    assert deployment_data["dashboard_url"] in result.output
+    assert "Something went wrong" not in result.output
+    assert "Building and pushing the app image failed" not in result.output
+    assert "error: Your lockfile is out of date" not in result.output
+    assert "Build failed" not in result.output
+
+
+@pytest.mark.respx
+def test_diagnosed_build_failure_replaces_log_panel(
+    logged_in_cli: None,
+    respx_mock: respx.MockRouter,
+) -> None:
+    deployment = CreateDeploymentResponse(
+        id="789",
+        app_id="123",
+        slug="demo-build",
+        status=DeploymentStatus.ready_for_build,
+        url="https://demo.fastapicloud.app",
+        dashboard_url="https://dashboard.fastapicloud.com/demo-build",
+    )
+    respx_mock.get(f"/deployments/{deployment.id}").respond(
+        200,
+        json={
+            **deployment.model_dump(mode="json"),
+            "created_at": "2026-09-10T12:00:00Z",
+            "status": "building_image_failed",
+            "failure": {
+                "error_code": "uv_lockfile_outdated",
+                "error_title": "Your lockfile is out of date",
+                "error_message": "The lockfile does not match your project dependencies.",
+                "error_hint": "Run `uv lock` and commit the updated lockfile.",
+            },
+        },
+    )
+    respx_mock.get(f"/deployments/{deployment.id}/build-logs").respond(
+        200,
+        content=build_logs_response(
+            {
+                "type": "message",
+                "id": "1",
+                "message": "The lockfile at `uv.lock` needs to be updated, but `--locked` was provided.\n",
+            },
+            {"type": "message", "id": "2", "message": "\n"},
+            {"type": "failed", "id": "5"},
+        ),
+    )
+    command = typer.Typer()
+
+    @command.command()
+    def wait_for_build() -> None:
+        with get_rich_toolkit() as toolkit, APIClient() as client:
+            wait._wait_for_deployment(toolkit, client, deployment.app_id, deployment)
+
+    result = SnapshotCliRunner().invoke(command)
+
+    assert result.exit_code == 1
+    assert result.output == snapshot("""\
+🚨 Your lockfile is out of date
+
+   The lockfile does not match your project dependencies.
+
+   hint: Run `uv lock` and commit the updated lockfile.
+
+👀 Check out the logs at https://dashboard.fastapicloud.com/demo-build\
+""")
