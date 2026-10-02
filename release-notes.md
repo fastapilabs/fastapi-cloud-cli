@@ -4,6 +4,7 @@
 
 ### Internal
 
+* ⬆ Bump the python-packages group with 5 updates. PR [#359](https://github.com/fastapilabs/fastapi-cloud-cli/pull/359) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the github-actions group with 2 updates. PR [#358](https://github.com/fastapilabs/fastapi-cloud-cli/pull/358) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
 ## 0.26.0 (2026-09-10)
