@@ -4,6 +4,7 @@
 
 ### Internal
 
+* 👷 Fix deprecated command in `bump-pre-commit-hooks` workflow. PR [#362](https://github.com/fastapilabs/fastapi-cloud-cli/pull/362) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump urllib3 from 2.7.0 to 2.8.0. PR [#361](https://github.com/fastapilabs/fastapi-cloud-cli/pull/361) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.69.1 to 2.70.0. PR [#360](https://github.com/fastapilabs/fastapi-cloud-cli/pull/360) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the python-packages group with 5 updates. PR [#359](https://github.com/fastapilabs/fastapi-cloud-cli/pull/359) by [@dependabot[bot]](https://github.com/apps/dependabot).
