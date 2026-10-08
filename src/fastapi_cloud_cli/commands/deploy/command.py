@@ -99,16 +99,61 @@ def _render_linked_app_not_found(
     )
 
 
+def _confirm_home_directory_deploy(
+    toolkit: FastAPIRichToolkit, *, json_output: bool
+) -> None:
+    if json_output or is_ci_enabled():
+        toolkit.fail(
+            "invalid_input",
+            "Refusing to deploy your home directory.",
+            hint="Pass the directory of your app, or use --force.",
+        )
+
+    if not toolkit.confirm(
+        "You are deploying your home directory. Do you want to continue?",
+        default=False,
+        emoji="🚨",
+    ):
+        toolkit.print_line()
+        toolkit.print("Deployment cancelled.")
+        raise typer.Exit(0)
+
+    toolkit.print_line()
+
+
+def _check_app_directory(
+    toolkit: FastAPIRichToolkit, *, app: AppResponse, path_to_deploy: Path
+) -> None:
+    """Stop before uploading when the app's directory isn't in the upload."""
+    if app.directory is None or (path_to_deploy / app.directory).is_dir():
+        return
+
+    if app.github_repository:
+        hint = (
+            f"This app is connected to {app.github_repository} and builds from "
+            f"`{app.directory}` in that repository. Run "
+            f"`fastapi deploy --app-id {app.id}` from the repository root, or use --force."
+        )
+    else:
+        hint = (
+            "Deploy from the folder that contains it, update the app directory "
+            "with `fastapi cloud apps update --directory`, or use --force."
+        )
+
+    toolkit.fail(
+        "invalid_input",
+        f"The app directory `{app.directory}` doesn't exist in {path_to_deploy}.",
+        hint=hint,
+    )
+
+
 @app.command()
 @cloud_app.command()
 def deploy(
     path: Annotated[
         Path | None,
         typer.Argument(
-            help=(
-                "Path to the directory with your app's pyproject.toml "
-                "(defaults to current directory)"
-            )
+            help="Path to the directory to deploy (defaults to current directory)"
         ),
     ] = None,
     skip_wait: Annotated[
@@ -131,6 +176,13 @@ def deploy(
         ),
     ] = 10,
     json_output: JsonOutputOption = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help="Deploy even if the app directory is missing or the path is your home directory",
+        ),
+    ] = False,
 ) -> Any:
     """
     Deploy a [bold]FastAPI[/bold] app to FastAPI Cloud.
@@ -212,6 +264,9 @@ def deploy(
             path_to_deploy = path or Path.cwd()
             logger.debug("Deploying from path: %s", path_to_deploy)
 
+            if not force and path_to_deploy.resolve() == Path.home().resolve():
+                _confirm_home_directory_deploy(toolkit, json_output=json_output)
+
             app_config = get_app_config(path_to_deploy)
 
             if app_config and provided_app_id and app_config.app_id != provided_app_id:
@@ -230,7 +285,7 @@ def deploy(
             elif app_config:
                 target_app_id = app_config.app_id
             else:
-                if json_output:
+                if json_output or is_ci_enabled():
                     toolkit.fail(
                         "missing_required_input",
                         "App ID is required.",
@@ -281,6 +336,9 @@ def deploy(
 
             app = cast(AppResponse, app)
 
+            if not force:
+                _check_app_directory(toolkit, app=app, path_to_deploy=path_to_deploy)
+
             large_files = _get_large_files(
                 path_to_deploy, threshold_mb=large_file_threshold
             )
@@ -316,8 +374,18 @@ def deploy(
             with tempfile.TemporaryDirectory() as temp_dir:
                 logger.debug("Creating archive for deployment")
                 archive_path = Path(temp_dir) / "archive.tar"
-                archive(path_to_deploy, archive_path)
+                file_count = archive(path_to_deploy, archive_path)
                 archive_size = archive_path.stat().st_size
+
+                if file_count == 0:
+                    toolkit.fail(
+                        "invalid_input",
+                        f"Nothing to deploy: no files to upload in {path_to_deploy}.",
+                        hint=(
+                            "Check the path, and that .gitignore or "
+                            ".fastapicloudignore don't exclude your app's files."
+                        ),
+                    )
 
                 with (
                     toolkit.progress(

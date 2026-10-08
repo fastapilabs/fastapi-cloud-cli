@@ -21,6 +21,7 @@ class AppResponse(BaseModel):
     id: str
     slug: str
     directory: str | None
+    github_repository: str | None = None
 
 
 class CreateDeploymentResponse(BaseModel):

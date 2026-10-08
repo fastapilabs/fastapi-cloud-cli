@@ -220,7 +220,7 @@ def test_disconnect_resource_allows_interactive_selection(
         changing_dir(tmp_path),
         patch(
             "rich_toolkit.container.getchar",
-            side_effect=[Keys.ENTER, Keys.ENTER],
+            side_effect=[Keys.ENTER, Keys.LEFT_ARROW, Keys.ENTER],
         ),
     ):
         result = runner.invoke(app, ["integrations", "resources", "disconnect"])
@@ -237,6 +237,9 @@ disconnect resource
 
 💡 The managed environment variables DATABASE_URL, DATABASE_PASSWORD will be
    removed from the app. The Neon resource itself will not be deleted.
+
+ Disconnect production?
+ ○ Yes  ● No
 
  Disconnect production?
  ● Yes  ○ No
@@ -264,7 +267,9 @@ def test_disconnect_resource_prompts_for_confirmation_when_id_is_provided(
         return_value=Response(204)
     )
 
-    with patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]):
+    with patch(
+        "rich_toolkit.container.getchar", side_effect=[Keys.LEFT_ARROW, Keys.ENTER]
+    ):
         result = runner.invoke(
             app,
             [
@@ -283,6 +288,9 @@ disconnect resource
 
 💡 Managed environment variables will be removed from the app. The Neon
    resource itself will not be deleted.
+
+ Disconnect production?
+ ○ Yes  ● No
 
  Disconnect production?
  ● Yes  ○ No
@@ -304,7 +312,7 @@ def test_disconnect_resource_can_be_cancelled(
 
     with patch(
         "rich_toolkit.container.getchar",
-        side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+        side_effect=[Keys.ENTER],  # Default: "No"
     ):
         result = runner.invoke(
             app,
@@ -324,9 +332,6 @@ disconnect resource
 
 💡 The managed environment variables DATABASE_URL, DATABASE_PASSWORD will be
    removed from the app. The Neon resource itself will not be deleted.
-
- Disconnect production?
- ● Yes  ○ No
 
  Disconnect production?
  ○ Yes  ● No
