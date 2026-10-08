@@ -41,6 +41,14 @@ runner = CliRunner()
 assets_path = Path(__file__).parent / "assets"
 
 
+@pytest.fixture(autouse=True)
+def app_source(tmp_path: Path) -> Path:
+    # Deploy refuses to upload an empty folder; give every test an app file.
+    main_path = tmp_path / "main.py"
+    main_path.write_text("from fastapi import FastAPI\n\napp = FastAPI()\n")
+    return main_path
+
+
 def _get_random_team(name: str | None = None) -> dict[str, str]:
     name = name or "".join(random.choices(string.ascii_lowercase, k=10))
     slug = "".join(random.choices(string.ascii_lowercase, k=10))
@@ -821,6 +829,7 @@ def test_updates_app_directory_via_api_when_changed(
     )
 
     updated_app_data = {**app_data, "directory": "src"}
+    (tmp_path / "src").mkdir()
 
     patch_route = respx_mock.patch(
         f"/apps/{app_data['id']}", json={"directory": "src"}
@@ -888,6 +897,7 @@ def test_does_not_update_app_directory_when_unchanged(
         Keys.ENTER,  # Accept pre-filled directory (unchanged)
         Keys.ENTER,  # Confirm deployment
     ]
+    (tmp_path / "backend").mkdir()
 
     team = _get_random_team()
 
@@ -2412,7 +2422,7 @@ def test_polling_timeout_shows_dashboard_link(
     ):
         result = runner.invoke(app, ["deploy"])
 
-        assert result.exit_code == 0
+        assert result.exit_code == 3
         assert "Could not confirm deployment status" in result.output
         assert deployment_data["dashboard_url"] in result.output
 
@@ -2794,3 +2804,180 @@ def test_diagnosed_build_failure_replaces_log_panel(
 
 👀 Check out the logs at https://dashboard.fastapicloud.com/demo-build\
 """)
+
+
+def _mock_configured_app(
+    respx_mock: respx.MockRouter,
+    configured_app: ConfiguredApp,
+    **app_fields: str | None,
+) -> None:
+    app_data = {**_get_random_app(), **app_fields, "id": configured_app.app_id}
+    respx_mock.get(f"/apps/{configured_app.app_id}").mock(
+        return_value=Response(200, json=app_data)
+    )
+
+
+@pytest.mark.respx
+def test_deploy_fails_when_app_directory_is_missing(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    _mock_configured_app(respx_mock, configured_app, directory="backend")
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "invalid_input",
+            "message": (
+                f"The app directory `backend` doesn't exist in {configured_app.path}."
+            ),
+            "hint": (
+                "Deploy from the folder that contains it, update the app directory "
+                "with `fastapi cloud apps update --directory`, or use --force."
+            ),
+        }
+    }
+
+
+@pytest.mark.respx
+def test_deploy_points_linked_apps_to_the_repository_root(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    _mock_configured_app(
+        respx_mock,
+        configured_app,
+        directory="backend",
+        github_repository="acme/shop",
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["error"]["hint"] == (
+        "This app is connected to acme/shop and builds from `backend` in that "
+        f"repository. Run `fastapi deploy --app-id {configured_app.app_id}` from "
+        "the repository root, or use --force."
+    )
+
+
+@pytest.mark.respx
+def test_deploy_with_force_skips_the_app_directory_check(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    _mock_configured_app(respx_mock, configured_app, directory="backend")
+    deployment_data = _get_random_deployment(app_id=configured_app.app_id)
+
+    respx_mock.post(f"/apps/{configured_app.app_id}/deployments/").mock(
+        return_value=Response(201, json=deployment_data)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload").mock(
+        return_value=Response(
+            200, json={"url": "http://test.com", "fields": {"key": "value"}}
+        )
+    )
+    respx_mock.post("http://test.com", data={"key": "value"}).mock(
+        return_value=Response(200)
+    )
+    respx_mock.post(f"/deployments/{deployment_data['id']}/upload-complete").mock(
+        return_value=Response(
+            200, json={**deployment_data, "status": "ready_for_build"}
+        )
+    )
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["deploy", "--json", "--force"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["data"]["deployment_id"] == deployment_data["id"]
+
+
+@pytest.mark.respx
+def test_deploy_fails_when_there_is_nothing_to_upload(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+    app_source: Path,
+) -> None:
+    # Only the local .fastapicloud link is left, and it isn't uploaded.
+    app_source.unlink()
+    _mock_configured_app(respx_mock, configured_app)
+
+    with changing_dir(configured_app.path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["error"] == {
+        "code": "invalid_input",
+        "message": f"Nothing to deploy: no files to upload in {configured_app.path}.",
+        "hint": (
+            "Check the path, and that .gitignore or .fastapicloudignore don't "
+            "exclude your app's files."
+        ),
+    }
+
+
+def test_deploy_on_ci_without_app_id_fails_instead_of_prompting(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"CI": "true"})
+
+    assert result.exit_code == 1
+    assert "App ID is required." in result.output
+
+
+def test_deploy_on_ci_refuses_the_home_directory(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path), patch("pathlib.Path.home", return_value=tmp_path):
+        result = runner.invoke(app, ["deploy"], env={"CI": "true"})
+
+    assert result.exit_code == 1
+    assert "Refusing to deploy your home directory." in result.output
+
+
+def test_deploy_asks_before_deploying_the_home_directory(
+    logged_in_cli: None, tmp_path: Path
+) -> None:
+    with (
+        changing_dir(tmp_path),
+        patch("pathlib.Path.home", return_value=tmp_path),
+        patch("rich_toolkit.container.getchar") as mock_getchar,
+    ):
+        mock_getchar.side_effect = [Keys.ENTER]  # Accept the default: "No"
+
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 0
+    assert "You are deploying your home directory" in result.output
+    assert "Deployment cancelled." in result.output
+
+
+@pytest.mark.respx
+def test_degraded_deployment_fails_verification(
+    logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
+) -> None:
+    app_data = _get_random_app()
+    deployment_data = _get_random_deployment(app_id=app_data["id"])
+
+    _setup_deployment_mocks(
+        respx_mock, app_data["id"], "some-team-id", deployment_data, tmp_path
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}").mock(
+        return_value=Response(200, json={**deployment_data, "status": "degraded"})
+    )
+
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 1
+    assert "Degraded" in result.output

@@ -57,6 +57,7 @@ def _should_exclude_entry(path: Path) -> bool:
         ".git",
         ".gitignore",
         ".fastapicloudignore",
+        ".fastapicloud",
     ]
 
     if any(part in path.parts for part in parts_to_exclude):
@@ -80,7 +81,8 @@ def _rignore_walk(path: Path) -> rignore.Walker:
     )
 
 
-def archive(path: Path, tar_path: Path) -> Path:
+def archive(path: Path, tar_path: Path) -> int:
+    """Write the files to upload into `tar_path` and return how many there were."""
     logger.debug("Starting archive creation for path: %s", path)
     files = _rignore_walk(path)
 
@@ -98,7 +100,7 @@ def archive(path: Path, tar_path: Path) -> Path:
             file_count += 1
 
     logger.debug("Archive created successfully with %s files", file_count)
-    return tar_path
+    return file_count
 
 
 def _get_large_files(path: Path, threshold_mb: int) -> list[tuple[Path, int]]:
