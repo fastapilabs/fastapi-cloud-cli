@@ -79,6 +79,7 @@ class SnapshotCliRunner(CliRunner):
 if sys.platform == "win32":
 
     class Keys:
+        LEFT_ARROW = "\xe0K"
         RIGHT_ARROW = "\xe0M"
         DOWN_ARROW = "\xe0P"
         ENTER = "\r"
@@ -89,6 +90,7 @@ if sys.platform == "win32":
 else:
 
     class Keys:
+        LEFT_ARROW = "\x1b[D"
         RIGHT_ARROW = "\x1b[C"
         DOWN_ARROW = "\x1b[B"
         ENTER = "\r"

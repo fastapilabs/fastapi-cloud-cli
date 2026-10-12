@@ -160,12 +160,17 @@ def test_shows_message_when_it_deletes(
 
     with (
         changing_dir(configured_app),
-        patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]),
+        patch(
+            "rich_toolkit.container.getchar", side_effect=[Keys.LEFT_ARROW, Keys.ENTER]
+        ),
     ):
         result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
 
     assert result.exit_code == 0
     assert result.output == snapshot("""\
+Delete SOME_VAR?
+○ Yes  ● No
+
 Delete SOME_VAR?
 ● Yes  ○ No
 
@@ -360,16 +365,13 @@ def test_shows_message_when_deletion_is_cancelled(
         changing_dir(configured_app),
         patch(
             "rich_toolkit.container.getchar",
-            side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+            side_effect=[Keys.ENTER],  # Default: "No"
         ),
     ):
         result = runner.invoke(app, ["env", "delete", "SOME_VAR"])
 
     assert result.exit_code == 0
     assert result.output == snapshot("""\
-Delete SOME_VAR?
-● Yes  ○ No
-
 Delete SOME_VAR?
 ○ Yes  ● No
 

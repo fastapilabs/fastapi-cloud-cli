@@ -954,7 +954,9 @@ def test_domains_remove_warns_and_confirms(
         return_value=Response(200, json={"message": "Custom domain deleted"})
     )
 
-    with patch("rich_toolkit.container.getchar", side_effect=[Keys.ENTER]):
+    with patch(
+        "rich_toolkit.container.getchar", side_effect=[Keys.LEFT_ARROW, Keys.ENTER]
+    ):
         result = runner.invoke(
             app,
             ["domains", "remove", domain["name"], "--app-id", APP_ID],
@@ -966,6 +968,9 @@ custom domains
 
 ⚠️ FastAPI Cloud resources for api.example.com will be removed. DNS records at
    your provider will not be changed.
+
+ Remove api.example.com?
+ ○ Yes  ● No
 
  Remove api.example.com?
  ● Yes  ○ No
@@ -1023,7 +1028,7 @@ def test_domains_remove_can_be_cancelled(
 
     with patch(
         "rich_toolkit.container.getchar",
-        side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+        side_effect=[Keys.ENTER],  # Default: "No"
     ):
         result = runner.invoke(
             app,
@@ -1036,9 +1041,6 @@ custom domains
 
 ⚠️ FastAPI Cloud resources for api.example.com will be removed. DNS records at
    your provider will not be changed.
-
- Remove api.example.com?
- ● Yes  ○ No
 
  Remove api.example.com?
  ○ Yes  ● No

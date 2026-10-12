@@ -172,5 +172,8 @@ FAILED_STATUSES = BUILD_FAILED_STATUSES | {
     DeploymentStatus.verification_failed_oom,
     DeploymentStatus.deploying_failed,
     DeploymentStatus.deploying_skipped,
+    DeploymentStatus.degraded,
+    DeploymentStatus.degraded_oom,
+    DeploymentStatus.expired,
 }
 TERMINAL_STATUSES = SUCCESSFUL_STATUSES | FAILED_STATUSES
