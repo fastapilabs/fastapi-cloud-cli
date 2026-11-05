@@ -100,6 +100,8 @@ class DeploymentStatus(str, Enum):
     waiting_upload = "waiting_upload"
     upload_cancelled = "upload_cancelled"
     ready_for_build = "ready_for_build"
+    build_skipped_filtered = "build_skipped_filtered"
+    build_skipped_superseded = "build_skipped_superseded"
     building = "building"
     extracting = "extracting"
     extracting_failed = "extracting_failed"
@@ -120,12 +122,20 @@ class DeploymentStatus(str, Enum):
     expired = "expired"
     failed = "failed"
 
+    unknown = "unknown"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "DeploymentStatus":
+        return cls.unknown
+
     @classmethod
     def to_human_readable(cls, status: "DeploymentStatus") -> str:
         return {
             cls.waiting_upload: "Awaiting Upload",
             cls.upload_cancelled: "Upload Cancelled",
             cls.ready_for_build: "Build Queued",
+            cls.build_skipped_filtered: "Build Skipped (Filtered)",
+            cls.build_skipped_superseded: "Build Skipped (Superseded)",
             cls.building: "Building",
             cls.extracting: "Extracting Upload",
             cls.extracting_failed: "Extraction Failed",
@@ -145,6 +155,7 @@ class DeploymentStatus(str, Enum):
             cls.degraded: "Degraded",
             cls.expired: "Expired",
             cls.failed: "Failed",
+            cls.unknown: "Unknown",
         }[status]
 
 
@@ -167,6 +178,8 @@ BUILD_FAILED_STATUSES = {
     DeploymentStatus.extracting_failed_archive_too_large,
 }
 FAILED_STATUSES = BUILD_FAILED_STATUSES | {
+    DeploymentStatus.build_skipped_filtered,
+    DeploymentStatus.build_skipped_superseded,
     DeploymentStatus.failed,
     DeploymentStatus.verifying_failed,
     DeploymentStatus.verification_failed_oom,
