@@ -2,8 +2,13 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆ Bump rich-toolkit from 0.20.5 to 0.20.6. PR [#369](https://github.com/fastapilabs/fastapi-cloud-cli/pull/369) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ### Internal
 
+* ✨ Add build skipped deployment statuses and handle unknown statuses. PR [#371](https://github.com/fastapilabs/fastapi-cloud-cli/pull/371) by [@buurro](https://github.com/buurro).
 * 👷 Fix deprecated command in `bump-pre-commit-hooks` workflow. PR [#362](https://github.com/fastapilabs/fastapi-cloud-cli/pull/362) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump urllib3 from 2.7.0 to 2.8.0. PR [#361](https://github.com/fastapilabs/fastapi-cloud-cli/pull/361) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump sentry-sdk from 2.69.1 to 2.70.0. PR [#360](https://github.com/fastapilabs/fastapi-cloud-cli/pull/360) by [@dependabot[bot]](https://github.com/apps/dependabot).

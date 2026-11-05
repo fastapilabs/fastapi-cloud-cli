@@ -440,6 +440,23 @@ def test_poll_deployment_status_recovers_from_transient_errors(
     assert call_count == 3
 
 
+def test_poll_deployment_status_keeps_polling_on_unknown_status(
+    poll_route: respx.Route, client: APIClient, deployment_id: str
+) -> None:
+    poll_route.mock(
+        side_effect=[
+            Response(200, json={"status": "some_new_status"}),
+            Response(200, json={"status": "success"}),
+        ]
+    )
+
+    with patch("time.sleep"):
+        status = client.poll_deployment_status(deployment_id)
+
+    assert status == DeploymentStatus.success
+    assert poll_route.call_count == 2
+
+
 def test_poll_deployment_status_raises_after_max_consecutive_errors(
     poll_route: respx.Route, client: APIClient, deployment_id: str
 ) -> None:
