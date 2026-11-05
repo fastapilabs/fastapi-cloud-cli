@@ -107,17 +107,19 @@ def test_gets_resource_json_returns_not_logged_in_when_logged_out(
 
 
 @pytest.mark.respx
+@pytest.mark.parametrize("provider", ["neon", "redis", "supabase"])
 def test_gets_database_resource_as_json_with_explicit_app_overriding_linked_app(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
     tmp_path: Path,
+    provider: DatabaseProvider,
 ) -> None:
     write_app_config(
         tmp_path,
         AppConfig(app_id=LINKED_APP_ID, team_id=TEAM_ID),
     )
     respx_mock.get(f"/apps/{APP_ID}/connected-resources/{RESOURCE_ID}").mock(
-        return_value=Response(200, json=_database_resource())
+        return_value=Response(200, json=_database_resource(provider=provider))
     )
 
     with changing_dir(tmp_path):
@@ -141,7 +143,7 @@ def test_gets_database_resource_as_json_with_explicit_app_overriding_linked_app(
             "resource": {
                 "id": RESOURCE_ID,
                 "name": "production",
-                "provider": "neon",
+                "provider": provider,
                 "console_url": CONSOLE_URL,
                 "environment_variables": ["DATABASE_URL", "DATABASE_PASSWORD"],
                 "created_at": CREATED_AT,

@@ -9,10 +9,7 @@ from rich_toolkit import RichToolkit
 from fastapi_cloud_cli.api import APIClient
 from fastapi_cloud_cli.commands._auth import UserCommand, get_user_command_context
 from fastapi_cloud_cli.commands.integrations.resources._app import resources_app
-from fastapi_cloud_cli.commands.integrations.resources.providers import (
-    PROVIDER_NAMES,
-    Provider,
-)
+from fastapi_cloud_cli.commands.integrations.resources.providers import PROVIDER_NAMES
 from fastapi_cloud_cli.utils.apps import resolve_app_id_or_fail
 from fastapi_cloud_cli.utils.cli import get_details_table
 from fastapi_cloud_cli.utils.dates import format_last_updated
@@ -55,7 +52,6 @@ class ConnectedResourceAPIResponse(BaseModel):
 class ConnectedResourceBase(BaseModel):
     id: str
     name: str
-    provider: Provider
     console_url: str
     environment_variables: list[str]
     created_at: str
