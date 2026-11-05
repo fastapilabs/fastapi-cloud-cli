@@ -2963,6 +2963,40 @@ def test_deploy_asks_before_deploying_the_home_directory(
 
 
 @pytest.mark.respx
+def test_deploy_continues_when_home_directory_is_confirmed(
+    logged_in_cli: None,
+    configured_app: ConfiguredApp,
+    respx_mock: respx.MockRouter,
+) -> None:
+    deployment_data = _get_random_deployment(app_id=configured_app.app_id)
+    _setup_deployment_mocks(
+        respx_mock,
+        configured_app.app_id,
+        configured_app.team_id,
+        deployment_data,
+        configured_app.path,
+    )
+    respx_mock.get(f"/deployments/{deployment_data['id']}").respond(
+        200, json={**deployment_data, "status": "success"}
+    )
+
+    with (
+        changing_dir(configured_app.path),
+        patch("pathlib.Path.home", return_value=configured_app.path),
+        patch(
+            "rich_toolkit.container.getchar",
+            side_effect=[Keys.RIGHT_ARROW, Keys.ENTER],
+        ),
+    ):
+        result = runner.invoke(app, ["deploy"])
+
+    assert result.exit_code == 0
+    assert "You are deploying your home directory" in result.output
+    assert "Deployment uploaded successfully!" in result.output
+    assert "Deployment cancelled." not in result.output
+
+
+@pytest.mark.respx
 def test_degraded_deployment_fails_verification(
     logged_in_cli: None, tmp_path: Path, respx_mock: respx.MockRouter
 ) -> None:
