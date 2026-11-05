@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump pre-commit hooks. PR [#365](https://github.com/fastapilabs/fastapi-cloud-cli/pull/365) by [@pr-submit[bot]](https://github.com/apps/pr-submit).
 * ✨ Add build skipped deployment statuses and handle unknown statuses. PR [#371](https://github.com/fastapilabs/fastapi-cloud-cli/pull/371) by [@buurro](https://github.com/buurro).
 * 👷 Fix deprecated command in `bump-pre-commit-hooks` workflow. PR [#362](https://github.com/fastapilabs/fastapi-cloud-cli/pull/362) by [@YuriiMotov](https://github.com/YuriiMotov).
 * ⬆ Bump urllib3 from 2.7.0 to 2.8.0. PR [#361](https://github.com/fastapilabs/fastapi-cloud-cli/pull/361) by [@dependabot[bot]](https://github.com/apps/dependabot).
