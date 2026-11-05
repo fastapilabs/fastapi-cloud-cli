@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* 🥅 Stop deploys that can't work and report unconfirmed ones correctly. PR [#363](https://github.com/fastapilabs/fastapi-cloud-cli/pull/363) by [@patrick91](https://github.com/patrick91).
+
 ### Upgrades
 
 * ⬆ Bump rich-toolkit from 0.20.5 to 0.20.6. PR [#369](https://github.com/fastapilabs/fastapi-cloud-cli/pull/369) by [@dependabot[bot]](https://github.com/apps/dependabot).
