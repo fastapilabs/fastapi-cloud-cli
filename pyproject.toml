@@ -159,3 +159,4 @@ extend-ignore-re = [
 
 [tool.typos.default.extend-identifiers]
 alls = "alls"
+certifi = "certifi"
