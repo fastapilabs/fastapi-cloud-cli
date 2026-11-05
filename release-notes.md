@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆ Bump rich-toolkit from 0.20.5 to 0.20.6. PR [#369](https://github.com/fastapilabs/fastapi-cloud-cli/pull/369) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ### Internal
 
 * 👷 Fix deprecated command in `bump-pre-commit-hooks` workflow. PR [#362](https://github.com/fastapilabs/fastapi-cloud-cli/pull/362) by [@YuriiMotov](https://github.com/YuriiMotov).
