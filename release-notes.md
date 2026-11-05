@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Fixes
+
+* 🐛 Handle declined OAuth device authorization. PR [#375](https://github.com/fastapilabs/fastapi-cloud-cli/pull/375) by [@patrick91](https://github.com/patrick91).
+
 ### Internal
 
 * 🔧 Allow certifi in spellchecker. PR [#374](https://github.com/fastapilabs/fastapi-cloud-cli/pull/374) by [@patrick91](https://github.com/patrick91).
