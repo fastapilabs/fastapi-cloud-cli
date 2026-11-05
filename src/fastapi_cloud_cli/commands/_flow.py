@@ -45,6 +45,10 @@ class LoginTimeoutError(Exception):
     pass
 
 
+class LoginDeniedError(Exception):
+    pass
+
+
 def render_login_output(data: LoginOutput, toolkit: RichToolkit) -> None:
     toolkit.print("Now you are logged in! 🚀")
 
@@ -105,6 +109,9 @@ def fetch_access_token(
             error = data.get("error")
             logger.debug(f"Token response error: {error}")
 
+            if error == "access_denied":
+                raise LoginDeniedError
+
             if error != "authorization_pending":
                 response.raise_for_status()
 
@@ -139,6 +146,12 @@ def complete_device_login(
     try:
         with client.handle_http_errors(progress, toolkit=toolkit):
             access_token = fetch_access_token(client, device_code, interval, timeout)
+    except LoginDeniedError:
+        toolkit.fail(
+            "permission_denied",
+            "Login authorization was declined.",
+            hint="Run `fastapi cloud login` again and approve the authorization request.",
+        )
     except LoginTimeoutError:
         message = "Login timed out before authorization completed."
         toolkit.fail(
