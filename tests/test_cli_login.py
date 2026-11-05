@@ -6,10 +6,12 @@ import httpx
 import pytest
 import respx
 from httpx import Response
+from inline_snapshot import snapshot
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app
 from fastapi_cloud_cli.config import Settings
+from tests.utils import SnapshotCliRunner
 
 runner = CliRunner()
 
@@ -399,6 +401,127 @@ def test_auth_wait_json_cancel_returns_error_envelope(
 
 
 @pytest.mark.respx
+@pytest.mark.parametrize(
+    "command", [["login"], ["cloud", "login"], ["cloud", "auth", "login"]]
+)
+def test_login_shows_authorization_declined(
+    command: list[str],
+    respx_mock: respx.MockRouter,
+    temp_auth_config: Path,
+    settings: Settings,
+) -> None:
+    respx_mock.post(
+        "/login/device/authorization", data={"client_id": settings.client_id}
+    ).respond(
+        200,
+        json={
+            "verification_uri_complete": "http://test.com/device?code=query-code",
+            "verification_uri": "http://test.com",
+            "user_code": "manual-code",
+            "device_code": "5678",
+        },
+    )
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).respond(400, json={"error": "access_denied"})
+
+    result = SnapshotCliRunner().invoke(app, [*command, "--no-open"])
+
+    assert result.exit_code == 1
+    assert result.output == snapshot("""\
+FastAPI Cloud
+
+🔐 Login to FastAPI Cloud
+
+   Open http://test.com/device?code=query-code
+
+ ✗ error: Login authorization was declined.
+
+   hint: Run `fastapi cloud login` again and approve the authorization request.\
+""")
+    assert not temp_auth_config.exists()
+
+
+@pytest.mark.respx
+def test_auth_wait_shows_authorization_declined(
+    respx_mock: respx.MockRouter,
+    temp_auth_config: Path,
+    settings: Settings,
+) -> None:
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).respond(400, json={"error": "access_denied"})
+
+    result = SnapshotCliRunner().invoke(
+        app, ["cloud", "auth", "wait", "--device-code", "5678"]
+    )
+
+    assert result.exit_code == 1
+    assert result.output == snapshot("""\
+FastAPI Cloud
+
+🔐 Login to FastAPI Cloud
+
+ ✗ error: Login authorization was declined.
+
+   hint: Run `fastapi cloud login` again and approve the authorization request.\
+""")
+    assert not temp_auth_config.exists()
+
+
+@pytest.mark.respx
+@pytest.mark.parametrize("pending_first", [False, True])
+def test_auth_wait_json_authorization_declined_returns_error_envelope(
+    pending_first: bool,
+    respx_mock: respx.MockRouter,
+    temp_auth_config: Path,
+    settings: Settings,
+) -> None:
+    responses = []
+    if pending_first:
+        responses.append(Response(400, json={"error": "authorization_pending"}))
+    responses.append(Response(400, json={"error": "access_denied"}))
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).mock(side_effect=responses)
+
+    with patch("fastapi_cloud_cli.commands._flow.time.sleep") as mock_sleep:
+        result = runner.invoke(
+            app, ["cloud", "auth", "wait", "--device-code", "5678", "--json"]
+        )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "permission_denied",
+            "message": "Login authorization was declined.",
+            "hint": "Run `fastapi cloud login` again and approve the authorization request.",
+        }
+    }
+    assert result.stderr == ""
+    if pending_first:
+        mock_sleep.assert_called_once_with(5)
+    else:
+        mock_sleep.assert_not_called()
+    assert not temp_auth_config.exists()
+
+
+@pytest.mark.respx
 def test_fetch_access_token_uses_default_timeout(
     respx_mock: respx.MockRouter, settings: Settings
 ) -> None:
@@ -537,7 +660,7 @@ def test_fetch_access_token_authorization_pending_then_success(
 
 
 @pytest.mark.respx
-def test_fetch_access_token_handles_400_error_not_authorization_pending(
+def test_fetch_access_token_handles_unknown_oauth_error(
     respx_mock: respx.MockRouter,
     settings: Settings,
 ) -> None:
@@ -551,7 +674,7 @@ def test_fetch_access_token_handles_400_error_not_authorization_pending(
             "client_id": settings.client_id,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         },
-    ).mock(return_value=Response(400, json={"error": "access_denied"}))
+    ).mock(return_value=Response(400, json={"error": "unknown_error"}))
 
     with APIClient() as client:
         with pytest.raises(httpx.HTTPStatusError):
