@@ -8,6 +8,7 @@
 
 ### Internal
 
+* ⬆ Bump certifi from 2026.7.22 to 2026.10.19. PR [#364](https://github.com/fastapilabs/fastapi-cloud-cli/pull/364) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the python-packages group across 1 directory with 6 updates. PR [#372](https://github.com/fastapilabs/fastapi-cloud-cli/pull/372) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump the github-actions group with 6 updates. PR [#366](https://github.com/fastapilabs/fastapi-cloud-cli/pull/366) by [@dependabot[bot]](https://github.com/apps/dependabot).
 * ⬆ Bump pre-commit hooks. PR [#365](https://github.com/fastapilabs/fastapi-cloud-cli/pull/365) by [@pr-submit[bot]](https://github.com/apps/pr-submit).
