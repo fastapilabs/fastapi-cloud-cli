@@ -21,6 +21,10 @@ from fastapi_cloud_cli.utils.build_logs import print_build_error
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
 from fastapi_cloud_cli.utils.execution import is_ci_enabled
 
+# The build finished but we couldn't confirm the deployment came up. Distinct
+# from 1 so scripts can tell "still verifying" from "failed".
+UNCONFIRMED_EXIT_CODE = 3
+
 # (bullet emoji, message) — the emoji replaces the progress animation
 WAITING_MESSAGES = [
     ("🚀", "Preparing for liftoff! Almost there..."),
@@ -55,6 +59,7 @@ def _verify_deployment(
     deployment: CreateDeploymentResponse,
 ) -> None:
     failed_status: str | None = None
+    unconfirmed = False
 
     with toolkit.progress(
         title="Verifying deployment...",
@@ -69,15 +74,18 @@ def _verify_deployment(
                 f"Could not confirm deployment status. "
                 f"Check the dashboard: [link={deployment.dashboard_url}]{deployment.dashboard_url}[/link]"
             )
-            return
-
-        if final_status in SUCCESSFUL_STATUSES:
-            progress.current_message = "Ready the chicken! 🐔"
+            unconfirmed = True
         else:
-            progress.metadata["done_emoji"] = "❌"
-            progress.current_message = "Deployment failed"
+            if final_status in SUCCESSFUL_STATUSES:
+                progress.current_message = "Ready the chicken! 🐔"
+            else:
+                progress.metadata["done_emoji"] = "❌"
+                progress.current_message = "Deployment failed"
 
-            failed_status = DeploymentStatus.to_human_readable(final_status)
+                failed_status = DeploymentStatus.to_human_readable(final_status)
+
+    if unconfirmed:
+        raise typer.Exit(UNCONFIRMED_EXIT_CODE)
 
     if failed_status is not None:
         toolkit.print_line()
