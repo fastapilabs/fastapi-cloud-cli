@@ -728,7 +728,12 @@ def test_overwrites_existing_workflow_when_confirmed(
         patch("fastapi_cloud_cli.commands.setup_ci._set_github_secret"),
         patch("rich_toolkit.container.getchar") as mock_getchar,
     ):
-        mock_getchar.side_effect = [Keys.ENTER, Keys.ENTER, Keys.ENTER]
+        mock_getchar.side_effect = [
+            Keys.ENTER,
+            Keys.ENTER,
+            Keys.RIGHT_ARROW,
+            Keys.ENTER,
+        ]
         result = runner.invoke(app, ["setup-ci"])
 
     assert result.exit_code == 0
@@ -768,7 +773,6 @@ def test_skips_writing_workflow_when_declined(
         mock_getchar.side_effect = [
             Keys.ENTER,
             Keys.ENTER,
-            Keys.RIGHT_ARROW,
             Keys.ENTER,
             Keys.ENTER,
         ]
@@ -811,7 +815,6 @@ def test_renames_workflow_when_declined_and_new_name_given(
         mock_getchar.side_effect = [
             Keys.ENTER,
             Keys.ENTER,
-            Keys.RIGHT_ARROW,
             Keys.ENTER,
             *"ci-deploy.yml",
             Keys.ENTER,
