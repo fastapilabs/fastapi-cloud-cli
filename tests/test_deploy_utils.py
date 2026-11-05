@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fastapi_cloud_cli.api import DeploymentStatus
+from fastapi_cloud_cli.api import Deployment, DeploymentStatus
 from fastapi_cloud_cli.commands.deploy.archive import (
     _get_large_files,
     _should_exclude_entry,
@@ -69,6 +69,8 @@ def test_includes_paths(path: Path) -> None:
     [
         (DeploymentStatus.waiting_upload, "Awaiting Upload"),
         (DeploymentStatus.ready_for_build, "Build Queued"),
+        (DeploymentStatus.build_skipped_filtered, "Build Skipped (Filtered)"),
+        (DeploymentStatus.build_skipped_superseded, "Build Skipped (Superseded)"),
         (DeploymentStatus.building, "Building"),
         (DeploymentStatus.extracting, "Extracting Upload"),
         (DeploymentStatus.extracting_failed, "Extraction Failed"),
@@ -87,6 +89,7 @@ def test_includes_paths(path: Path) -> None:
         (DeploymentStatus.degraded, "Degraded"),
         (DeploymentStatus.expired, "Expired"),
         (DeploymentStatus.failed, "Failed"),
+        (DeploymentStatus.unknown, "Unknown"),
     ],
 )
 def test_deployment_status_to_human_readable(
@@ -101,6 +104,20 @@ def test_every_deployment_status_has_human_readable(
     status: DeploymentStatus,
 ) -> None:
     assert DeploymentStatus.to_human_readable(status)
+
+
+def test_deployment_model_accepts_unknown_status() -> None:
+    deployment = Deployment.model_validate(
+        {
+            "id": "dep-1",
+            "app_id": "app-1",
+            "slug": "my-app",
+            "status": "some_new_status",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    )
+
+    assert deployment.status is DeploymentStatus.unknown
 
 
 @pytest.mark.parametrize(
