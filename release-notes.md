@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.27.0 (2026-11-05)
+
 ### Features
 
 * 🥅 Stop deploys that can't work and report unconfirmed ones correctly. PR [#363](https://github.com/fastapilabs/fastapi-cloud-cli/pull/363) by [@patrick91](https://github.com/patrick91).
