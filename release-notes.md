@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 🔧 Allow certifi in spellchecker. PR [#374](https://github.com/fastapilabs/fastapi-cloud-cli/pull/374) by [@patrick91](https://github.com/patrick91).
+
 ## 0.27.0 (2026-11-05)
 
 ### Features
