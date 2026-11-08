@@ -20,7 +20,7 @@ class CIWorkflowOutput(BaseModel):
 
 
 def _render_workflow_output(data: CIWorkflowOutput, toolkit: RichToolkit) -> None:
-    toolkit.console.print(data.content, markup=False, end="", soft_wrap=True)
+    toolkit.console.print(data.content, markup=False, end="")
 
 
 @ci_app.command("print-workflow")

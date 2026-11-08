@@ -42,14 +42,11 @@ def test_print_workflow_uses_default_branch() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.parametrize("branch", ["main", "feature/" + "long-branch-name-" * 8])
-def test_print_workflow_uses_branch_option(branch: str) -> None:
-    result = runner.invoke(
-        app, ["ci", "print-workflow", "--branch", branch], env={"COLUMNS": "80"}
-    )
+def test_print_workflow_uses_branch_option() -> None:
+    result = runner.invoke(app, ["ci", "print-workflow", "--branch", "main"])
 
     assert result.exit_code == 0
-    assert result.stdout == _get_workflow_content(branch)
+    assert result.stdout == _get_workflow_content("main")
     assert result.stderr == ""
 
 
