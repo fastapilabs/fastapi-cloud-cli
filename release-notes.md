@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.27.1 (2026-11-08)
+
 ### Fixes
 
 * 🐛 Preserve long lines in printed CI workflows. PR [#377](https://github.com/fastapilabs/fastapi-cloud-cli/pull/377) by [@tiangolo](https://github.com/tiangolo).
