@@ -4,6 +4,7 @@
 
 ### Fixes
 
+* 🐛 Preserve long lines in printed CI workflows. PR [#377](https://github.com/fastapilabs/fastapi-cloud-cli/pull/377) by [@tiangolo](https://github.com/tiangolo).
 * 🐛 Handle declined OAuth device authorization. PR [#375](https://github.com/fastapilabs/fastapi-cloud-cli/pull/375) by [@patrick91](https://github.com/patrick91).
 
 ### Upgrades
