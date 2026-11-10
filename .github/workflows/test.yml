@@ -25,7 +25,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: ["3.14"]
+        python-version: ["3.14", "3.15", "3.15t"]
         uv-resolution:
           - highest
         include:
@@ -74,6 +74,26 @@ jobs:
           limit-access-to-actor: true
       - name: Install Dependencies
         run: uv sync --all-extras --dev
+      - name: Verify free-threaded imports
+        if: endsWith(matrix.python-version, 't')
+        shell: bash
+        run: |
+          uv run --no-sync python - <<'PYTHON'
+          import importlib
+          import sys
+
+          assert not sys._is_gil_enabled()
+          modules = [
+              "fastapi_cloud_cli.cli", "rignore", "fastar", "pydantic_core",
+              "httptools", "watchfiles", "websockets.speedups", "yaml",
+              "coverage.tracer", "time_machine",
+          ]
+          if sys.platform != "win32":
+              modules.append("uvloop")
+          for module in modules:
+              importlib.import_module(module)
+              assert not sys._is_gil_enabled(), module
+          PYTHON
       - run: mkdir coverage
       - name: Test
         run: uv run --no-sync bash scripts/test.sh
