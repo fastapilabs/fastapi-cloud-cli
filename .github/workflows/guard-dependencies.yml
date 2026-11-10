@@ -1,7 +1,7 @@
 name: Guard Dependencies
 
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] -- This workflow only reads context.payload metadata, never checks out PR code
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- This workflow only reads PR metadata, never checks out PR code
     branches: [main]
     paths:
       - pyproject.toml
@@ -20,7 +20,12 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const pr = context.payload.pull_request;
+            // The event's author association can be stale.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
             const author = pr.user.login;
             const assoc = pr.author_association;
 
