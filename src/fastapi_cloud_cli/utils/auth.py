@@ -1,6 +1,3 @@
-import base64
-import binascii
-import json
 import logging
 import os
 import time
@@ -17,6 +14,8 @@ AuthMode = Literal["token", "user"]
 
 class AuthConfig(BaseModel):
     access_token: str
+    # Unix time when FastAPI Cloud expires the token. Older logins didn't save it.
+    expires_at: int | None = None
 
 
 def write_auth_config(auth_data: AuthConfig) -> None:
@@ -50,69 +49,11 @@ def read_auth_config() -> AuthConfig | None:
     return AuthConfig.model_validate_json(auth_path.read_text(encoding="utf-8"))
 
 
-def _get_auth_token() -> str | None:
-    logger.debug("Getting auth token")
-    auth_data = read_auth_config()
-
-    if auth_data is None:
-        logger.debug("No auth data found")
-        return None
-
-    logger.debug("Auth token retrieved successfully")
-    return auth_data.access_token
-
-
-def _is_jwt_expired(token: str) -> bool:
-    try:
-        parts = token.split(".")
-
-        if len(parts) != 3:
-            logger.debug("Invalid JWT format: expected 3 parts, got %d", len(parts))
-            return True
-
-        payload = parts[1]
-
-        # Add padding if needed (JWT uses base64url encoding without padding)
-        if padding := len(payload) % 4:
-            payload += "=" * (4 - padding)
-
-        payload = payload.replace("-", "+").replace("_", "/")
-        decoded_bytes = base64.b64decode(payload)
-        payload_data = json.loads(decoded_bytes)
-
-        exp = payload_data.get("exp")
-
-        if exp is None:
-            logger.debug("No 'exp' claim found in token")
-
-            return False
-
-        if not isinstance(exp, int):  # pragma: no cover
-            logger.debug("Invalid 'exp' claim: expected int, got %s", type(exp))
-
-            return True
-
-        current_time = time.time()
-
-        is_expired = current_time >= exp
-
-        logger.debug(
-            "Token expiration check: current=%d, exp=%d, expired=%s",
-            current_time,
-            exp,
-            is_expired,
-        )
-
-        return is_expired
-    except (binascii.Error, json.JSONDecodeError) as e:
-        logger.debug("Error parsing JWT token: %s", e)
-
-        return True
-
-
 class Identity:
     def __init__(self) -> None:
-        self._user_token = _get_auth_token()
+        auth_config = read_auth_config()
+        self._user_token = auth_config.access_token if auth_config else None
+        self._user_token_expires_at = auth_config.expires_at if auth_config else None
         self._deploy_token: str | None = os.environ.get("FASTAPI_CLOUD_TOKEN")
 
     @property
@@ -124,13 +65,14 @@ class Identity:
         return self._deploy_token
 
     def is_user_token_expired(self) -> bool:
-        if not self._user_token:
-            return True
+        # Without a saved expiry, only FastAPI Cloud can tell, with a 401.
+        if self._user_token_expires_at is None:
+            return False
 
-        return _is_jwt_expired(self._user_token)
+        return time.time() >= self._user_token_expires_at
 
     def is_logged_in(self) -> bool:
-        if self._user_token is None:
+        if not self._user_token:
             logger.debug("Login status: False (no token)")
             return False
 
@@ -138,6 +80,7 @@ class Identity:
             logger.debug("Login status: False (token expired)")
             return False
 
+        # A revoked token still gets a 401, which deletes the stored token.
         logger.debug("Login status: True")
         return True
 

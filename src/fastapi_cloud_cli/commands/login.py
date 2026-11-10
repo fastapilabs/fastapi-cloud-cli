@@ -103,16 +103,6 @@ def login(
         toolkit.print_title("Login to FastAPI Cloud", tag="FastAPI Cloud", emoji="🔐")
         toolkit.print_line()
 
-        if identity.is_logged_in():
-            toolkit.print("You are already logged in.")
-            toolkit.print_line()
-            toolkit.print(
-                "Run [bold]fastapi cloud logout[/bold] first if you want to switch accounts.",
-                emoji="💡",
-            )
-
-            return
-
         if identity.has_deploy_token():
             toolkit.print(
                 "You have [bold blue]FASTAPI_CLOUD_TOKEN[/] environment variable set.\n"

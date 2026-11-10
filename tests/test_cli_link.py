@@ -29,6 +29,22 @@ def test_link_json_requires_app_id(logged_in_cli: None) -> None:
     assert result.stderr == ""
 
 
+def test_link_json_returns_session_expired(
+    logged_in_with_expired_token: None,
+) -> None:
+    result = runner.invoke(app, ["link", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "Your session has expired.",
+            "hint": "Run `fastapi cloud login`.",
+        }
+    }
+    assert result.stderr == ""
+
+
 def test_link_json_returns_not_logged_in_when_logged_out(logged_out_cli: None) -> None:
     result = runner.invoke(app, ["link", "--json"])
 

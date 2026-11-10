@@ -97,6 +97,9 @@ else:
         BACKSPACE = "\x7f"
 
 
+USER_TOKEN = "test_user_token"
+
+
 def create_jwt_token(payload: dict[str, Any]) -> str:
     # Note: This creates a JWT with an invalid signature, but that's OK for our tests
     # since we only parse the payload, not verify the signature.

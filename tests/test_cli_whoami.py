@@ -4,14 +4,17 @@ from pathlib import Path
 import pytest
 import respx
 from httpx import ReadTimeout, Response
+from inline_snapshot import snapshot
 from typer.testing import CliRunner
 
 from fastapi_cloud_cli.cli import app as root_app
 from fastapi_cloud_cli.cli import cloud_app as app
 from fastapi_cloud_cli.commands.whoami import WhoAmIOutput
 from fastapi_cloud_cli.utils.cli import FastAPIRichToolkit
+from tests.utils import USER_TOKEN, SnapshotCliRunner
 
 runner = CliRunner()
+snapshot_runner = SnapshotCliRunner()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -41,6 +44,27 @@ def test_shows_a_message_when_token_is_invalid(
 
     assert result.exit_code == 1
     assert "The specified token is not valid" in result.output
+
+
+@pytest.mark.respx
+def test_revoked_token_asks_to_log_in_again(
+    logged_in_cli: None,
+    temp_auth_config: Path,
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {USER_TOKEN}"},
+    ).mock(return_value=Response(401))
+
+    result = snapshot_runner.invoke(app, ["whoami"])
+
+    assert result.exit_code == 1
+    assert result.output == snapshot("""\
+✗ The specified token is not valid. Run `fastapi cloud login` to generate a
+  new token.\
+""")
+    assert not temp_auth_config.exists()
 
 
 @pytest.mark.respx
@@ -174,7 +198,7 @@ def test_prints_json_error_when_token_is_invalid(
             "code": "invalid_token",
             "message": (
                 "The specified token is not valid. "
-                "Use `fastapi login` to generate a new token."
+                "Run `fastapi cloud login` to generate a new token."
             ),
             "hint": "Run `fastapi cloud login` to generate a new token.",
         }
@@ -259,6 +283,21 @@ def test_prints_not_logged_in(logged_out_cli: None) -> None:
     assert result.exit_code == 1
     assert "No credentials found." in result.output
     assert "Run `fastapi cloud login`." in result.output
+
+
+@pytest.mark.respx
+def test_prints_session_expired(
+    logged_in_with_expired_token: None, respx_mock: respx.MockRouter
+) -> None:
+    result = snapshot_runner.invoke(app, ["whoami"])
+
+    assert result.exit_code == 1
+    assert result.output == snapshot("""\
+✗ error: Your session has expired.
+
+  hint: Run `fastapi cloud login`.\
+""")
+    assert not respx_mock.calls
 
 
 def test_prints_not_logged_in_with_deploy_token(logged_out_cli: None) -> None:

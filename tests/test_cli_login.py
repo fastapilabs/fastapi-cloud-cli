@@ -1,10 +1,12 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import httpx
 import pytest
 import respx
+import time_machine
 from httpx import Response
 from inline_snapshot import snapshot
 from typer.testing import CliRunner
@@ -14,6 +16,7 @@ from fastapi_cloud_cli.config import Settings
 from tests.utils import SnapshotCliRunner
 
 runner = CliRunner()
+snapshot_runner = SnapshotCliRunner()
 
 assets_path = Path(__file__).parent / "assets"
 
@@ -24,7 +27,8 @@ def test_shows_a_message_if_something_is_wrong(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(return_value=Response(500))
 
         result = runner.invoke(app, ["login"])
@@ -44,7 +48,8 @@ def test_full_login(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -79,8 +84,59 @@ def test_full_login(
         assert "Now you are logged in!" in result.output
 
         # Verify auth file was created with correct content
-        assert temp_auth_config.exists()
-        assert '"access_token":"test_token_1234"' in temp_auth_config.read_text()
+        assert json.loads(temp_auth_config.read_text()) == {
+            "access_token": "test_token_1234",
+            "expires_at": None,
+        }
+
+
+@pytest.mark.respx
+@time_machine.travel(datetime(2026, 11, 2, 12, tzinfo=timezone.utc), tick=False)
+def test_login_saves_token_expiry(
+    respx_mock: respx.MockRouter, temp_auth_config: Path, settings: Settings
+) -> None:
+    respx_mock.post(
+        "/login/device/authorization",
+        data={"client_id": settings.client_id},
+    ).mock(
+        return_value=Response(
+            200,
+            json={
+                "verification_uri_complete": "http://test.com/device?code=query-code",
+                "verification_uri": "http://test.com",
+                "user_code": "manual-code",
+                "device_code": "5678",
+            },
+        )
+    )
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).mock(
+        return_value=Response(
+            200,
+            json={
+                "access_token": "test_token_1234",
+                "token_type": "bearer",
+                "expires_in": 691190,
+            },
+        )
+    )
+
+    with patch("fastapi_cloud_cli.commands.login.typer.launch"):
+        result = runner.invoke(app, ["login"])
+
+    assert result.exit_code == 0
+
+    expires_at = datetime(2026, 11, 10, 11, 59, 50, tzinfo=timezone.utc)
+    assert json.loads(temp_auth_config.read_text()) == {
+        "access_token": "test_token_1234",
+        "expires_at": int(expires_at.timestamp()),
+    }
 
 
 @pytest.mark.respx
@@ -89,7 +145,8 @@ def test_cloud_auth_login_alias_uses_interactive_login(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -129,7 +186,8 @@ def test_cloud_login_json_returns_authorization_data(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -166,7 +224,8 @@ def test_top_level_login_json_returns_authorization_data(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -210,7 +269,8 @@ def test_auth_login_as_json_returns_authorization_data(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -292,7 +352,8 @@ def test_full_login_with_no_open_shows_manual_authorization_details(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -561,7 +622,8 @@ def test_full_login_with_deploy_token_set(
 ) -> None:
     with patch("fastapi_cloud_cli.commands.login.typer.launch") as mock_open:
         respx_mock.post(
-            "/login/device/authorization", data={"client_id": settings.client_id}
+            "/login/device/authorization",
+            data={"client_id": settings.client_id},
         ).mock(
             return_value=Response(
                 200,
@@ -623,9 +685,9 @@ def test_fetch_access_token_success_immediately(
     ).mock(return_value=Response(200, json={"access_token": "test_token_success"}))
 
     with APIClient() as client:
-        access_token = fetch_access_token(client, "test_device_code", 5)
+        token = fetch_access_token(client, "test_device_code", 5)
 
-    assert access_token == "test_token_success"
+    assert token.access_token == "test_token_success"
 
 
 @pytest.mark.respx
@@ -653,9 +715,9 @@ def test_fetch_access_token_authorization_pending_then_success(
 
     with patch("fastapi_cloud_cli.commands._flow.time.sleep") as mock_sleep:
         with APIClient() as client:
-            access_token = fetch_access_token(client, "test_device_code", 3)
+            token = fetch_access_token(client, "test_device_code", 3)
 
-        assert access_token == "test_token_after_pending"
+        assert token.access_token == "test_token_after_pending"
         mock_sleep.assert_called_once_with(3)
 
 
@@ -703,14 +765,48 @@ def test_fetch_access_token_handles_500_error(
 
 
 @pytest.mark.respx
-def test_notify_already_logged_in_user(
-    respx_mock: respx.MockRouter, logged_in_cli: None
+def test_login_replaces_stored_token(
+    respx_mock: respx.MockRouter,
+    logged_in_cli: None,
+    temp_auth_config: Path,
+    settings: Settings,
 ) -> None:
-    result = runner.invoke(app, ["login"])
+    respx_mock.post(
+        "/login/device/authorization",
+        data={"client_id": settings.client_id},
+    ).mock(
+        return_value=Response(
+            200,
+            json={
+                "verification_uri_complete": "http://test.com/device?code=query-code",
+                "verification_uri": "http://test.com",
+                "user_code": "manual-code",
+                "device_code": "5678",
+            },
+        )
+    )
+    respx_mock.post(
+        "/login/device/token",
+        data={
+            "device_code": "5678",
+            "client_id": settings.client_id,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        },
+    ).mock(return_value=Response(200, json={"access_token": "new_token"}))
+
+    result = snapshot_runner.invoke(app, ["login", "--no-open"])
 
     assert result.exit_code == 0
-    assert "You are already logged in." in result.output
-    assert (
-        "Run fastapi cloud logout first if you want to switch accounts."
-        in result.output
-    )
+    assert result.output == snapshot("""\
+FastAPI Cloud
+
+🔐 Login to FastAPI Cloud
+
+   Open http://test.com/device?code=query-code
+
+   Now you are logged in! 🚀\
+""")
+    assert json.loads(temp_auth_config.read_text()) == {
+        "access_token": "new_token",
+        "expires_at": None,
+    }

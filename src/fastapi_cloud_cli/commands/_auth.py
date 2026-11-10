@@ -30,7 +30,9 @@ class UserCommand(TyperCommand):
             if not identity.is_logged_in():
                 toolkit.fail(
                     "not_logged_in",
-                    "No credentials found.",
+                    "Your session has expired."
+                    if identity.is_user_token_expired()
+                    else "No credentials found.",
                     hint="Run `fastapi cloud login`.",
                 )
 
