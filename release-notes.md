@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆️ Add support for Python 3.15 and 3.15t. PR [#379](https://github.com/fastapilabs/fastapi-cloud-cli/pull/379) by [@tiangolo](https://github.com/tiangolo).
+
 ## 0.27.1 (2026-11-08)
 
 ### Fixes
