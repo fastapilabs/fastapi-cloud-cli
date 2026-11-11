@@ -27,7 +27,7 @@ def _handle_unauthorized(auth_mode: AuthMode) -> str:
     if auth_mode == "user":
         delete_auth_config()
 
-        message += "Use `fastapi login` to generate a new token."
+        message += "Run `fastapi cloud login` to generate a new token."
     else:
         message += "Make sure to use a valid token."
 

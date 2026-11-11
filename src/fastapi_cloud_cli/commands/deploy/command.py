@@ -217,7 +217,9 @@ def deploy(
             if json_output:
                 toolkit.fail(
                     "not_logged_in",
-                    "No credentials found.",
+                    "Your session has expired."
+                    if identity.is_user_token_expired()
+                    else "No credentials found.",
                     hint="Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
                 )
 
@@ -229,7 +231,7 @@ def deploy(
             )
             toolkit.print_line()
 
-            if identity.user_token and identity.is_user_token_expired():
+            if identity.is_user_token_expired():
                 toolkit.print("Your session has expired. Please log in again.")
             else:
                 toolkit.print("You need to be logged in to deploy to FastAPI Cloud.")

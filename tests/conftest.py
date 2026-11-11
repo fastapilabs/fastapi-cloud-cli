@@ -11,7 +11,7 @@ from typer import rich_utils
 
 from fastapi_cloud_cli.config import Settings
 
-from .utils import create_jwt_token
+from .utils import USER_TOKEN
 
 
 @pytest.fixture(autouse=True)
@@ -67,9 +67,14 @@ def respx_mock(settings: Settings) -> Generator[respx.MockRouter, None, None]:
 
 @pytest.fixture
 def logged_in_cli(temp_auth_config: Path) -> Generator[None, None, None]:
-    valid_token = create_jwt_token({"sub": "test_user_12345"})
+    temp_auth_config.write_text(f'{{"access_token": "{USER_TOKEN}"}}')
 
-    temp_auth_config.write_text(f'{{"access_token": "{valid_token}"}}')
+    yield
+
+
+@pytest.fixture
+def logged_in_with_expired_token(temp_auth_config: Path) -> Generator[None, None, None]:
+    temp_auth_config.write_text(f'{{"access_token": "{USER_TOKEN}", "expires_at": 0}}')
 
     yield
 

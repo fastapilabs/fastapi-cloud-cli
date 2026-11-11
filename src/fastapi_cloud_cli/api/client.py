@@ -211,6 +211,14 @@ class APIClient(httpx.Client):
 
         return CustomDomain.model_validate(response.json())
 
+    def logout(self) -> None:
+        """Revoke the token this client sends."""
+        # Short, so logging out doesn't hang when FastAPI Cloud is slow.
+        response = self.post("/logout", timeout=5)
+        # FastAPI Cloud without /logout can't revoke tokens, so there's nothing to do.
+        if response.status_code != 404:
+            response.raise_for_status()
+
     @attempts(STREAM_LOGS_MAX_RETRIES, STREAM_LOGS_TIMEOUT)
     def stream_build_logs(
         self, deployment_id: str, *, follow: bool = True

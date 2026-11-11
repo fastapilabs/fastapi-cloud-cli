@@ -26,6 +26,7 @@ class AuthorizationData(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    expires_in: int | None = None
 
 
 class LoginOutput(BaseModel):
@@ -85,7 +86,7 @@ def fetch_access_token(
     device_code: str,
     interval: int,
     timeout: int = DEFAULT_LOGIN_TIMEOUT_SECONDS,
-) -> str:
+) -> TokenResponse:
     settings = Settings.get()
     start = time.monotonic()
 
@@ -130,7 +131,7 @@ def fetch_access_token(
     response_data = TokenResponse.model_validate_json(response.text)
     logger.debug("Access token received successfully.")
 
-    return response_data.access_token
+    return response_data
 
 
 def complete_device_login(
@@ -145,7 +146,7 @@ def complete_device_login(
 ) -> LoginOutput:
     try:
         with client.handle_http_errors(progress, toolkit=toolkit):
-            access_token = fetch_access_token(client, device_code, interval, timeout)
+            token = fetch_access_token(client, device_code, interval, timeout)
     except LoginDeniedError:
         toolkit.fail(
             "permission_denied",
@@ -167,6 +168,12 @@ def complete_device_login(
             hint=cancel_hint,
         )
 
-    write_auth_config(AuthConfig(access_token=access_token))
+    expires_at = None
+    if token.expires_in is not None:
+        expires_at = int(time.time()) + token.expires_in
+
+    write_auth_config(
+        AuthConfig(access_token=token.access_token, expires_at=expires_at)
+    )
 
     return LoginOutput(authenticated=True, auth_mode="user")

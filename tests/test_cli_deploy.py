@@ -29,11 +29,11 @@ from fastapi_cloud_cli.config import Settings
 from fastapi_cloud_cli.utils.cli import get_rich_toolkit
 from tests.conftest import ConfiguredApp
 from tests.utils import (
+    USER_TOKEN,
     Keys,
     SnapshotCliRunner,
     build_logs_response,
     changing_dir,
-    create_jwt_token,
 )
 
 runner = CliRunner()
@@ -113,7 +113,8 @@ def test_starts_login_when_not_logged_in(
     settings: Settings,
 ) -> None:
     respx_mock.post(
-        "/login/device/authorization", data={"client_id": settings.client_id}
+        "/login/device/authorization",
+        data={"client_id": settings.client_id},
     ).mock(
         return_value=Response(
             200,
@@ -177,8 +178,7 @@ def test_cancels_deploy_when_user_declines_login(
 def test_shows_login_prompt_when_token_is_expired(
     temp_auth_config: Path, tmp_path: Path
 ) -> None:
-    expired_token = create_jwt_token({"sub": "test_user", "exp": 0})
-    temp_auth_config.write_text(f'{{"access_token": "{expired_token}"}}')
+    temp_auth_config.write_text(f'{{"access_token": "{USER_TOKEN}", "expires_at": 0}}')
 
     with (
         changing_dir(tmp_path),
@@ -273,6 +273,22 @@ def test_deploy_json_returns_missing_required_input_without_app_context(
             "code": "missing_required_input",
             "message": "App ID is required.",
             "hint": "Pass --app-id or run `fastapi cloud apps create --link` first.",
+        }
+    }
+
+
+def test_deploy_json_returns_session_expired(
+    logged_in_with_expired_token: None, tmp_path: Path
+) -> None:
+    with changing_dir(tmp_path):
+        result = runner.invoke(app, ["deploy", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout) == {
+        "error": {
+            "code": "not_logged_in",
+            "message": "Your session has expired.",
+            "hint": "Run `fastapi cloud login` or set FASTAPI_CLOUD_TOKEN.",
         }
     }
 
