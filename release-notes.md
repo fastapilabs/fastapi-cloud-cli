@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Features
+
+* ✨ Revoke logins on logout and stop reading tokens locally. PR [#381](https://github.com/fastapilabs/fastapi-cloud-cli/pull/381) by [@patrick91](https://github.com/patrick91).
+
 ### Upgrades
 
 * ⬆️ Add support for Python 3.15 and 3.15t. PR [#379](https://github.com/fastapilabs/fastapi-cloud-cli/pull/379) by [@tiangolo](https://github.com/tiangolo).
