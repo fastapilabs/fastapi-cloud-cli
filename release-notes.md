@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.28.0 (2026-11-11)
+
 ### Features
 
 * ✨ Revoke logins on logout and stop reading tokens locally. PR [#381](https://github.com/fastapilabs/fastapi-cloud-cli/pull/381) by [@patrick91](https://github.com/patrick91).
