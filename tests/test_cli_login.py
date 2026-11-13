@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -91,7 +91,7 @@ def test_full_login(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 11, 2, 12, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 11, 2, 12, tzinfo=UTC), tick=False)
 def test_login_saves_token_expiry(
     respx_mock: respx.MockRouter, temp_auth_config: Path, settings: Settings
 ) -> None:
@@ -132,7 +132,7 @@ def test_login_saves_token_expiry(
 
     assert result.exit_code == 0
 
-    expires_at = datetime(2026, 11, 10, 11, 59, 50, tzinfo=timezone.utc)
+    expires_at = datetime(2026, 11, 10, 11, 59, 50, tzinfo=UTC)
     assert json.loads(temp_auth_config.read_text()) == {
         "access_token": "test_token_1234",
         "expires_at": int(expires_at.timestamp()),

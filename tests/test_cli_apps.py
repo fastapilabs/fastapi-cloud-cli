@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -944,7 +944,7 @@ def test_get_app_dashboard_url_uses_settings_team_and_app_slugs() -> None:
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 def test_lists_apps_in_human_output(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,

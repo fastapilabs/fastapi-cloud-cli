@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
@@ -50,7 +50,7 @@ BuildLogAdapter: TypeAdapter[BuildLogLine] = TypeAdapter(
 )
 
 
-class CustomDomainStatus(str, Enum):
+class CustomDomainStatus(StrEnum):
     internal_dcv_pending = "internal_dcv_pending"
     internal_dcv_missing = "internal_dcv_missing"
     internal_dcv_invalid = "internal_dcv_invalid"
@@ -96,7 +96,7 @@ class CustomDomainsAPIResponse(BaseModel):
     count: int
 
 
-class DeploymentStatus(str, Enum):
+class DeploymentStatus(StrEnum):
     waiting_upload = "waiting_upload"
     upload_cancelled = "upload_cancelled"
     ready_for_build = "ready_for_build"
