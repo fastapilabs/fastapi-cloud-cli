@@ -4,10 +4,9 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
-from typing import TypeVar
+from typing import ParamSpec, TypeVar
 
 import httpx
-from typing_extensions import ParamSpec
 
 from ._errors import StreamLogError, TooManyRetriesError
 

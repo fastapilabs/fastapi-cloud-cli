@@ -3,7 +3,7 @@ import json
 import subprocess
 import sys
 from collections.abc import Callable, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from inspect import signature
 from types import FunctionType
 from typing import Any
@@ -447,7 +447,7 @@ def test_toolkit_json_mode_suppresses_update_message(
     write_latest_version_cache(
         get_version_check_cache_path(),
         latest_version="999.0.0",
-        now=datetime.now(timezone.utc),
+        now=datetime.now(UTC),
     )
 
     @test_app.command()
@@ -545,7 +545,7 @@ def test_embedded_fastapi_cli_prints_forced_update_message(
     write_latest_version_cache(
         get_version_check_cache_path(),
         latest_version="999.0.0",
-        now=datetime.now(timezone.utc),
+        now=datetime.now(UTC),
     )
 
     result = runner.invoke(

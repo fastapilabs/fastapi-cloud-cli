@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -216,7 +216,7 @@ def test_gets_resource_json_requires_app_without_linked_app(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=UTC), tick=False)
 def test_gets_database_resource_in_human_output(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -248,7 +248,7 @@ connected resource
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 9, 1, 10, tzinfo=UTC), tick=False)
 def test_gets_logfire_resource_in_human_output_without_environment_variables(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,

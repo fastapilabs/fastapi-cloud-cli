@@ -2,7 +2,7 @@ import logging
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePath
 from typing import Annotated, Any
 
@@ -418,7 +418,7 @@ def setup_ci(
 
         if should_create_token:
             # Create unique token name with timestamp to avoid duplicates
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
             token_name = f"GitHub Actions — {repo_slug} ({timestamp})"
 
             with (

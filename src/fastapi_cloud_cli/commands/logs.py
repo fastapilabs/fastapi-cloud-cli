@@ -84,7 +84,7 @@ def _get_log_bullet(log: AppLogEntry) -> str:
 def _format_log_line(log: AppLogEntry) -> str:
     """Format a log entry for display"""
     # Parse the timestamp string to format it consistently
-    timestamp = datetime.fromisoformat(log.timestamp.replace("Z", "+00:00"))
+    timestamp = datetime.fromisoformat(log.timestamp)
     timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
     return f"[dim]{timestamp_str}[/dim] {escape(log.message)}"

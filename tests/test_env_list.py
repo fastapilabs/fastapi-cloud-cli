@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -186,7 +186,7 @@ def test_lists_environment_variables_as_json_with_path(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 def test_shows_environment_variables_in_compact_table(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -225,7 +225,7 @@ SENTRY_ENVIRONMENT  production                2 months ago\
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 def test_truncates_values_and_marks_secrets_in_compact_table(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:
@@ -266,7 +266,7 @@ SECRET_KEY  [secret]                                  1 month ago\
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 8, 13, 12, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 8, 13, 12, tzinfo=UTC), tick=False)
 def test_shows_secret_environment_variables_without_value(
     logged_in_cli: None, respx_mock: respx.MockRouter, configured_app: ConfiguredApp
 ) -> None:

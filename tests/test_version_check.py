@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -56,7 +56,7 @@ def test_check_for_update_returns_update_when_pypi_has_newer_version(
 
 @respx.mock
 @time_machine.travel(
-    datetime(2026, 5, 20, 12, 5, tzinfo=timezone.utc),
+    datetime(2026, 5, 20, 12, 5, tzinfo=UTC),
     tick=False,
 )
 def test_check_for_update_uses_fresh_cache_without_network(
@@ -80,7 +80,7 @@ def test_check_for_update_uses_fresh_cache_without_network(
 
 @respx.mock
 @time_machine.travel(
-    datetime(2026, 5, 20, 12, 5, tzinfo=timezone.utc),
+    datetime(2026, 5, 20, 12, 5, tzinfo=UTC),
     tick=False,
 )
 def test_check_for_update_refreshes_stale_cache(
@@ -144,7 +144,7 @@ def test_check_for_update_ignores_invalid_payload(current_version: None) -> None
 
 
 @time_machine.travel(
-    datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc),
+    datetime(2026, 5, 20, 12, 0, tzinfo=UTC),
     tick=False,
 )
 def test_read_cached_latest_version_ignores_stale_cache(
@@ -207,7 +207,7 @@ def test_write_latest_version_cache(tmp_path: Path) -> None:
     write_latest_version_cache(
         cache_path,
         latest_version="0.18.0",
-        now=datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 5, 20, 12, 0, tzinfo=UTC),
     )
 
     assert json.loads(cache_path.read_text(encoding="utf-8")) == {
@@ -223,7 +223,7 @@ def test_write_latest_version_cache_ignores_write_errors(tmp_path: Path) -> None
     write_latest_version_cache(
         blocking_path / "version-check.json",
         latest_version="0.18.0",
-        now=datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 5, 20, 12, 0, tzinfo=UTC),
     )
 
     assert blocking_path.is_file()
@@ -288,7 +288,7 @@ def _seed_fresh_update_cache(latest_version: str = "999.0.0") -> None:
     write_latest_version_cache(
         get_version_check_cache_path(),
         latest_version=latest_version,
-        now=datetime.now(timezone.utc),
+        now=datetime.now(UTC),
     )
 
 

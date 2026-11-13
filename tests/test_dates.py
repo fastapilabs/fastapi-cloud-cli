@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import time_machine
@@ -6,7 +6,7 @@ import time_machine
 from fastapi_cloud_cli.utils.dates import format_last_updated
 
 
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 @pytest.mark.parametrize(
     ("updated_at", "expected"),
     [
