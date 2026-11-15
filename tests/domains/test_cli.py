@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
@@ -90,7 +90,7 @@ def test_domains_list_requires_app_context(logged_in_cli: None) -> None:
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=UTC), tick=False)
 def test_domains_list_uses_linked_app_and_renders_rows(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -341,7 +341,7 @@ def test_domains_get_resolves_normalized_hostname_or_id_as_json(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=UTC), tick=False)
 def test_domains_get_prompts_with_selector_and_renders_details(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -480,7 +480,7 @@ def test_domains_get_gates_zero_downtime_records_by_phase(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 9, 1, 10, 1, tzinfo=UTC), tick=False)
 def test_domains_get_shows_url_and_no_action_when_live(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,

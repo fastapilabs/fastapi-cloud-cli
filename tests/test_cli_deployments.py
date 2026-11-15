@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
@@ -119,7 +119,7 @@ def test_lists_deployments_as_json_uses_linked_app(
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 def test_lists_deployments_human_output_shows_id_status_and_created(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
@@ -325,7 +325,7 @@ def test_gets_deployment_json_returns_missing_required_input_without_app_context
 
 
 @pytest.mark.respx
-@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc), tick=False)
+@time_machine.travel(datetime(2026, 5, 22, 12, 0, tzinfo=UTC), tick=False)
 def test_gets_deployment_in_human_output(
     logged_in_cli: None,
     respx_mock: respx.MockRouter,
