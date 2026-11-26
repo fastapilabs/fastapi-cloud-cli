@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Internal
+
+* 🔒️ Generate GH actions workflow lockfile and bump Zizmor. PR [#386](https://github.com/fastapilabs/fastapi-cloud-cli/pull/386) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.28.1 (2026-11-26)
 
 ### Breaking Changes
