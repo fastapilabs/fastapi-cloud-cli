@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Breaking Changes
+
+* 💥 Drop Python 3.10 support. PR [#383](https://github.com/fastapilabs/fastapi-cloud-cli/pull/383) by [@tiangolo](https://github.com/tiangolo).
+
 ### Internal
 
 * 👷 Limit the full test matrix to Python 3.15. PR [#384](https://github.com/fastapilabs/fastapi-cloud-cli/pull/384) by [@tiangolo](https://github.com/tiangolo).
