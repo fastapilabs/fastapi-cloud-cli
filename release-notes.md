@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.28.1 (2026-11-26)
+
 ### Breaking Changes
 
 * 💥 Drop Python 3.10 support. PR [#383](https://github.com/fastapilabs/fastapi-cloud-cli/pull/383) by [@tiangolo](https://github.com/tiangolo).
