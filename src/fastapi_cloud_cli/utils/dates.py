@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def format_last_updated(updated_at: str | None) -> str:
@@ -6,14 +6,14 @@ def format_last_updated(updated_at: str | None) -> str:
         return "-"
 
     try:
-        updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        updated = datetime.fromisoformat(updated_at)
     except ValueError:
         return updated_at
 
     if updated.tzinfo is None:
-        updated = updated.replace(tzinfo=timezone.utc)
+        updated = updated.replace(tzinfo=UTC)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seconds = int((now - updated).total_seconds())
 
     if seconds < 60:

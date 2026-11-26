@@ -4,7 +4,7 @@ import re
 import threading
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -68,7 +68,7 @@ def read_cached_latest_version(
     *,
     ttl: timedelta = VERSION_CHECK_CACHE_TTL,
 ) -> str | None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     try:
         cache = VersionCheckCache.model_validate_json(
@@ -93,7 +93,7 @@ def write_latest_version_cache(
     latest_version: str,
     now: datetime | None = None,
 ) -> None:
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     data = {
         "latest_version": latest_version,
         "checked_at": now.isoformat(),

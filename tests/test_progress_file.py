@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock, call
 
 import time_machine
@@ -38,9 +38,7 @@ def test_callback_called_after_interval_elapses() -> None:
     file = _make_file(b"abcdef")
     mock_callback = Mock()
 
-    with time_machine.travel(
-        datetime(2026, 1, 1, tzinfo=timezone.utc), tick=False
-    ) as traveller:
+    with time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False) as traveller:
         pf = ProgressFile(file, progress_callback=mock_callback)
 
         pf.read(3)
@@ -54,9 +52,7 @@ def test_callback_tracks_cumulative_bytes() -> None:
     file = _make_file(b"a" * 100)
     mock_callback = Mock()
 
-    with time_machine.travel(
-        datetime(2026, 1, 1, tzinfo=timezone.utc), tick=False
-    ) as traveller:
+    with time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False) as traveller:
         pf = ProgressFile(file, progress_callback=mock_callback)
 
         pf.read(10)  # Should trigger callback with 10 bytes read
